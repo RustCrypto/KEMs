@@ -23,7 +23,7 @@
 //!
 //! [RFC 9180]: https://www.rfc-editor.org/info/rfc9180
 
-#![no_std]
+//#![no_std]
 #![warn(clippy::pedantic)] // Be pedantic by default
 #![allow(non_snake_case)] // Allow notation matching the spec
 #![allow(clippy::similar_names)] // Allow dk_pke/ek_pke

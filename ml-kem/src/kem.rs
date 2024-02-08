@@ -5,7 +5,7 @@ use typenum::U32;
 use crate::crypto::{rand, G, H, J};
 use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
 use crate::pke::{DecryptionKey, EncryptionKey};
-use crate::util::{FastClone, B32};
+use crate::util::{FastClone, FunctionalArray, B32};
 use crate::{Encoded, EncodedSizeUser};
 
 /// A shared key resulting from an ML-KEM transaction
@@ -53,6 +53,13 @@ where
     }
 }
 
+// 0xff if x == y, 0x00 otherwise
+fn constant_time_eq(x: u8, y: u8) -> u8 {
+    let diff = x ^ y;
+    let is_zero = !diff & diff.wrapping_sub(1);
+    0u8.wrapping_sub(is_zero >> 7)
+}
+
 impl<P> crate::DecapsulationKey<SharedKey, EncodedCiphertext<P>> for DecapsulationKey<P>
 where
     P: KemParams,
@@ -63,12 +70,17 @@ where
         let Kbar = J(&[self.z.as_slice(), ct.as_ref()]);
         let cp = self.ek.ek_pke.encrypt(&mp, &rp);
 
-        // TODO(RLB) Replace with constant-time select
-        if cp == *ct {
-            Kp
-        } else {
-            Kbar
-        }
+        // Constant-time version of:
+        //
+        // if cp == *ct {
+        //     Kp
+        // } else {
+        //     Kbar
+        // }
+        let equal = cp
+            .zip(ct, |&x, &y| constant_time_eq(x, y))
+            .fold(|x, y| x & y);
+        Kp.zip(&Kbar, |x, y| (equal & x) | (!equal & y))
     }
 }
 
