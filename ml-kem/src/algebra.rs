@@ -24,7 +24,6 @@ impl FieldElement {
     const BARRETT_MULTIPLIER: u64 = (1 << Self::BARRETT_SHIFT) / Self::Q64;
 
     // A fast modular reduction for small numbers `x < 2*q`
-    // TODO(RLB) Replace with constant-time version (~3-5% performance hit)
     fn small_reduce(x: u16) -> u16 {
         if x < Self::Q {
             x
@@ -123,39 +122,6 @@ impl Mul<&Polynomial> for FieldElement {
 }
 
 impl Polynomial {
-    // A lookup table for CBD sampling:
-    //
-    //   ONES[i][j] = i.count_ones() - j.count_ones() mod Q
-    //
-    // fn main() {
-    //     let q = 3329;
-    //     let ones: [[u32; 8]; 8] = array::from_fn(|i| {
-    //         array::from_fn(|j| {
-    //             let x = i.count_ones();
-    //             let y = j.count_ones();
-    //             if y <= x {
-    //                 x - y
-    //             } else {
-    //                 x + q - y
-    //             }
-    //         })
-    //     });
-    //     println!("ones = {:?}", ones);
-    // }
-    //
-    // XXX(RLB): Empirically, this is not much faster than just doing the calculation inline.  But
-    // it avoids having any branching, and pre-computing seems aesthetically nice.
-    const ONES: [[u16; 8]; 8] = [
-        [0, 3328, 3328, 3327, 3328, 3327, 3327, 3326],
-        [1, 0, 0, 3328, 0, 3328, 3328, 3327],
-        [1, 0, 0, 3328, 0, 3328, 3328, 3327],
-        [2, 1, 1, 0, 1, 0, 0, 3328],
-        [1, 0, 0, 3328, 0, 3328, 3328, 3327],
-        [2, 1, 1, 0, 1, 0, 0, 3328],
-        [2, 1, 1, 0, 1, 0, 0, 3328],
-        [3, 2, 2, 1, 2, 1, 1, 0],
-    ];
-
     // Algorithm 7. SamplePolyCBD_eta(B)
     //
     // To avoid all the bitwise manipulation in the algorithm as written, we reuse the logic in
@@ -166,12 +132,7 @@ impl Polynomial {
         Eta: CbdSamplingSize,
     {
         let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
-        Self(vals.0.map(|val| {
-            // TODO Flatten ONES table to avoid the need for these operations
-            let x = val.0 & ((1 << Eta::USIZE) - 1);
-            let y = val.0 >> Eta::USIZE;
-            FieldElement(Self::ONES[x as usize][y as usize])
-        }))
+        Self(vals.0.map(|val| Eta::ONES[val.0 as usize]))
     }
 }
 
@@ -286,298 +247,55 @@ impl NttPolynomial {
 // * ZETA_POW_BITREV[i] = zeta^{BitRev_7(i)}
 // * GAMMA[i] = zeta^{2 BitRev_7(i) + 1}
 //
-// The below code was used to generate these tables:
-//
-// fn bit_reverse(mut x: usize) -> usize {
-//     let mut out = 0;
-//     for _i in 0..7 {
-//         out = (out << 1) + (x % 2);
-//         x = x >> 1;
-//     }
-//     out
-// }
-//
-// fn generate_zeta_gamma() {
-//     const ZETA: FieldElement = FieldElement(17);
-//
-//     let mut pow = [FieldElement(0); 128];
-//     pow[0] = FieldElement(1);
-//     for i in 1..128 {
-//         pow[i] = pow[i - 1] * ZETA;
-//     }
-//
-//     let mut zeta_pow_bitrev = [FieldElement(0); 128];
-//     for i in 0..128 {
-//         zeta_pow_bitrev[i] = pow[bit_reverse(i)];
-//     }
-//     println!("ZETA_POW_BITREV: {:?}", zeta_pow_bitrev);
-//
-//     let mut gamma = [FieldElement(0); 128];
-//     for i in 0..128 {
-//         gamma[i as usize] = (zeta_pow_bitrev[i] * zeta_pow_bitrev[i]) * ZETA;
-//     }
-//     println!("GAMMA: {:?}", gamma);
-// }
-const ZETA_POW_BITREV: [FieldElement; 128] = [
-    FieldElement(1),
-    FieldElement(1729),
-    FieldElement(2580),
-    FieldElement(3289),
-    FieldElement(2642),
-    FieldElement(630),
-    FieldElement(1897),
-    FieldElement(848),
-    FieldElement(1062),
-    FieldElement(1919),
-    FieldElement(193),
-    FieldElement(797),
-    FieldElement(2786),
-    FieldElement(3260),
-    FieldElement(569),
-    FieldElement(1746),
-    FieldElement(296),
-    FieldElement(2447),
-    FieldElement(1339),
-    FieldElement(1476),
-    FieldElement(3046),
-    FieldElement(56),
-    FieldElement(2240),
-    FieldElement(1333),
-    FieldElement(1426),
-    FieldElement(2094),
-    FieldElement(535),
-    FieldElement(2882),
-    FieldElement(2393),
-    FieldElement(2879),
-    FieldElement(1974),
-    FieldElement(821),
-    FieldElement(289),
-    FieldElement(331),
-    FieldElement(3253),
-    FieldElement(1756),
-    FieldElement(1197),
-    FieldElement(2304),
-    FieldElement(2277),
-    FieldElement(2055),
-    FieldElement(650),
-    FieldElement(1977),
-    FieldElement(2513),
-    FieldElement(632),
-    FieldElement(2865),
-    FieldElement(33),
-    FieldElement(1320),
-    FieldElement(1915),
-    FieldElement(2319),
-    FieldElement(1435),
-    FieldElement(807),
-    FieldElement(452),
-    FieldElement(1438),
-    FieldElement(2868),
-    FieldElement(1534),
-    FieldElement(2402),
-    FieldElement(2647),
-    FieldElement(2617),
-    FieldElement(1481),
-    FieldElement(648),
-    FieldElement(2474),
-    FieldElement(3110),
-    FieldElement(1227),
-    FieldElement(910),
-    FieldElement(17),
-    FieldElement(2761),
-    FieldElement(583),
-    FieldElement(2649),
-    FieldElement(1637),
-    FieldElement(723),
-    FieldElement(2288),
-    FieldElement(1100),
-    FieldElement(1409),
-    FieldElement(2662),
-    FieldElement(3281),
-    FieldElement(233),
-    FieldElement(756),
-    FieldElement(2156),
-    FieldElement(3015),
-    FieldElement(3050),
-    FieldElement(1703),
-    FieldElement(1651),
-    FieldElement(2789),
-    FieldElement(1789),
-    FieldElement(1847),
-    FieldElement(952),
-    FieldElement(1461),
-    FieldElement(2687),
-    FieldElement(939),
-    FieldElement(2308),
-    FieldElement(2437),
-    FieldElement(2388),
-    FieldElement(733),
-    FieldElement(2337),
-    FieldElement(268),
-    FieldElement(641),
-    FieldElement(1584),
-    FieldElement(2298),
-    FieldElement(2037),
-    FieldElement(3220),
-    FieldElement(375),
-    FieldElement(2549),
-    FieldElement(2090),
-    FieldElement(1645),
-    FieldElement(1063),
-    FieldElement(319),
-    FieldElement(2773),
-    FieldElement(757),
-    FieldElement(2099),
-    FieldElement(561),
-    FieldElement(2466),
-    FieldElement(2594),
-    FieldElement(2804),
-    FieldElement(1092),
-    FieldElement(403),
-    FieldElement(1026),
-    FieldElement(1143),
-    FieldElement(2150),
-    FieldElement(2775),
-    FieldElement(886),
-    FieldElement(1722),
-    FieldElement(1212),
-    FieldElement(1874),
-    FieldElement(1029),
-    FieldElement(2110),
-    FieldElement(2935),
-    FieldElement(885),
-    FieldElement(2154),
-];
-const GAMMA: [FieldElement; 128] = [
-    FieldElement(17),
-    FieldElement(3312),
-    FieldElement(2761),
-    FieldElement(568),
-    FieldElement(583),
-    FieldElement(2746),
-    FieldElement(2649),
-    FieldElement(680),
-    FieldElement(1637),
-    FieldElement(1692),
-    FieldElement(723),
-    FieldElement(2606),
-    FieldElement(2288),
-    FieldElement(1041),
-    FieldElement(1100),
-    FieldElement(2229),
-    FieldElement(1409),
-    FieldElement(1920),
-    FieldElement(2662),
-    FieldElement(667),
-    FieldElement(3281),
-    FieldElement(48),
-    FieldElement(233),
-    FieldElement(3096),
-    FieldElement(756),
-    FieldElement(2573),
-    FieldElement(2156),
-    FieldElement(1173),
-    FieldElement(3015),
-    FieldElement(314),
-    FieldElement(3050),
-    FieldElement(279),
-    FieldElement(1703),
-    FieldElement(1626),
-    FieldElement(1651),
-    FieldElement(1678),
-    FieldElement(2789),
-    FieldElement(540),
-    FieldElement(1789),
-    FieldElement(1540),
-    FieldElement(1847),
-    FieldElement(1482),
-    FieldElement(952),
-    FieldElement(2377),
-    FieldElement(1461),
-    FieldElement(1868),
-    FieldElement(2687),
-    FieldElement(642),
-    FieldElement(939),
-    FieldElement(2390),
-    FieldElement(2308),
-    FieldElement(1021),
-    FieldElement(2437),
-    FieldElement(892),
-    FieldElement(2388),
-    FieldElement(941),
-    FieldElement(733),
-    FieldElement(2596),
-    FieldElement(2337),
-    FieldElement(992),
-    FieldElement(268),
-    FieldElement(3061),
-    FieldElement(641),
-    FieldElement(2688),
-    FieldElement(1584),
-    FieldElement(1745),
-    FieldElement(2298),
-    FieldElement(1031),
-    FieldElement(2037),
-    FieldElement(1292),
-    FieldElement(3220),
-    FieldElement(109),
-    FieldElement(375),
-    FieldElement(2954),
-    FieldElement(2549),
-    FieldElement(780),
-    FieldElement(2090),
-    FieldElement(1239),
-    FieldElement(1645),
-    FieldElement(1684),
-    FieldElement(1063),
-    FieldElement(2266),
-    FieldElement(319),
-    FieldElement(3010),
-    FieldElement(2773),
-    FieldElement(556),
-    FieldElement(757),
-    FieldElement(2572),
-    FieldElement(2099),
-    FieldElement(1230),
-    FieldElement(561),
-    FieldElement(2768),
-    FieldElement(2466),
-    FieldElement(863),
-    FieldElement(2594),
-    FieldElement(735),
-    FieldElement(2804),
-    FieldElement(525),
-    FieldElement(1092),
-    FieldElement(2237),
-    FieldElement(403),
-    FieldElement(2926),
-    FieldElement(1026),
-    FieldElement(2303),
-    FieldElement(1143),
-    FieldElement(2186),
-    FieldElement(2150),
-    FieldElement(1179),
-    FieldElement(2775),
-    FieldElement(554),
-    FieldElement(886),
-    FieldElement(2443),
-    FieldElement(1722),
-    FieldElement(1607),
-    FieldElement(1212),
-    FieldElement(2117),
-    FieldElement(1874),
-    FieldElement(1455),
-    FieldElement(1029),
-    FieldElement(2300),
-    FieldElement(2110),
-    FieldElement(1219),
-    FieldElement(2935),
-    FieldElement(394),
-    FieldElement(885),
-    FieldElement(2444),
-    FieldElement(2154),
-    FieldElement(1175),
-];
+// Note that the const environment here imposes some annoying conditions.  Because operator
+// overloading can't be const, we have to do all the reductions here manually.  Because `for` loops
+// are forbidden in `const` functions, we do them manually with `while` loops.
+#[allow(clippy::cast_possible_truncation)]
+const ZETA_POW_BITREV: [FieldElement; 128] = {
+    const ZETA: u64 = 17;
+    const fn bitrev7(x: usize) -> usize {
+        ((x >> 6) % 2)
+            | (((x >> 5) % 2) << 1)
+            | (((x >> 4) % 2) << 2)
+            | (((x >> 3) % 2) << 3)
+            | (((x >> 2) % 2) << 4)
+            | (((x >> 1) % 2) << 5)
+            | ((x % 2) << 6)
+    }
+
+    // Compute the powers of zeta
+    let mut pow = [FieldElement(0); 128];
+    let mut i = 0;
+    let mut curr = 1u64;
+    while i < 128 {
+        pow[i] = FieldElement(curr as u16);
+        i += 1;
+        curr = (curr * ZETA) % FieldElement::Q64;
+    }
+
+    // Reorder the powers according to bitrev7
+    let mut pow_bitrev = [FieldElement(0); 128];
+    let mut i = 0;
+    while i < 128 {
+        pow_bitrev[i] = pow[bitrev7(i)];
+        i += 1;
+    }
+    pow_bitrev
+};
+
+#[allow(clippy::cast_possible_truncation)]
+const GAMMA: [FieldElement; 128] = {
+    const ZETA: u64 = 17;
+    let mut gamma = [FieldElement(0); 128];
+    let mut i = 0;
+    while i < 128 {
+        let zpr = ZETA_POW_BITREV[i].0 as u64;
+        let g = (zpr * zpr * ZETA) % FieldElement::Q64;
+        gamma[i] = FieldElement(g as u16);
+        i += 1;
+    }
+    gamma
+};
 
 // Algorithm 10. MuliplyNTTs
 impl Mul<&NttPolynomial> for &NttPolynomial {

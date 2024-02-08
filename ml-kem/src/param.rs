@@ -14,15 +14,16 @@ use core::fmt::Debug;
 use core::ops::{Add, Div, Mul, Rem, Sub};
 use generic_array::{
     sequence::{Concat, Split},
-    GenericArray,
+    GenericArray, IntoArrayLength,
 };
 use typenum::{
-    consts::{U0, U12, U2, U32, U384, U8},
+    consts::{U0, U12, U16, U2, U3, U32, U384, U4, U6, U64, U8},
     operator_aliases::{Gcf, Prod, Quot, Sum},
     type_operators::Gcd,
+    Const,
 };
 
-use crate::algebra::NttVector;
+use crate::algebra::{FieldElement, NttVector};
 use crate::encode::Encode;
 use crate::util::{Flatten, Unflatten, B32};
 
@@ -101,15 +102,52 @@ where
 /// An integer that describes a bit length to be used in CBD sampling
 pub trait CbdSamplingSize: ArrayLength {
     type SampleSize: EncodingSize;
+    type OnesSize: ArrayLength;
+    const ONES: GenericArray<FieldElement, Self::OnesSize>;
 }
 
-impl<Eta> CbdSamplingSize for Eta
+// To speed up CBD sampling, we pre-compute all the bit-manipulations:
+//
+// * Splitting a sampled integer into two parts
+// * Counting the ones in each part
+// * Taking the difference between the two counts mod q
+//
+// We have to allow the use of `as` here because we can't use our nice Truncate trait, because
+// const functions don't support traits.
+#[allow(clippy::cast_possible_truncation)]
+const fn ones_array<const B: usize, const N: usize, U>() -> GenericArray<FieldElement, U>
 where
-    Eta: ArrayLength,
-    U2: Mul<Eta>,
-    Prod<U2, Eta>: EncodingSize,
+    U: ArrayLength,
+    Const<N>: IntoArrayLength<ArrayLength = U>,
 {
-    type SampleSize = Prod<U2, Eta>;
+    let max = 1 << B;
+    let mut out = [FieldElement(0); N];
+    let mut x = 0usize;
+    while x < max {
+        let mut y = 0usize;
+        while y < max {
+            let x_ones = x.count_ones() as u16;
+            let y_ones = y.count_ones() as u16;
+            let i = x + (y << B);
+            out[i] = FieldElement((x_ones + FieldElement::Q - y_ones) % FieldElement::Q);
+
+            y += 1;
+        }
+        x += 1;
+    }
+    GenericArray::from_array(out)
+}
+
+impl CbdSamplingSize for U2 {
+    type SampleSize = U4;
+    type OnesSize = U16;
+    const ONES: GenericArray<FieldElement, U16> = ones_array::<2, 16, U16>();
+}
+
+impl CbdSamplingSize for U3 {
+    type SampleSize = U6;
+    type OnesSize = U64;
+    const ONES: GenericArray<FieldElement, U64> = ones_array::<3, 64, U64>();
 }
 
 /// A `ParameterSet` captures the parameters that describe a particular instance of ML-KEM.  There
