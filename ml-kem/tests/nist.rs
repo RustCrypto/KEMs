@@ -1,4 +1,4 @@
-// TODO(RLB) Disable compilation if not deterministic
+#![cfg(feature = "deterministic")]
 
 mod vectors;
 

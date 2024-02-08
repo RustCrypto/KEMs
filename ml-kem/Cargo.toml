@@ -3,9 +3,8 @@ name = "ml-kem"
 version = "0.1.0"
 edition = "2021"
 
-# TODO(RLB) Selectively enable "deterministic" only for tests and benchmarks
 [features]
-default = ["deterministic"]
+default = []
 deterministic = [] # Expose deterministic generation and encapsulation functions
 
 [dependencies]

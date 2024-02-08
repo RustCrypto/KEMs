@@ -1,3 +1,5 @@
+#![cfg(feature = "deterministic")]
+
 use generic_array::GenericArray;
 use ml_kem::*;
 
