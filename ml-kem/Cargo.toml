@@ -1,0 +1,28 @@
+[package]
+name = "ml-kem"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = []
+deterministic = [] # Expose deterministic generation and encapsulation functions
+
+[dependencies]
+const-default = "1.0.0"
+crypto-common = { version = "0.1.6", features = ["getrandom"] }
+generic-array = { version = "1.0.0", features = ["const-default"] }
+hybrid-array = { version = "0.2.0-rc.6" }
+sha3 = "0.10.8"
+
+[dev-dependencies]
+criterion = "0.5.1"
+hex = "0.4.3"
+hex-literal = "0.4.1"
+rand = "0.8.5"
+
+[profile.bench]
+debug = true
+
+[[bench]]
+name = "mlkem"
+harness = false
