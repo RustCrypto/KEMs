@@ -18,7 +18,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     let (dk, ek) = MlKem768::generate_deterministic(&d, &z);
     let dk_bytes = dk.as_bytes();
     let ek_bytes = ek.as_bytes();
-    let (_sk, ct) = ek.encapsulate(&mut rng);
+    let (ct, _sk) = ek.encapsulate(&mut rng).unwrap();
 
     // Key generation
     c.bench_function("keygen", |b| {
@@ -33,7 +33,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("encapsulate", |b| {
         b.iter(|| {
             let ek = <MlKem768 as KemCore>::EncapsulationKey::from_bytes(&ek_bytes);
-            ek.encapsulate_deterministic(&m);
+            ek.encapsulate_deterministic(&m).unwrap();
         })
     });
 
@@ -41,7 +41,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("decapsulate", |b| {
         b.iter(|| {
             let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(&dk_bytes);
-            dk.decapsulate(&ct);
+            dk.decapsulate(&ct).unwrap();
         })
     });
 
@@ -49,8 +49,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("round_trip", |b| {
         b.iter(|| {
             let (dk, ek) = <MlKem768 as KemCore>::generate_deterministic(&d, &z);
-            let (_sk, ct) = ek.encapsulate(&mut rng);
-            dk.decapsulate(&ct);
+            let (ct, _sk) = ek.encapsulate(&mut rng).unwrap();
+            dk.decapsulate(&ct).unwrap();
         })
     });
 }

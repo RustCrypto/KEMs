@@ -60,14 +60,19 @@ fn constant_time_eq(x: u8, y: u8) -> u8 {
     0u8.wrapping_sub(is_zero >> 7)
 }
 
-impl<P> crate::DecapsulationKey<SharedKey, EncodedCiphertext<P>> for DecapsulationKey<P>
+impl<P> crate::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    fn decapsulate(&self, ct: &EncodedCiphertext<P>) -> SharedKey {
-        let mp = self.dk_pke.decrypt(ct);
+    // Decapsulation is infallible
+    // XXX(RLB): Maybe we should reflect decryption failure as an error?
+    // TODO(RLB) Make Infallible
+    type Error = ();
+
+    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> Result<SharedKey, ()> {
+        let mp = self.dk_pke.decrypt(encapsulated_key);
         let (Kp, rp) = G(&[&mp, &self.ek.h]);
-        let Kbar = J(&[self.z.as_slice(), ct.as_ref()]);
+        let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
         let cp = self.ek.ek_pke.encrypt(&mp, &rp);
 
         // Constant-time version of:
@@ -79,13 +84,14 @@ where
         // }
         let equal = cp
             .iter()
-            .zip(ct.iter())
+            .zip(encapsulated_key.iter())
             .map(|(&x, &y)| constant_time_eq(x, y))
             .fold(0xff, |x, y| x & y);
-        Kp.iter()
+        Ok(Kp
+            .iter()
             .zip(Kbar.iter())
             .map(|(x, y)| (equal & x) | (!equal & y))
-            .collect()
+            .collect())
     }
 }
 
@@ -132,10 +138,10 @@ where
         Self { ek_pke, h }
     }
 
-    fn encapsulate_deterministic_inner(&self, m: &B32) -> (SharedKey, EncodedCiphertext<P>) {
+    fn encapsulate_deterministic_inner(&self, m: &B32) -> (EncodedCiphertext<P>, SharedKey) {
         let (K, r) = G(&[m, &self.h]);
         let c = self.ek_pke.encrypt(m, &r);
-        (K, c)
+        (c, K)
     }
 }
 
@@ -154,18 +160,36 @@ where
     }
 }
 
-impl<P> crate::EncapsulationKey<SharedKey, EncodedCiphertext<P>> for EncapsulationKey<P>
+impl<P> crate::Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
 where
     P: KemParams,
 {
-    fn encapsulate(&self, rng: &mut impl CryptoRngCore) -> (SharedKey, EncodedCiphertext<P>) {
-        let m: B32 = rand(rng);
-        self.encapsulate_deterministic_inner(&m)
-    }
+    // TODO(RLB) Make Infallible
+    // TODO(RLB) Swap the order of the
+    type Error = ();
 
-    #[cfg(feature = "deterministic")]
-    fn encapsulate_deterministic(&self, m: &B32) -> (SharedKey, EncodedCiphertext<P>) {
-        self.encapsulate_deterministic_inner(m)
+    fn encapsulate(
+        &self,
+        rng: &mut impl CryptoRngCore,
+    ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
+        let m: B32 = rand(rng);
+        Ok(self.encapsulate_deterministic_inner(&m))
+    }
+}
+
+#[cfg(feature = "deterministic")]
+impl<P> crate::EncapsulateDeterministic<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    // TODO(RLB) Make Infallible
+    type Error = ();
+
+    fn encapsulate_deterministic(
+        &self,
+        m: &B32,
+    ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
+        Ok(self.encapsulate_deterministic_inner(&m))
     }
 }
 
@@ -208,8 +232,8 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::DecapsulationKey as _;
-    use crate::EncapsulationKey as _;
+    use crate::Decapsulate as _;
+    use crate::Encapsulate as _;
     use crate::{MlKem1024Params, MlKem512Params, MlKem768Params};
 
     fn round_trip_test<P>()
@@ -221,8 +245,8 @@ mod test {
         let dk = DecapsulationKey::<P>::generate(&mut rng);
         let ek = dk.encapsulation_key();
 
-        let (k_send, ct) = ek.encapsulate(&mut rng);
-        let k_recv = dk.decapsulate(&ct);
+        let (ct, k_send) = ek.encapsulate(&mut rng).unwrap();
+        let k_recv = dk.decapsulate(&ct).unwrap();
         assert_eq!(k_send, k_recv);
     }
 

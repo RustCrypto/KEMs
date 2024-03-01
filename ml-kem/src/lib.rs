@@ -14,10 +14,10 @@
 //!
 //! // Encapsulate a shared key to the holder of the decapsulation key, receive the shared
 //! // secret `k_send` and the encapsulated form `ct`.
-//! let (k_send, ct) = ek.encapsulate(&mut rng);
+//! let (ct, k_send) = ek.encapsulate(&mut rng).unwrap();
 //!
 //! // Decapsulate the shared key and verify that it was faithfully received.
-//! let k_recv = dk.decapsulate(&ct);
+//! let k_recv = dk.decapsulate(&ct).unwrap();
 //! assert_eq!(k_send, k_recv);
 //! ```
 //!
@@ -83,21 +83,39 @@ pub trait EncodedSizeUser {
 /// A byte array encoding a value the indicated size
 pub type Encoded<T> = Array<u8, <T as EncodedSizeUser>::EncodedSize>;
 
-/// A key that can be used to decapsulated an encapsulated shared key
-pub trait DecapsulationKey<SharedKey, Ciphertext>: EncodedSizeUser {
-    /// Decapsulate the ciphertext to obtain the encapsulated shared key
-    fn decapsulate(&self, ciphertext: &Ciphertext) -> SharedKey;
+// XXX(RLB) Copy/pasted from https://github.com/RustCrypto/traits/pull/1509
+/// A value that can be encapsulated to. Often, this will just be a public key. However, it can
+/// also be a bundle of public keys, or it can include a sender's private key for authenticated
+/// encapsulation.
+pub trait Encapsulate<EK, SS> {
+    /// Encapsulation error
+    type Error: Debug;
+
+    /// Encapsulates a fresh shared secret
+    fn encapsulate(&self, rng: &mut impl CryptoRngCore) -> Result<(EK, SS), Self::Error>;
 }
 
-/// A key that can be used to encapsulate a shared key such that it can only be decapsulated
-/// by the holder of the corresponding decapsulation key
-pub trait EncapsulationKey<SharedKey, Ciphertext>: EncodedSizeUser {
-    /// Encapsulate a fresh secret to the holder of the corresponding decapsulation key
-    fn encapsulate(&self, rng: &mut impl CryptoRngCore) -> (SharedKey, Ciphertext);
+/// A value that can be encapsulated to.  Note that this interface is not safe: In order for the
+/// KEM to be secure, the `m` input must be randomly generated.
+#[cfg(feature = "deterministic")]
+pub trait EncapsulateDeterministic<EK, SS> {
+    /// Encapsulation error
+    type Error: Debug;
 
-    /// Encapsulate a specific shared key to the holder of the corresponding decapsulation key
-    #[cfg(feature = "deterministic")]
-    fn encapsulate_deterministic(&self, m: &B32) -> (SharedKey, Ciphertext);
+    /// Encapsulates a fresh shared secret
+    fn encapsulate_deterministic(&self, m: &B32) -> Result<(EK, SS), Self::Error>;
+}
+
+// XXX(RLB) Copy/pasted from https://github.com/RustCrypto/traits/pull/1509
+/// A value that can be used to decapsulate an encapsulated key. Often, this will just be a secret
+/// key. But, as with [`Encapsulate`], it can be a bundle of secret keys, or it can include a
+/// sender's private key for authenticated encapsulation.
+pub trait Decapsulate<EK, SS> {
+    /// Decapsulation error
+    type Error: Debug;
+
+    /// Decapsulates the given encapsulated key
+    fn decapsulate(&self, encapsulated_key: &EK) -> Result<SS, Self::Error>;
 }
 
 /// A generic interface to a Key Encapsulation Method
@@ -109,10 +127,10 @@ pub trait KemCore {
     type CiphertextSize: ArraySize;
 
     /// A decapsulation key for this KEM
-    type DecapsulationKey: DecapsulationKey<SharedKey<Self>, Ciphertext<Self>> + Debug + PartialEq;
+    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>> + Debug + PartialEq;
 
     /// An encapsulation key for this KEM
-    type EncapsulationKey: EncapsulationKey<SharedKey<Self>, Ciphertext<Self>> + Debug + PartialEq;
+    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>> + Debug + PartialEq;
 
     /// Generate a new (decapsulation, encapsulation) key pair
     fn generate(rng: &mut impl CryptoRngCore) -> (Self::DecapsulationKey, Self::EncapsulationKey);
@@ -192,8 +210,8 @@ mod test {
 
         let (dk, ek) = K::generate(&mut rng);
 
-        let (k_send, ct) = ek.encapsulate(&mut rng);
-        let k_recv = dk.decapsulate(&ct);
+        let (ct, k_send) = ek.encapsulate(&mut rng).unwrap();
+        let k_recv = dk.decapsulate(&ct).unwrap();
         assert_eq!(k_send, k_recv);
     }
 
