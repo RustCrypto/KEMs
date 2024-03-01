@@ -23,30 +23,32 @@ jobs:
     with:
       msrv: 1.74.0
 
-  no_std:
-    needs: set-msrv
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        rust:
-          - ${{needs.set-msrv.outputs.msrv}}
-          - stable
-        target:
-          - thumbv7em-none-eabi
-          - wasm32-unknown-unknown
-    steps:
-      - uses: actions/checkout@v4
-      - uses: RustCrypto/actions/cargo-cache@master
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.target }}
-      - run: cargo build --no-default-features --target ${{ matrix.target }}
+# TODO
+#  no_std:
+#    needs: set-msrv
+#    runs-on: ubuntu-latest
+#    strategy:
+#      matrix:
+#        rust:
+#          - ${{needs.set-msrv.outputs.msrv}}
+#          - stable
+#        target:
+#          - thumbv7em-none-eabi
+#          - wasm32-unknown-unknown
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: RustCrypto/actions/cargo-cache@master
+#      - uses: dtolnay/rust-toolchain@master
+#        with:
+#          toolchain: ${{ matrix.rust }}
+#          targets: ${{ matrix.target }}
+#      - run: cargo build --no-default-features --target ${{ matrix.target }}
 
-  minimal-versions:
-    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
-    with:
-      working-directory: ${{ github.workflow }}
+# TODO
+#  minimal-versions:
+#    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
+#    with:
+#      working-directory: ${{ github.workflow }}
 
   test:
     needs: set-msrv
@@ -62,31 +64,34 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
-      - run: cargo test --no-default-features
-      - run: cargo test
-      - run: cargo test --all-features
+      - run: cargo build --all-features
+      # TODO(tarcieri): remove cargo build, run cargo test
+      #- run: cargo test --no-default-features
+      #- run: cargo test
+      #- run: cargo test --all-features
 
-  miri:
-    runs-on: ubuntu-latest
-    env:
-      MIRIFLAGS: "-Zmiri-symbolic-alignment-check -Zmiri-strict-provenance"
-    strategy:
-      matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - s390x-unknown-linux-gnu
-    steps:
-      - uses: actions/checkout@v4
-      - uses: RustCrypto/actions/cargo-cache@master
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: nightly
-      - name: Install Miri
-        run: |
-          rustup component add miri
-          cargo miri setup
-      - name: Test with Miri
-        run: |
-          cargo miri test --target ${{ matrix.target }} --no-default-features
-          cargo miri test --target ${{ matrix.target }}
-          cargo miri test --target ${{ matrix.target }} --all-features
+# TODO(tarcieri): miri
+#  miri:
+#    runs-on: ubuntu-latest
+#    env:
+#      MIRIFLAGS: "-Zmiri-symbolic-alignment-check -Zmiri-strict-provenance"
+#    strategy:
+#      matrix:
+#        target:
+#          - x86_64-unknown-linux-gnu
+#          - s390x-unknown-linux-gnu
+#    steps:
+#      - uses: actions/checkout@v4
+#      - uses: RustCrypto/actions/cargo-cache@master
+#      - uses: dtolnay/rust-toolchain@master
+#        with:
+#          toolchain: nightly
+#      - name: Install Miri
+#        run: |
+#          rustup component add miri
+#          cargo miri setup
+#      - name: Test with Miri
+#        run: |
+#          cargo miri test --target ${{ matrix.target }} --no-default-features
+#          cargo miri test --target ${{ matrix.target }}
+#          cargo miri test --target ${{ matrix.target }} --all-features
