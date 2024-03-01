@@ -279,6 +279,7 @@ where
         dk.concat(ek).concat(h).concat(z)
     }
 
+    #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     fn split_dk(
         enc: &EncodedDecapsulationKey<Self>,
     ) -> (

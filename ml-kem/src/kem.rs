@@ -29,6 +29,7 @@ where
 {
     type EncodedSize = DecapsulationKeySize<P>;
 
+    #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     fn from_bytes(enc: &Encoded<Self>) -> Self {
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
         let ek_pke = EncryptionKey::from_bytes(ek_pke);
@@ -110,6 +111,7 @@ where
     }
 
     #[must_use]
+    #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     pub(crate) fn generate_deterministic(d: &B32, z: &B32) -> Self {
         let (dk_pke, ek_pke) = DecryptionKey::generate(d);
         let ek = EncapsulationKey::new(ek_pke);

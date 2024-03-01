@@ -23,10 +23,9 @@
 //!
 //! [RFC 9180]: https://www.rfc-editor.org/info/rfc9180
 
-//#![no_std]
+#![no_std]
 #![warn(clippy::pedantic)] // Be pedantic by default
 #![allow(non_snake_case)] // Allow notation matching the spec
-#![allow(clippy::similar_names)] // Allow dk_pke/ek_pke
 #![allow(clippy::clone_on_copy)] // Be explicit about moving data
 #![deny(missing_docs)] // Require all public interfaces to be documented
 
@@ -91,6 +90,7 @@ pub trait Encapsulate<EK, SS> {
     /// Encapsulation error
     type Error: Debug;
 
+    #[allow(clippy::missing_errors_doc)]
     /// Encapsulates a fresh shared secret
     fn encapsulate(&self, rng: &mut impl CryptoRngCore) -> Result<(EK, SS), Self::Error>;
 }
@@ -114,6 +114,7 @@ pub trait Decapsulate<EK, SS> {
     /// Decapsulation error
     type Error: Debug;
 
+    #[allow(clippy::missing_errors_doc)]
     /// Decapsulates the given encapsulated key
     fn decapsulate(&self, encapsulated_key: &EK) -> Result<SS, Self::Error>;
 }
