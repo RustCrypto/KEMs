@@ -1,10 +1,10 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypto_common::rand_core::CryptoRngCore;
-use generic_array::{ArrayLength, GenericArray};
+use hybrid_array::{Array, ArraySize};
 use ml_kem::*;
 
-pub fn rand<L: ArrayLength>(rng: &mut impl CryptoRngCore) -> GenericArray<u8, L> {
-    let mut val: GenericArray<u8, L> = Default::default();
+pub fn rand<L: ArraySize>(rng: &mut impl CryptoRngCore) -> Array<u8, L> {
+    let mut val = Array::<u8, L>::default();
     rng.fill_bytes(&mut val);
     val
 }

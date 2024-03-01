@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
 use crypto_common::rand_core::CryptoRngCore;
-use generic_array::{ArrayLength, GenericArray};
+use hybrid_array::{Array, ArraySize};
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Digest, Sha3_256, Sha3_512, Shake128, Shake256,
@@ -10,8 +10,8 @@ use sha3::{
 use crate::param::{CbdSamplingSize, EncodedPolynomial};
 use crate::util::B32;
 
-pub fn rand<L: ArrayLength>(rng: &mut impl CryptoRngCore) -> GenericArray<u8, L> {
-    let mut val = GenericArray::default();
+pub fn rand<L: ArraySize>(rng: &mut impl CryptoRngCore) -> Array<u8, L> {
+    let mut val = Array::default();
     rng.fill_bytes(&mut val);
     val
 }
@@ -23,8 +23,8 @@ pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
     }
     let out = h.finalize();
 
-    let mut a = B32::const_default();
-    let mut b = B32::const_default();
+    let mut a = B32::default();
+    let mut b = B32::default();
 
     a.copy_from_slice(&out[..32]);
     b.copy_from_slice(&out[32..]);
@@ -38,7 +38,7 @@ pub fn H(x: impl AsRef<[u8]>) -> B32 {
     // This odd conversion is needed because the `sha3` crate links against an old version of
     // the `generic-array` crate.  It should be pretty cheap though, since there's only one
     // allocation / no copies.
-    let mut out = B32::const_default();
+    let mut out = B32::default();
     h.finalize_into(out.as_mut_slice().into());
     out
 }
@@ -137,7 +137,7 @@ pub fn XOF(rho: &B32, i: u8, j: u8) -> impl XofReader {
 mod test {
     use super::*;
     use hex_literal::hex;
-    use typenum::{U2, U3};
+    use hybrid_array::typenum::{U2, U3};
 
     #[test]
     fn g() {
@@ -146,8 +146,8 @@ mod test {
         let (actualA, actualB) = G(&[msg1, msg2]);
         let expectedA = hex!("07dfced2a3a3feb3277cee1709818828ea6d2f42800152e9c312e848122231c2");
         let expectedB = hex!("272969098a1bbd5a0a9844e2f89f206d8f7f4599e36aecaa4793af400fd880d8");
-        assert_eq!(actualA, expectedA.into());
-        assert_eq!(actualB, expectedB.into());
+        assert_eq!(actualA, expectedA);
+        assert_eq!(actualB, expectedB);
     }
 
     #[test]
@@ -155,7 +155,7 @@ mod test {
         let msg = "Input to an invocation of H".as_bytes();
         let actual = H(msg);
         let expected = hex!("0ee3ce94213d7dd0069b24b8b15cdd0bcf8eb1c6b3c21c441dc6a19e979cc7eb");
-        assert_eq!(actual, expected.into());
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -164,7 +164,7 @@ mod test {
         let msg2 = "an invocation of J".as_bytes();
         let actual = J(&[msg1, msg2]);
         let expected = hex!("a5292293d70c8eca049cbb475c48fabd625ed2b20785a18248504d3741196b52");
-        assert_eq!(actual, expected.into());
+        assert_eq!(actual, expected);
     }
 
     #[test]
@@ -178,7 +178,7 @@ mod test {
              568113c861516d91bed227638654fc7f872df205c113b8364091755b62284eec\
              a6124f2cd4c1cdf598cb8324a4f373470a8f81ee618c75cc33f66facee01c213"
         );
-        assert_eq!(actual, expected.into());
+        assert_eq!(actual, expected);
 
         let s = B32::from_slice("Input s to an invocation of PRF3".as_bytes());
         let b = b'b';
@@ -191,7 +191,7 @@ mod test {
              67764b3fc6b37376453978b8f0caeb6b18c188c28ee8681e28339477e042d5a1\
              b4a12deb1de8b9dad026b4e323e03973ffbe25dd511eed5460d22a9851cfc220"
         );
-        assert_eq!(actual, expected.into());
+        assert_eq!(actual, expected);
     }
 
     #[test]

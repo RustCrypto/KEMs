@@ -1,11 +1,11 @@
 use core::marker::PhantomData;
 use crypto_common::rand_core::CryptoRngCore;
-use typenum::U32;
+use hybrid_array::typenum::U32;
 
 use crate::crypto::{rand, G, H, J};
 use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
 use crate::pke::{DecryptionKey, EncryptionKey};
-use crate::util::{FastClone, FunctionalArray, B32};
+use crate::util::B32;
 use crate::{Encoded, EncodedSizeUser};
 
 /// A shared key resulting from an ML-KEM transaction
@@ -40,16 +40,16 @@ where
             dk_pke: DecryptionKey::from_bytes(dk_pke),
             ek: EncapsulationKey {
                 ek_pke,
-                h: h.fast_clone(),
+                h: h.clone(),
             },
-            z: z.fast_clone(),
+            z: z.clone(),
         }
     }
 
     fn as_bytes(&self) -> Encoded<Self> {
         let dk_pke = self.dk_pke.as_bytes();
         let ek = self.ek.as_bytes();
-        P::concat_dk(dk_pke, ek, self.ek.h.fast_clone(), self.z.fast_clone())
+        P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
     }
 }
 
@@ -78,9 +78,14 @@ where
         //     Kbar
         // }
         let equal = cp
-            .zip(ct, |&x, &y| constant_time_eq(x, y))
-            .fold(|x, y| x & y);
-        Kp.zip(&Kbar, |x, y| (equal & x) | (!equal & y))
+            .iter()
+            .zip(ct.iter())
+            .map(|(&x, &y)| constant_time_eq(x, y))
+            .fold(0xff, |x, y| x & y);
+        Kp.iter()
+            .zip(Kbar.iter())
+            .map(|(x, y)| (equal & x) | (!equal & y))
+            .collect()
     }
 }
 
@@ -102,7 +107,7 @@ where
     pub(crate) fn generate_deterministic(d: &B32, z: &B32) -> Self {
         let (dk_pke, ek_pke) = DecryptionKey::generate(d);
         let ek = EncapsulationKey::new(ek_pke);
-        let z = z.fast_clone();
+        let z = z.clone();
         Self { dk_pke, ek, z }
     }
 }

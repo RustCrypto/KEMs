@@ -1,13 +1,11 @@
-use const_default::ConstDefault;
 use core::ops::{Add, Mul, Sub};
-use generic_array::{sequence::GenericSequence, GenericArray};
+use hybrid_array::{typenum::U256, Array};
 use sha3::digest::XofReader;
-use typenum::consts::U256;
 
 use crate::crypto::{PrfOutput, PRF, XOF};
 use crate::encode::Encode;
-use crate::param::{ArrayLength, CbdSamplingSize};
-use crate::util::{FastClone, FunctionalArray, Truncate, B32};
+use crate::param::{ArraySize, CbdSamplingSize};
+use crate::util::{Truncate, B32};
 
 pub type Integer = u16;
 
@@ -58,10 +56,6 @@ impl FieldElement {
     }
 }
 
-impl ConstDefault for FieldElement {
-    const DEFAULT: Self = Self(0);
-}
-
 impl Add<FieldElement> for FieldElement {
     type Output = Self;
 
@@ -91,17 +85,19 @@ impl Mul<FieldElement> for FieldElement {
 
 /// An element of the ring `R_q`, i.e., a polynomial over `Z_q` of degree 255
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
-pub struct Polynomial(pub GenericArray<FieldElement, U256>);
-
-impl ConstDefault for Polynomial {
-    const DEFAULT: Self = Self(GenericArray::DEFAULT);
-}
+pub struct Polynomial(pub Array<FieldElement, U256>);
 
 impl Add<&Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     fn add(self, rhs: &Polynomial) -> Polynomial {
-        Polynomial(self.0.zip(&rhs.0, |&x, &y| x + y))
+        Polynomial(
+            self.0
+                .iter()
+                .zip(rhs.0.iter())
+                .map(|(&x, &y)| x + y)
+                .collect(),
+        )
     }
 }
 
@@ -109,7 +105,13 @@ impl Sub<&Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     fn sub(self, rhs: &Polynomial) -> Polynomial {
-        Polynomial(self.0.zip(&rhs.0, |&x, &y| x - y))
+        Polynomial(
+            self.0
+                .iter()
+                .zip(rhs.0.iter())
+                .map(|(&x, &y)| x - y)
+                .collect(),
+        )
     }
 }
 
@@ -117,7 +119,7 @@ impl Mul<&Polynomial> for FieldElement {
     type Output = Polynomial;
 
     fn mul(self, rhs: &Polynomial) -> Polynomial {
-        Polynomial(rhs.0.map(|&x| self * x))
+        Polynomial(rhs.0.iter().map(|&x| self * x).collect())
     }
 }
 
@@ -132,28 +134,34 @@ impl Polynomial {
         Eta: CbdSamplingSize,
     {
         let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
-        Self(vals.0.map(|val| Eta::ONES[val.0 as usize]))
+        Self(vals.0.iter().map(|val| Eta::ONES[val.0 as usize]).collect())
     }
 }
 
 /// A vector of polynomials of length `k`
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct PolynomialVector<K: ArrayLength>(pub GenericArray<Polynomial, K>);
+pub struct PolynomialVector<K: ArraySize>(pub Array<Polynomial, K>);
 
-impl<K: ArrayLength> Add<PolynomialVector<K>> for PolynomialVector<K> {
+impl<K: ArraySize> Add<PolynomialVector<K>> for PolynomialVector<K> {
     type Output = PolynomialVector<K>;
 
     fn add(self, rhs: PolynomialVector<K>) -> PolynomialVector<K> {
-        PolynomialVector(self.0.zip(&rhs.0, |x, y| x + y))
+        PolynomialVector(
+            self.0
+                .iter()
+                .zip(rhs.0.iter())
+                .map(|(x, y)| x + y)
+                .collect(),
+        )
     }
 }
 
-impl<K: ArrayLength> PolynomialVector<K> {
+impl<K: ArraySize> PolynomialVector<K> {
     pub fn sample_cbd<Eta>(sigma: &B32, start_n: u8) -> Self
     where
         Eta: CbdSamplingSize,
     {
-        Self(GenericArray::generate(|i| {
+        Self(Array::from_fn(|i| {
             let N = start_n + i.truncate();
             let prf_output = PRF::<Eta>(sigma, N);
             Polynomial::sample_cbd::<Eta>(&prf_output)
@@ -163,17 +171,19 @@ impl<K: ArrayLength> PolynomialVector<K> {
 
 /// An element of the ring `T_q`, i.e., a tuple of 128 elements of the direct sum components of `T_q`.
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttPolynomial(pub GenericArray<FieldElement, U256>);
-
-impl ConstDefault for NttPolynomial {
-    const DEFAULT: Self = Self(GenericArray::DEFAULT);
-}
+pub struct NttPolynomial(pub Array<FieldElement, U256>);
 
 impl Add<&NttPolynomial> for &NttPolynomial {
     type Output = NttPolynomial;
 
     fn add(self, rhs: &NttPolynomial) -> NttPolynomial {
-        NttPolynomial(self.0.zip(&rhs.0, |&x, &y| x + y))
+        NttPolynomial(
+            self.0
+                .iter()
+                .zip(rhs.0.iter())
+                .map(|(&x, &y)| x + y)
+                .collect(),
+        )
     }
 }
 
@@ -237,7 +247,7 @@ impl NttPolynomial {
     // Algorithm 6 SampleNTT(B)
     pub fn sample_uniform(B: &mut impl XofReader) -> Self {
         let mut reader = FieldElementReader::new(B);
-        Self(GenericArray::generate(|_| reader.next()))
+        Self(Array::from_fn(|_| reader.next()))
     }
 }
 
@@ -302,7 +312,7 @@ impl Mul<&NttPolynomial> for &NttPolynomial {
     type Output = NttPolynomial;
 
     fn mul(self, rhs: &NttPolynomial) -> NttPolynomial {
-        let mut out = NttPolynomial(GenericArray::const_default());
+        let mut out = NttPolynomial(Array::default());
 
         for i in 0..128 {
             let (c0, c1) = FieldElement::base_case_multiply(
@@ -321,14 +331,14 @@ impl Mul<&NttPolynomial> for &NttPolynomial {
     }
 }
 
-impl From<GenericArray<FieldElement, U256>> for NttPolynomial {
-    fn from(f: GenericArray<FieldElement, U256>) -> NttPolynomial {
+impl From<Array<FieldElement, U256>> for NttPolynomial {
+    fn from(f: Array<FieldElement, U256>) -> NttPolynomial {
         NttPolynomial(f)
     }
 }
 
-impl From<NttPolynomial> for GenericArray<FieldElement, U256> {
-    fn from(f_hat: NttPolynomial) -> GenericArray<FieldElement, U256> {
+impl From<NttPolynomial> for Array<FieldElement, U256> {
+    fn from(f_hat: NttPolynomial) -> Array<FieldElement, U256> {
         f_hat.0
     }
 }
@@ -359,7 +369,7 @@ impl Polynomial {
 // Algorithm 9. NTT^{-1}
 impl NttPolynomial {
     pub fn ntt_inverse(&self) -> Polynomial {
-        let mut f: GenericArray<FieldElement, U256> = self.0.fast_clone();
+        let mut f: Array<FieldElement, U256> = self.0.clone();
 
         let mut k = 127;
         for len in [2, 4, 8, 16, 32, 64, 128] {
@@ -381,15 +391,15 @@ impl NttPolynomial {
 
 /// A vector of K NTT-domain polynomials
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttVector<K: ArrayLength>(pub GenericArray<NttPolynomial, K>);
+pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
 
-impl<K: ArrayLength> NttVector<K> {
+impl<K: ArraySize> NttVector<K> {
     // Note the transpose here: Apparently the specification is incorrect, and the proper order
     // of indices is reversed.
     //
     // https://github.com/FiloSottile/mlkem768/blob/main/mlkem768.go#L110C4-L112C51
     pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {
-        Self(GenericArray::generate(|j| {
+        Self(Array::from_fn(|j| {
             let (i, j) = if transpose { (i, j) } else { (j, i) };
             let mut xof = XOF(rho, i.truncate(), j.truncate());
             NttPolynomial::sample_uniform(&mut xof)
@@ -397,57 +407,67 @@ impl<K: ArrayLength> NttVector<K> {
     }
 }
 
-impl<K: ArrayLength> Add<&NttVector<K>> for &NttVector<K> {
+impl<K: ArraySize> Add<&NttVector<K>> for &NttVector<K> {
     type Output = NttVector<K>;
 
     fn add(self, rhs: &NttVector<K>) -> NttVector<K> {
-        NttVector(self.0.zip(&rhs.0, |x, y| x + y))
+        NttVector(
+            self.0
+                .iter()
+                .zip(rhs.0.iter())
+                .map(|(x, y)| x + y)
+                .collect(),
+        )
     }
 }
 
-impl<K: ArrayLength> Mul<&NttVector<K>> for &NttVector<K> {
+impl<K: ArraySize> Mul<&NttVector<K>> for &NttVector<K> {
     type Output = NttPolynomial;
 
     fn mul(self, rhs: &NttVector<K>) -> NttPolynomial {
-        self.0.zip(&rhs.0, |x, y| x * y).fold(|x, y| x + y)
+        self.0
+            .iter()
+            .zip(rhs.0.iter())
+            .map(|(x, y)| x * y)
+            .fold(NttPolynomial::default(), |x, y| &x + &y)
     }
 }
 
-impl<K: ArrayLength> PolynomialVector<K> {
+impl<K: ArraySize> PolynomialVector<K> {
     pub fn ntt(&self) -> NttVector<K> {
-        NttVector(self.0.map(Polynomial::ntt))
+        NttVector(self.0.iter().map(Polynomial::ntt).collect())
     }
 }
 
-impl<K: ArrayLength> NttVector<K> {
+impl<K: ArraySize> NttVector<K> {
     pub fn ntt_inverse(&self) -> PolynomialVector<K> {
-        PolynomialVector(self.0.map(NttPolynomial::ntt_inverse))
+        PolynomialVector(self.0.iter().map(NttPolynomial::ntt_inverse).collect())
     }
 }
 
 /// A K x K matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
 /// multiplying on the right just requires iteration.
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttMatrix<K: ArrayLength>(GenericArray<NttVector<K>, K>);
+pub struct NttMatrix<K: ArraySize>(Array<NttVector<K>, K>);
 
-impl<K: ArrayLength> Mul<&NttVector<K>> for &NttMatrix<K> {
+impl<K: ArraySize> Mul<&NttVector<K>> for &NttMatrix<K> {
     type Output = NttVector<K>;
 
     fn mul(self, rhs: &NttVector<K>) -> NttVector<K> {
-        NttVector(self.0.map(|x| x * rhs))
+        NttVector(self.0.iter().map(|x| x * rhs).collect())
     }
 }
 
-impl<K: ArrayLength> NttMatrix<K> {
+impl<K: ArraySize> NttMatrix<K> {
     pub fn sample_uniform(rho: &B32, transpose: bool) -> Self {
-        Self(GenericArray::generate(|i| {
+        Self(Array::from_fn(|i| {
             NttVector::sample_uniform(rho, i, transpose)
         }))
     }
 
     pub fn transpose(&self) -> Self {
-        Self(GenericArray::generate(|i| {
-            NttVector(GenericArray::generate(|j| self.0[j].0[i].clone()))
+        Self(Array::from_fn(|i| {
+            NttVector(Array::from_fn(|j| self.0[j].0[i].clone()))
         }))
     }
 }
@@ -456,15 +476,14 @@ impl<K: ArrayLength> NttMatrix<K> {
 mod test {
     use super::*;
     use crate::util::Flatten;
-    use generic_array::arr;
-    use typenum::consts::{U2, U3, U8};
+    use hybrid_array::typenum::{U2, U3, U8};
 
     // Multiplication in R_q, modulo X^256 + 1
     impl Mul<&Polynomial> for &Polynomial {
         type Output = Polynomial;
 
         fn mul(self, rhs: &Polynomial) -> Self::Output {
-            let mut out = Self::Output::DEFAULT;
+            let mut out = Self::Output::default();
             for (i, x) in self.0.iter().enumerate() {
                 for (j, y) in rhs.0.iter().enumerate() {
                     let (sign, index) = if i + j < 256 {
@@ -482,16 +501,16 @@ mod test {
 
     // A polynomial with only a scalar component, to make simple test cases
     fn const_ntt(x: Integer) -> NttPolynomial {
-        let mut p = Polynomial::DEFAULT;
+        let mut p = Polynomial::default();
         p.0[0] = FieldElement(x);
         p.ntt()
     }
 
     #[test]
     fn polynomial_ops() {
-        let f = Polynomial(GenericArray::generate(|i| FieldElement(i as Integer)));
-        let g = Polynomial(GenericArray::generate(|i| FieldElement(2 * i as Integer)));
-        let sum = Polynomial(GenericArray::generate(|i| FieldElement(3 * i as Integer)));
+        let f = Polynomial(Array::from_fn(|i| FieldElement(i as Integer)));
+        let g = Polynomial(Array::from_fn(|i| FieldElement(2 * i as Integer)));
+        let sum = Polynomial(Array::from_fn(|i| FieldElement(3 * i as Integer)));
         assert_eq!((&f + &g), sum);
         assert_eq!((&sum - &g), f);
         assert_eq!(FieldElement(3) * &f, sum);
@@ -499,8 +518,8 @@ mod test {
 
     #[test]
     fn ntt() {
-        let f = Polynomial(GenericArray::generate(|i| FieldElement(i as Integer)));
-        let g = Polynomial(GenericArray::generate(|i| FieldElement(2 * i as Integer)));
+        let f = Polynomial(Array::from_fn(|i| FieldElement(i as Integer)));
+        let g = Polynomial(Array::from_fn(|i| FieldElement(2 * i as Integer)));
         let f_hat = f.ntt();
         let g_hat = g.ntt();
 
@@ -524,9 +543,9 @@ mod test {
     #[test]
     fn ntt_vector() {
         // Verify vector addition
-        let v1 = NttVector(arr![const_ntt(1), const_ntt(1), const_ntt(1)]);
-        let v2 = NttVector(arr![const_ntt(2), const_ntt(2), const_ntt(2)]);
-        let v3 = NttVector(arr![const_ntt(3), const_ntt(3), const_ntt(3)]);
+        let v1: NttVector<U3> = NttVector(Array([const_ntt(1), const_ntt(1), const_ntt(1)]));
+        let v2: NttVector<U3> = NttVector(Array([const_ntt(2), const_ntt(2), const_ntt(2)]));
+        let v3: NttVector<U3> = NttVector(Array([const_ntt(3), const_ntt(3), const_ntt(3)]));
         assert_eq!((&v1 + &v2), v3);
 
         // Verify dot product
@@ -538,21 +557,21 @@ mod test {
     #[test]
     fn ntt_matrix() {
         // Verify matrix multiplication by a vector
-        let a = NttMatrix(arr![
-            NttVector(arr![const_ntt(1), const_ntt(2), const_ntt(3)]),
-            NttVector(arr![const_ntt(4), const_ntt(5), const_ntt(6)]),
-            NttVector(arr![const_ntt(7), const_ntt(8), const_ntt(9)]),
-        ]);
-        let v_in = NttVector(arr![const_ntt(1), const_ntt(2), const_ntt(3)]);
-        let v_out = NttVector(arr![const_ntt(14), const_ntt(32), const_ntt(50)]);
+        let a: NttMatrix<U3> = NttMatrix(Array([
+            NttVector(Array([const_ntt(1), const_ntt(2), const_ntt(3)])),
+            NttVector(Array([const_ntt(4), const_ntt(5), const_ntt(6)])),
+            NttVector(Array([const_ntt(7), const_ntt(8), const_ntt(9)])),
+        ]));
+        let v_in: NttVector<U3> = NttVector(Array([const_ntt(1), const_ntt(2), const_ntt(3)]));
+        let v_out: NttVector<U3> = NttVector(Array([const_ntt(14), const_ntt(32), const_ntt(50)]));
         assert_eq!(&a * &v_in, v_out);
 
         // Verify transpose
-        let aT = NttMatrix(arr![
-            NttVector(arr![const_ntt(1), const_ntt(4), const_ntt(7)]),
-            NttVector(arr![const_ntt(2), const_ntt(5), const_ntt(8)]),
-            NttVector(arr![const_ntt(3), const_ntt(6), const_ntt(9)]),
-        ]);
+        let aT = NttMatrix(Array([
+            NttVector(Array([const_ntt(1), const_ntt(4), const_ntt(7)])),
+            NttVector(Array([const_ntt(2), const_ntt(5), const_ntt(8)])),
+            NttVector(Array([const_ntt(3), const_ntt(6), const_ntt(9)])),
+        ]));
         assert_eq!(a.transpose(), aT);
     }
 
@@ -643,12 +662,11 @@ mod test {
         //
         // Since Q ~= 2^11 and 256 == 2^8, we need 2^3 == 8 runs of 256 to get out of the bad
         // regime and get a meaningful measurement.
-        let rho = B32::const_default();
-        let sample: GenericArray<GenericArray<FieldElement, U256>, U8> =
-            GenericArray::generate(|i| {
-                let mut xof = XOF(&rho, 0, i as u8);
-                NttPolynomial::sample_uniform(&mut xof).into()
-            });
+        let rho = B32::default();
+        let sample: Array<Array<FieldElement, U256>, U8> = Array::from_fn(|i| {
+            let mut xof = XOF(&rho, 0, i as u8);
+            NttPolynomial::sample_uniform(&mut xof).into()
+        });
 
         test_sample(&sample.flatten(), &UNIFORM);
     }
@@ -656,13 +674,13 @@ mod test {
     #[test]
     fn sample_cbd() {
         // Eta = 2
-        let sigma = B32::const_default();
+        let sigma = B32::default();
         let prf_output = PRF::<U2>(&sigma, 0);
         let sample = Polynomial::sample_cbd::<U2>(&prf_output).0;
         test_sample(&sample, &CBD2);
 
         // Eta = 3
-        let sigma = B32::const_default();
+        let sigma = B32::default();
         let prf_output = PRF::<U3>(&sigma, 0);
         let sample = Polynomial::sample_cbd::<U3>(&prf_output).0;
         test_sample(&sample, &CBD3);

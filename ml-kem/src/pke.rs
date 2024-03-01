@@ -1,11 +1,11 @@
-use typenum::{consts::U1, Unsigned};
+use hybrid_array::typenum::{Unsigned, U1};
 
 use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
 use crate::encode::Encode;
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
-use crate::util::{FastClone, B32};
+use crate::util::B32;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
@@ -117,7 +117,7 @@ where
     /// Represent this encryption key as a byte array `(t_hat || rho)`
     pub fn as_bytes(&self) -> EncodedEncryptionKey<P> {
         let t_hat = P::encode_u12(&self.t_hat);
-        P::concat_ek(t_hat, self.rho.fast_clone())
+        P::concat_ek(t_hat, self.rho.clone())
     }
 
     /// Parse an encryption key from a byte array `(t_hat || rho)`
@@ -126,7 +126,7 @@ where
         let t_hat = P::decode_u12(t_hat);
         Self {
             t_hat,
-            rho: rho.fast_clone(),
+            rho: rho.clone(),
         }
     }
 }
