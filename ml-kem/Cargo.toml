@@ -11,7 +11,7 @@ deterministic = [] # Expose deterministic generation and encapsulation functions
 const-default = "1.0.0"
 crypto-common = { version = "0.1.6", features = ["getrandom"] }
 generic-array = { version = "1.0.0", features = ["const-default"] }
-hybrid-array = { path = "../../hybrid-array" }
+hybrid-array = { version = "0.2.0-rc.6" }
 sha3 = "0.10.8"
 
 [dev-dependencies]
