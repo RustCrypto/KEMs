@@ -144,7 +144,6 @@ where
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
-    use core::cmp::PartialEq;
     use core::fmt::Debug;
     use core::ops::Rem;
     use hybrid_array::typenum::{
