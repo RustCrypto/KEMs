@@ -32,7 +32,10 @@ jobs:
           - ${{needs.set-msrv.outputs.msrv}}
           - stable
         target:
-          - thumbv7em-none-eabi
+          # XXX(bifurcation) We have a dependency on `sha3`, which has a
+          # transitive `std` dependency by default.  It appears that we can turn
+          # this off via Cargo.
+          # - thumbv7em-none-eabi
           - wasm32-unknown-unknown
     steps:
       - uses: actions/checkout@v4
