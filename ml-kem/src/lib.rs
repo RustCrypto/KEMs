@@ -132,10 +132,25 @@ pub trait KemCore {
     type CiphertextSize: ArraySize;
 
     /// A decapsulation key for this KEM
-    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>> + Debug + PartialEq;
+    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>>
+        + EncodedSizeUser
+        + Debug
+        + PartialEq;
 
+    #[cfg(not(feature = "deterministic"))]
     /// An encapsulation key for this KEM
-    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>> + Debug + PartialEq;
+    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
+        + EncodedSizeUser
+        + Debug
+        + PartialEq;
+
+    #[cfg(feature = "deterministic")]
+    /// An encapsulation key for this KEM
+    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
+        + EncapsulateDeterministic<Ciphertext<Self>, SharedKey<Self>>
+        + EncodedSizeUser
+        + Debug
+        + PartialEq;
 
     /// Generate a new (decapsulation, encapsulation) key pair
     fn generate(rng: &mut impl CryptoRngCore) -> (Self::DecapsulationKey, Self::EncapsulationKey);
