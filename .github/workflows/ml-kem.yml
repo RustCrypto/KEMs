@@ -23,32 +23,30 @@ jobs:
     with:
       msrv: 1.74.0
 
-# TODO
-#  no_std:
-#    needs: set-msrv
-#    runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        rust:
-#          - ${{needs.set-msrv.outputs.msrv}}
-#          - stable
-#        target:
-#          - thumbv7em-none-eabi
-#          - wasm32-unknown-unknown
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: RustCrypto/actions/cargo-cache@master
-#      - uses: dtolnay/rust-toolchain@master
-#        with:
-#          toolchain: ${{ matrix.rust }}
-#          targets: ${{ matrix.target }}
-#      - run: cargo build --no-default-features --target ${{ matrix.target }}
+  no_std:
+    needs: set-msrv
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - ${{needs.set-msrv.outputs.msrv}}
+          - stable
+        target:
+          - thumbv7em-none-eabi
+          - wasm32-unknown-unknown
+    steps:
+      - uses: actions/checkout@v4
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+      - run: cargo build --no-default-features --target ${{ matrix.target }}
 
-# TODO
-#  minimal-versions:
-#    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
-#    with:
-#      working-directory: ${{ github.workflow }}
+  minimal-versions:
+    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
+    with:
+      working-directory: ${{ github.workflow }}
 
   test:
     needs: set-msrv
