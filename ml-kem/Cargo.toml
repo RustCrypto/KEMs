@@ -6,7 +6,8 @@ rust-version = "1.74"
 license = "Apache-2.0 OR MIT"
 
 [features]
-default = []
+default = ["std"]
+std = ["sha3/std"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
 
 [dependencies]
