@@ -191,7 +191,7 @@ where
         &self,
         m: &B32,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        Ok(self.encapsulate_deterministic_inner(&m))
+        Ok(self.encapsulate_deterministic_inner(m))
     }
 }
 

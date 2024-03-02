@@ -102,7 +102,11 @@ pub trait EncapsulateDeterministic<EK, SS> {
     /// Encapsulation error
     type Error: Debug;
 
-    /// Encapsulates a fresh shared secret
+    /// Encapsulates a fresh shared secret.
+    ///
+    /// # Errors
+    ///
+    /// Will vary depending on the underlying implementation.
     fn encapsulate_deterministic(&self, m: &B32) -> Result<(EK, SS), Self::Error>;
 }
 
