@@ -2,6 +2,7 @@
 name = "ml-kem"
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.74"
 
 [features]
 default = []
@@ -19,9 +20,6 @@ criterion = "0.5.1"
 hex = "0.4.3"
 hex-literal = "0.4.1"
 rand = "0.8.5"
-
-[profile.bench]
-debug = true
 
 [[bench]]
 name = "mlkem"
