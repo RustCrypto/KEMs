@@ -137,15 +137,15 @@ pub trait KemCore {
         + Debug
         + PartialEq;
 
-    #[cfg(not(feature = "deterministic"))]
     /// An encapsulation key for this KEM
+    #[cfg(not(feature = "deterministic"))]
     type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
         + EncodedSizeUser
         + Debug
         + PartialEq;
 
-    #[cfg(feature = "deterministic")]
     /// An encapsulation key for this KEM
+    #[cfg(feature = "deterministic")]
     type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
         + EncapsulateDeterministic<Ciphertext<Self>, SharedKey<Self>>
         + EncodedSizeUser
