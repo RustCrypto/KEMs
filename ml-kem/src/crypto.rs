@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 
-use crypto_common::rand_core::CryptoRngCore;
 use hybrid_array::{Array, ArraySize};
+use rand_core::CryptoRngCore;
 use sha3::{
     digest::{ExtendableOutput, Update, XofReader},
     Digest, Sha3_256, Sha3_512, Shake128, Shake256,

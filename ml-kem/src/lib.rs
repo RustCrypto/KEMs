@@ -56,11 +56,11 @@ pub mod kem;
 mod param;
 
 use core::fmt::Debug;
-use crypto_common::rand_core::CryptoRngCore;
 use hybrid_array::{
     typenum::{U10, U11, U2, U3, U4, U5},
     Array,
 };
+use rand_core::CryptoRngCore;
 
 #[cfg(feature = "deterministic")]
 pub use util::B32;
