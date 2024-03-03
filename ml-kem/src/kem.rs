@@ -1,6 +1,6 @@
 use core::marker::PhantomData;
-use crypto_common::rand_core::CryptoRngCore;
 use hybrid_array::typenum::U32;
+use rand_core::CryptoRngCore;
 
 use crate::crypto::{rand, G, H, J};
 use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};

@@ -1,6 +1,6 @@
 #![cfg(feature = "deterministic")]
 
-use generic_array::GenericArray;
+use hybrid_array::Array;
 use ml_kem::*;
 
 pub struct GenerateVector {
@@ -12,8 +12,8 @@ pub struct GenerateVector {
 
 impl GenerateVector {
     pub fn verify<K: KemCore>(&self) {
-        let d = GenericArray::from_slice(&self.d);
-        let z = GenericArray::from_slice(&self.z);
+        let d = Array::from_slice(&self.d);
+        let z = Array::from_slice(&self.z);
         let (dk, ek) = K::generate_deterministic(d, z);
         assert_eq!(dk.as_bytes().as_slice(), self.dk);
         assert_eq!(ek.as_bytes().as_slice(), self.ek);
@@ -35,10 +35,10 @@ pub struct EncapsulateVector {
 
 impl EncapsulateVector {
     pub fn verify<K: KemCore>(&self) {
-        let m = GenericArray::from_slice(&self.m);
+        let m = Array::from_slice(&self.m);
         let ek_bytes = Encoded::<K::EncapsulationKey>::from_slice(self.ek);
         let ek = K::EncapsulationKey::from_bytes(ek_bytes);
-        let (k, c) = ek.encapsulate_deterministic(m);
+        let (c, k) = ek.encapsulate_deterministic(m).unwrap();
         assert_eq!(k.as_slice(), &self.k);
         assert_eq!(c.as_slice(), self.c);
     }
@@ -56,7 +56,7 @@ impl DecapsulateVector {
         let dk = K::DecapsulationKey::from_bytes(dk_bytes);
 
         let c_bytes = Ciphertext::<K>::from_slice(self.c);
-        let k = dk.decapsulate(c_bytes);
+        let k = dk.decapsulate(c_bytes).unwrap();
         assert_eq!(k.as_slice(), &self.k);
     }
 }

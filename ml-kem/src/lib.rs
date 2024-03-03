@@ -56,11 +56,11 @@ pub mod kem;
 mod param;
 
 use core::fmt::Debug;
-use crypto_common::rand_core::CryptoRngCore;
 use hybrid_array::{
     typenum::{U10, U11, U2, U3, U4, U5},
     Array,
 };
+use rand_core::CryptoRngCore;
 
 #[cfg(feature = "deterministic")]
 pub use util::B32;
@@ -132,10 +132,25 @@ pub trait KemCore {
     type CiphertextSize: ArraySize;
 
     /// A decapsulation key for this KEM
-    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>> + Debug + PartialEq;
+    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>>
+        + EncodedSizeUser
+        + Debug
+        + PartialEq;
 
     /// An encapsulation key for this KEM
-    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>> + Debug + PartialEq;
+    #[cfg(not(feature = "deterministic"))]
+    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
+        + EncodedSizeUser
+        + Debug
+        + PartialEq;
+
+    /// An encapsulation key for this KEM
+    #[cfg(feature = "deterministic")]
+    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
+        + EncapsulateDeterministic<Ciphertext<Self>, SharedKey<Self>>
+        + EncodedSizeUser
+        + Debug
+        + PartialEq;
 
     /// Generate a new (decapsulation, encapsulation) key pair
     fn generate(rng: &mut impl CryptoRngCore) -> (Self::DecapsulationKey, Self::EncapsulationKey);
