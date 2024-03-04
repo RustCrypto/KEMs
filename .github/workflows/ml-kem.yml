@@ -66,27 +66,21 @@ jobs:
       - run: cargo test
       - run: cargo test --all-features
 
-  miri:
-    runs-on: ubuntu-latest
-    env:
-      MIRIFLAGS: "-Zmiri-symbolic-alignment-check -Zmiri-strict-provenance"
+  cross:
+    needs: set-msrv
     strategy:
       matrix:
-        target:
-          - x86_64-unknown-linux-gnu
-          - s390x-unknown-linux-gnu
+        include:
+          - target: powerpc-unknown-linux-gnu
+            rust: ${{needs.set-msrv.outputs.msrv}}
+          - target: powerpc-unknown-linux-gnu
+            rust: stable
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: RustCrypto/actions/cargo-cache@master
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: nightly
-      - name: Install Miri
-        run: |
-          rustup component add miri
-          cargo miri setup
-      - name: Test with Miri
-        run: |
-          cargo miri test --target ${{ matrix.target }} --no-default-features
-          cargo miri test --target ${{ matrix.target }}
-          cargo miri test --target ${{ matrix.target }} --all-features
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+      - uses: RustCrypto/actions/cross-install@master
+      - run: cross test --release --target ${{ matrix.target }} --all-features
