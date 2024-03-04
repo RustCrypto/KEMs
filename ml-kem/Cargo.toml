@@ -1,10 +1,17 @@
 [package]
 name = "ml-kem"
-version = "0.1.0"
+description = """
+Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
+(formerly known as Kyber) as described in the FIPS 203 Initial Public Draft
+"""
+version = "0.1.0-alpha"
 edition = "2021"
 rust-version = "1.74"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
+repository = "https://github.com/RustCrypto/KEMs/tree/master/ml-kem"
+categories = ["cryptography", "no-std"]
+keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 
 [features]
 default = ["std"]
