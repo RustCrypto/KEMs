@@ -1,3 +1,17 @@
+#![no_std]
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
+)]
+#![warn(clippy::pedantic)] // Be pedantic by default
+#![allow(non_snake_case)] // Allow notation matching the spec
+#![allow(clippy::clone_on_copy)] // Be explicit about moving data
+#![deny(missing_docs)] // Require all public interfaces to be documented
+
+//! # Usage
+//!
 //! This crate implements the Module-Latice-based Key Encapsulation Method (ML-KEM) algorithm
 //! being standardized by NIST in FIPS 203.  ML-KEM is a KEM in the sense that it creates an
 //! (decapsulation key, encapsulation key) pair, such that anyone can use the encapsulation key to
@@ -22,12 +36,6 @@
 //! ```
 //!
 //! [RFC 9180]: https://www.rfc-editor.org/info/rfc9180
-
-#![no_std]
-#![warn(clippy::pedantic)] // Be pedantic by default
-#![allow(non_snake_case)] // Allow notation matching the spec
-#![allow(clippy::clone_on_copy)] // Be explicit about moving data
-#![deny(missing_docs)] // Require all public interfaces to be documented
 
 /// The inevitable utility module
 mod util;

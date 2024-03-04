@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.74"
 license = "Apache-2.0 OR MIT"
+readme = "README.md"
 
 [features]
 default = ["std"]
@@ -24,3 +25,7 @@ rand = "0.8.5"
 [[bench]]
 name = "mlkem"
 harness = false
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
