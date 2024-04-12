@@ -12,6 +12,23 @@ Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism
 
 [Documentation][docs-link]
 
+## About
+
+ML-KEM is a cutting-edge post-quantum secure key encapsulation mechanism (KEM). KEMs play a vital
+role in modern cryptographic systems by securely exchanging keys between parties, ensuring
+confidential communication over insecure channels.
+
+Originally developed as Kyber, ML-KEM inherits the foundation of its predecessor while introducing
+refinements and optimizations to enhance its security and efficiency. ML-KEM and Kyber are
+intimately related, with ML-KEM representing a refined and evolved version of the original Kyber
+algorithm. While Kyber pioneered lattice-based cryptography and provided a reliable framework for
+secure key exchange, ML-KEM builds upon this foundation, incorporating advancements in
+cryptographic research and addressing potential vulnerabilities.
+
+In summary, ML-KEM stands at the forefront of post-quantum cryptography, offering enhanced security
+and efficiency in key encapsulation mechanisms to safeguard sensitive communications in an era where
+quantum computers potentially pose a looming threat.
+
 ## ⚠️ Security Warning
 
 The implementation contained in this crate has never been independently audited!
