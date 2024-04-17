@@ -1,5 +1,6 @@
 #![cfg(feature = "deterministic")]
 
+use ::kem::Decapsulate;
 use hybrid_array::Array;
 use ml_kem::*;
 
