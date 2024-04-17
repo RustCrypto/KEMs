@@ -63,8 +63,8 @@ pub mod kem;
 /// Section 7. Parameter Sets
 mod param;
 
-use core::fmt::Debug;
 use ::kem::{Decapsulate, Encapsulate};
+use core::fmt::Debug;
 use hybrid_array::{
     typenum::{U10, U11, U2, U3, U4, U5},
     Array,
