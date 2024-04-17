@@ -21,6 +21,7 @@
 //!
 //! ```
 //! # use ml_kem::*;
+//! # use ::kem::{Decapsulate, Encapsulate};
 //! let mut rng = rand::thread_rng();
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair

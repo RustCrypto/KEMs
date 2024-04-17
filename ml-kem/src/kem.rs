@@ -234,9 +234,8 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Decapsulate as _;
-    use crate::Encapsulate as _;
     use crate::{MlKem1024Params, MlKem512Params, MlKem768Params};
+    use ::kem::{Decapsulate, Encapsulate};
 
     fn round_trip_test<P>()
     where
