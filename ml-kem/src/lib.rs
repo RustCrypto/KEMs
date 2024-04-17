@@ -21,6 +21,7 @@
 //!
 //! ```
 //! # use ml_kem::*;
+//! # use ::kem::{Decapsulate, Encapsulate};
 //! let mut rng = rand::thread_rng();
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair
@@ -63,6 +64,7 @@ pub mod kem;
 /// Section 7. Parameter Sets
 mod param;
 
+use ::kem::{Decapsulate, Encapsulate};
 use core::fmt::Debug;
 use hybrid_array::{
     typenum::{U10, U11, U2, U3, U4, U5},
@@ -90,19 +92,6 @@ pub trait EncodedSizeUser {
 /// A byte array encoding a value the indicated size
 pub type Encoded<T> = Array<u8, <T as EncodedSizeUser>::EncodedSize>;
 
-// XXX(RLB) Copy/pasted from https://github.com/RustCrypto/traits/pull/1509
-/// A value that can be encapsulated to. Often, this will just be a public key. However, it can
-/// also be a bundle of public keys, or it can include a sender's private key for authenticated
-/// encapsulation.
-pub trait Encapsulate<EK, SS> {
-    /// Encapsulation error
-    type Error: Debug;
-
-    #[allow(clippy::missing_errors_doc)]
-    /// Encapsulates a fresh shared secret
-    fn encapsulate(&self, rng: &mut impl CryptoRngCore) -> Result<(EK, SS), Self::Error>;
-}
-
 /// A value that can be encapsulated to.  Note that this interface is not safe: In order for the
 /// KEM to be secure, the `m` input must be randomly generated.
 #[cfg(feature = "deterministic")]
@@ -116,19 +105,6 @@ pub trait EncapsulateDeterministic<EK, SS> {
     ///
     /// Will vary depending on the underlying implementation.
     fn encapsulate_deterministic(&self, m: &B32) -> Result<(EK, SS), Self::Error>;
-}
-
-// XXX(RLB) Copy/pasted from https://github.com/RustCrypto/traits/pull/1509
-/// A value that can be used to decapsulate an encapsulated key. Often, this will just be a secret
-/// key. But, as with [`Encapsulate`], it can be a bundle of secret keys, or it can include a
-/// sender's private key for authenticated encapsulation.
-pub trait Decapsulate<EK, SS> {
-    /// Decapsulation error
-    type Error: Debug;
-
-    #[allow(clippy::missing_errors_doc)]
-    /// Decapsulates the given encapsulated key
-    fn decapsulate(&self, encapsulated_key: &EK) -> Result<SS, Self::Error>;
 }
 
 /// A generic interface to a Key Encapsulation Method

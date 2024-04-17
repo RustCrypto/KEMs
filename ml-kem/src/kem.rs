@@ -61,7 +61,7 @@ fn constant_time_eq(x: u8, y: u8) -> u8 {
     0u8.wrapping_sub(is_zero >> 7)
 }
 
-impl<P> crate::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
+impl<P> ::kem::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
 where
     P: KemParams,
 {
@@ -162,7 +162,7 @@ where
     }
 }
 
-impl<P> crate::Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
+impl<P> ::kem::Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
 where
     P: KemParams,
 {
@@ -234,9 +234,8 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::Decapsulate as _;
-    use crate::Encapsulate as _;
     use crate::{MlKem1024Params, MlKem512Params, MlKem768Params};
+    use ::kem::{Decapsulate, Encapsulate};
 
     fn round_trip_test<P>()
     where
