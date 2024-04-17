@@ -19,6 +19,7 @@ std = ["sha3/std"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
 
 [dependencies]
+kem = "0.3.0-pre.0"
 hybrid-array = { version = "0.2.0-rc.8", features = ["extra-sizes"] }
 rand_core = "0.6.4"
 sha3 = { version = "0.10.8", default-features = false }
