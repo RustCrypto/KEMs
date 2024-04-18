@@ -1,7 +1,15 @@
 [package]
 name = "dhkem"
+description = """
+Key Encapsulation Mechanism (KEM) adapters for Elliptic Curve Diffie Hellman (ECDH) protocols
+"""
 version = "0.1.0"
 edition = "2021"
+rust-version = "1.74"
+license = "Apache-2.0 OR MIT"
+repository = "https://github.com/RustCrypto/KEMs/tree/master/dhkem"
+categories = ["cryptography"]
+keywords = ["crypto", "ecdh", "ecc"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
