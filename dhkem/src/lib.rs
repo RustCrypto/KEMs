@@ -5,10 +5,6 @@ use rand_core::CryptoRngCore;
 pub struct Encapsulator<X>(X);
 /// Newtype for a piece of data that may be decapsulated
 pub struct Decapsulator<X>(X);
-/// Newtype for a shared secret
-pub struct SharedSecret<X>(X);
-/// Newtype for an encapsulated key
-pub struct EncapsulatedKey<X>(X);
 
 #[cfg(test)]
 pub trait SecretBytes {
