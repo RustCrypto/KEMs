@@ -2,6 +2,9 @@ use crate::{DhKem, SecretBytes};
 use kem::{Decapsulate, Encapsulate};
 use rand::thread_rng;
 
+// we need this because if the crate is compiled with no features this function never
+// gets used
+#[allow(dead_code)]
 fn test_kem<K: DhKem>() {
     let mut rng = thread_rng();
     let (sk, pk) = K::random_keypair(&mut rng);
