@@ -1,5 +1,5 @@
-use crate::{DhKem, DhKemProxy};
-use elliptic_curve::ecdh::{EphemeralSecret, SharedSecret};
+use crate::{Decapsulator, DhKem, EncapsulatedKey, Encapsulator, SharedSecret};
+use elliptic_curve::ecdh::{EphemeralSecret, SharedSecret as EcdhSecret};
 use elliptic_curve::{CurveArithmetic, PublicKey};
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
@@ -7,8 +7,8 @@ use std::marker::PhantomData;
 
 pub struct ArithmeticKem<C: CurveArithmetic>(PhantomData<C>);
 
-impl<C> Encapsulate<DhKemProxy<PublicKey<C>>, DhKemProxy<SharedSecret<C>>>
-    for DhKemProxy<PublicKey<C>>
+impl<C> Encapsulate<EncapsulatedKey<PublicKey<C>>, SharedSecret<EcdhSecret<C>>>
+    for Encapsulator<PublicKey<C>>
 where
     C: CurveArithmetic,
 {
@@ -17,18 +17,18 @@ where
     fn encapsulate(
         &self,
         rng: &mut impl CryptoRngCore,
-    ) -> Result<(DhKemProxy<PublicKey<C>>, DhKemProxy<SharedSecret<C>>), Self::Error> {
+    ) -> Result<(EncapsulatedKey<PublicKey<C>>, SharedSecret<EcdhSecret<C>>), Self::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
         let sk = EphemeralSecret::random(rng);
         let pk = sk.public_key();
         let ss = sk.diffie_hellman(&self.0);
 
-        Ok((DhKemProxy(pk), DhKemProxy(ss)))
+        Ok((EncapsulatedKey(pk), SharedSecret(ss)))
     }
 }
 
-impl<C> Decapsulate<DhKemProxy<PublicKey<C>>, DhKemProxy<SharedSecret<C>>>
-    for DhKemProxy<EphemeralSecret<C>>
+impl<C> Decapsulate<EncapsulatedKey<PublicKey<C>>, SharedSecret<EcdhSecret<C>>>
+    for Decapsulator<EphemeralSecret<C>>
 where
     C: CurveArithmetic,
 {
@@ -36,11 +36,11 @@ where
 
     fn decapsulate(
         &self,
-        encapsulated_key: &DhKemProxy<PublicKey<C>>,
-    ) -> Result<DhKemProxy<SharedSecret<C>>, Self::Error> {
+        encapsulated_key: &EncapsulatedKey<PublicKey<C>>,
+    ) -> Result<SharedSecret<EcdhSecret<C>>, Self::Error> {
         let ss = self.0.diffie_hellman(&encapsulated_key.0);
 
-        Ok(DhKemProxy(ss))
+        Ok(SharedSecret(ss))
     }
 }
 
@@ -48,10 +48,10 @@ impl<C> DhKem for ArithmeticKem<C>
 where
     C: CurveArithmetic,
 {
-    type DecapsulatingKey = DhKemProxy<EphemeralSecret<C>>;
-    type EncapsulatingKey = DhKemProxy<PublicKey<C>>;
-    type EncapsulatedKey = DhKemProxy<PublicKey<C>>;
-    type SharedSecret = DhKemProxy<SharedSecret<C>>;
+    type DecapsulatingKey = Decapsulator<EphemeralSecret<C>>;
+    type EncapsulatingKey = Encapsulator<PublicKey<C>>;
+    type EncapsulatedKey = EncapsulatedKey<PublicKey<C>>;
+    type SharedSecret = SharedSecret<EcdhSecret<C>>;
 
     fn random_keypair(
         rng: &mut impl CryptoRngCore,
@@ -59,12 +59,12 @@ where
         let sk = EphemeralSecret::random(rng);
         let pk = PublicKey::from(&sk);
 
-        (DhKemProxy(sk), DhKemProxy(pk))
+        (Decapsulator(sk), Encapsulator(pk))
     }
 }
 
 #[cfg(test)]
-impl<C> crate::SecretBytes for DhKemProxy<SharedSecret<C>>
+impl<C> crate::SecretBytes for SharedSecret<EcdhSecret<C>>
 where
     C: CurveArithmetic,
 {
