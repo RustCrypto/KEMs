@@ -1,0 +1,32 @@
+[package]
+name = "dhkem"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+kem = "0.3.0-pre.0"
+rand_core = "0.6.4"
+x25519 = { version = "2.0.1", package = "x25519-dalek", optional = true }
+elliptic-curve = { version = "0.13.8", optional = true }
+bign256 = { version = "0.13.1", optional = true }
+k256 = { version = "0.13.3", optional = true }
+p192 = { version = "0.13.0", optional = true }
+p224 = { version = "0.13.2", optional = true }
+p256 = { version = "0.13.2", optional = true }
+p384 = { version = "0.13.0", optional = true }
+p521 = { version = "0.13.3", optional = true }
+sm2 = { version = "0.13.3", optional = true }
+
+[features]
+arithmetic = ["dep:elliptic-curve", "elliptic-curve/ecdh"]
+x25519 = ["dep:x25519", "x25519/reusable_secrets"]
+bign256 = ["dep:bign256", "arithmetic"]
+k256 = ["dep:k256", "arithmetic"]
+p192 = ["dep:p192", "arithmetic"]
+p224 = ["dep:p224", "arithmetic"]
+p256 = ["dep:p256", "arithmetic"]
+p384 = ["dep:p384", "arithmetic"]
+p521 = ["dep:p521", "arithmetic"]
+sm2 = ["dep:sm2", "arithmetic"]
