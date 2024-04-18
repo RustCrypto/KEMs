@@ -13,9 +13,49 @@ use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 
 /// Newtype for a piece of data that may be encapsulated
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
 pub struct Encapsulator<X>(X);
 /// Newtype for a piece of data that may be decapsulated
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
 pub struct Decapsulator<X>(X);
+
+impl<X> AsRef<X> for Encapsulator<X> {
+    fn as_ref(&self) -> &X {
+        &self.0
+    }
+}
+
+impl<X> From<X> for Encapsulator<X> {
+    fn from(value: X) -> Self {
+        Self(value)
+    }
+}
+
+impl<X> AsRef<X> for Decapsulator<X> {
+    fn as_ref(&self) -> &X {
+        &self.0
+    }
+}
+
+impl<X> From<X> for Decapsulator<X> {
+    fn from(value: X) -> Self {
+        Self(value)
+    }
+}
+
+impl<X> Encapsulator<X> {
+    /// Consumes `self` and returns the wrapped value
+    pub fn into_inner(self) -> X {
+        self.0
+    }
+}
+
+impl<X> Decapsulator<X> {
+    /// Consumes `self` and returns the wrapped value
+    pub fn into_inner(self) -> X {
+        self.0
+    }
+}
 
 #[cfg(test)]
 pub trait SecretBytes {
