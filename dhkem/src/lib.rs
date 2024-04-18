@@ -3,11 +3,20 @@ use rand_core::CryptoRngCore;
 
 pub struct DhKemProxy<X>(X);
 
+#[cfg(test)]
+pub trait SecretBytes {
+    fn as_slice(&self) -> &[u8];
+}
+
 pub trait DhKem {
     type DecapsulatingKey: Decapsulate<Self::EncapsulatedKey, Self::SharedSecret>;
     type EncapsulatingKey: Encapsulate<Self::EncapsulatedKey, Self::SharedSecret>;
     type EncapsulatedKey;
+    #[cfg(not(test))]
     type SharedSecret;
+
+    #[cfg(test)]
+    type SharedSecret: SecretBytes;
 
     fn random_keypair(
         rng: &mut impl CryptoRngCore,
@@ -41,3 +50,6 @@ pub type NistP384 = arithmetic::ArithmeticKem<p384::NistP384>;
 pub type NistP521 = arithmetic::ArithmeticKem<p521::NistP521>;
 #[cfg(feature = "sm2")]
 pub type Sm2 = arithmetic::ArithmeticKem<sm2::Sm2>;
+
+#[cfg(test)]
+mod tests;

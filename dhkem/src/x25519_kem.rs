@@ -49,3 +49,10 @@ impl DhKem for X25519 {
         (DhKemProxy(sk), DhKemProxy(pk))
     }
 }
+
+#[cfg(test)]
+impl crate::SecretBytes for DhKemProxy<SharedSecret> {
+    fn as_slice(&self) -> &[u8] {
+        self.0.as_bytes().as_slice()
+    }
+}

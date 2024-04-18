@@ -62,3 +62,13 @@ where
         (DhKemProxy(sk), DhKemProxy(pk))
     }
 }
+
+#[cfg(test)]
+impl<C> crate::SecretBytes for DhKemProxy<SharedSecret<C>>
+where
+    C: CurveArithmetic,
+{
+    fn as_slice(&self) -> &[u8] {
+        self.0.raw_secret_bytes().as_slice()
+    }
+}

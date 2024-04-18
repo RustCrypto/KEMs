@@ -38,3 +38,6 @@ p256 = ["dep:p256", "arithmetic"]
 p384 = ["dep:p384", "arithmetic"]
 p521 = ["dep:p521", "arithmetic"]
 sm2 = ["dep:sm2", "arithmetic"]
+
+[dev-dependencies]
+rand = "0.8.5"

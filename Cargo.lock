@@ -305,6 +305,7 @@ dependencies = [
  "p256",
  "p384",
  "p521",
+ "rand",
  "rand_core",
  "sm2",
  "x25519-dalek",
