@@ -135,3 +135,7 @@ pub type Sm2 = arithmetic::ArithmeticKem<sm2::Sm2>;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[cfg(feature = "p256")]
+mod hpke_p256_test;

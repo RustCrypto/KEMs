@@ -298,6 +298,8 @@ version = "0.1.0"
 dependencies = [
  "bign256",
  "elliptic-curve",
+ "hex-literal",
+ "hkdf",
  "k256",
  "kem",
  "p192",
@@ -307,6 +309,7 @@ dependencies = [
  "p521",
  "rand",
  "rand_core",
+ "sha2",
  "sm2",
  "x25519-dalek",
  "zeroize",
