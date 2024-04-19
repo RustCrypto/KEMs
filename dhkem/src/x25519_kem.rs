@@ -46,10 +46,3 @@ impl DhKem for X25519 {
         (Decapsulator(sk), Encapsulator(pk))
     }
 }
-
-#[cfg(test)]
-impl crate::SecretBytes for SharedSecret {
-    fn as_slice(&self) -> &[u8] {
-        self.as_bytes().as_slice()
-    }
-}

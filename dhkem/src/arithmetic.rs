@@ -57,13 +57,3 @@ where
         (Decapsulator(sk), Encapsulator(pk))
     }
 }
-
-#[cfg(test)]
-impl<C> crate::SecretBytes for SharedSecret<C>
-where
-    C: CurveArithmetic,
-{
-    fn as_slice(&self) -> &[u8] {
-        self.raw_secret_bytes().as_slice()
-    }
-}

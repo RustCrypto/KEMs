@@ -57,11 +57,6 @@ impl<X> Decapsulator<X> {
     }
 }
 
-#[cfg(test)]
-pub trait SecretBytes {
-    fn as_slice(&self) -> &[u8];
-}
-
 /// This is a trait that all KEM models should implement, and should probably be
 /// promoted to the kem crate itself. It specifies the types of encapsulating and
 /// decapsulating keys created by key generation, the shared secret type, and the
@@ -76,12 +71,8 @@ pub trait DhKem {
     /// The type of the encapsulated key
     type EncapsulatedKey;
 
-    #[cfg(not(test))]
     /// The type of the shared secret
     type SharedSecret;
-
-    #[cfg(test)]
-    type SharedSecret: SecretBytes;
 
     /// Generates a new (decapsulating key, encapsulating key) keypair for the KEM
     /// model

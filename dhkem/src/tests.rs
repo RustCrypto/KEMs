@@ -1,11 +1,35 @@
-use crate::{DhKem, SecretBytes};
+use crate::DhKem;
 use kem::{Decapsulate, Encapsulate};
 use rand::thread_rng;
+
+trait SecretBytes {
+    fn as_slice(&self) -> &[u8];
+}
+
+#[cfg(feature = "x25519")]
+impl SecretBytes for x25519::SharedSecret {
+    fn as_slice(&self) -> &[u8] {
+        self.as_bytes().as_slice()
+    }
+}
+
+#[cfg(feature = "arithmetic")]
+impl<C> SecretBytes for elliptic_curve::ecdh::SharedSecret<C>
+where
+    C: elliptic_curve::CurveArithmetic,
+{
+    fn as_slice(&self) -> &[u8] {
+        self.raw_secret_bytes().as_slice()
+    }
+}
 
 // we need this because if the crate is compiled with no features this function never
 // gets used
 #[allow(dead_code)]
-fn test_kem<K: DhKem>() {
+fn test_kem<K: DhKem>()
+where
+    <K as DhKem>::SharedSecret: SecretBytes,
+{
     let mut rng = thread_rng();
     let (sk, pk) = K::random_keypair(&mut rng);
     let (ek, ss1) = pk.encapsulate(&mut rng).expect("never fails");
