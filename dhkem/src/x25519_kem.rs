@@ -1,11 +1,11 @@
-use crate::{Decapsulator, DhKem, Encapsulator};
+use crate::{DhDecapsulator, DhKem, DhEncapsulator};
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
 
 pub struct X25519;
 
-impl Encapsulate<PublicKey, SharedSecret> for Encapsulator<PublicKey> {
+impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
     type Error = ();
 
     fn encapsulate(
@@ -21,7 +21,7 @@ impl Encapsulate<PublicKey, SharedSecret> for Encapsulator<PublicKey> {
     }
 }
 
-impl Decapsulate<PublicKey, SharedSecret> for Decapsulator<ReusableSecret> {
+impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
     type Error = ();
 
     fn decapsulate(&self, encapsulated_key: &PublicKey) -> Result<SharedSecret, Self::Error> {
@@ -32,8 +32,8 @@ impl Decapsulate<PublicKey, SharedSecret> for Decapsulator<ReusableSecret> {
 }
 
 impl DhKem for X25519 {
-    type DecapsulatingKey = Decapsulator<ReusableSecret>;
-    type EncapsulatingKey = Encapsulator<PublicKey>;
+    type DecapsulatingKey = DhDecapsulator<ReusableSecret>;
+    type EncapsulatingKey = DhEncapsulator<PublicKey>;
     type EncapsulatedKey = PublicKey;
     type SharedSecret = SharedSecret;
 
@@ -43,6 +43,6 @@ impl DhKem for X25519 {
         let sk = ReusableSecret::random_from_rng(rng);
         let pk = PublicKey::from(&sk);
 
-        (Decapsulator(sk), Encapsulator(pk))
+        (DhDecapsulator(sk), DhEncapsulator(pk))
     }
 }

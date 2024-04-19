@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 //! # Diffie-Hellman (DH) based Key Encapsulation Mechanisms (KEM)
 //!
 //! This crate provides a KEM interface for DH protocols as specified in
@@ -11,51 +13,73 @@
 
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Newtype for a piece of data that may be encapsulated
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
-pub struct Encapsulator<X>(X);
+pub struct DhEncapsulator<X>(X);
 /// Newtype for a piece of data that may be decapsulated
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
-pub struct Decapsulator<X>(X);
+pub struct DhDecapsulator<X>(X);
 
-impl<X> AsRef<X> for Encapsulator<X> {
+impl<X> AsRef<X> for DhEncapsulator<X> {
     fn as_ref(&self) -> &X {
         &self.0
     }
 }
 
-impl<X> From<X> for Encapsulator<X> {
+impl<X> From<X> for DhEncapsulator<X> {
     fn from(value: X) -> Self {
         Self(value)
     }
 }
 
-impl<X> AsRef<X> for Decapsulator<X> {
+impl<X> AsRef<X> for DhDecapsulator<X> {
     fn as_ref(&self) -> &X {
         &self.0
     }
 }
 
-impl<X> From<X> for Decapsulator<X> {
+impl<X> From<X> for DhDecapsulator<X> {
     fn from(value: X) -> Self {
         Self(value)
     }
 }
 
-impl<X> Encapsulator<X> {
+impl<X> DhEncapsulator<X> {
     /// Consumes `self` and returns the wrapped value
     pub fn into_inner(self) -> X {
         self.0
     }
 }
 
-impl<X> Decapsulator<X> {
+impl<X> DhDecapsulator<X> {
     /// Consumes `self` and returns the wrapped value
     pub fn into_inner(self) -> X {
         self.0
     }
 }
+
+#[cfg(feature = "zeroize")]
+impl<X: Zeroize> Zeroize for DhEncapsulator<X> {
+    fn zeroize(&mut self) {
+        self.0.zeroize()
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<X: Zeroize> Zeroize for DhDecapsulator<X> {
+    fn zeroize(&mut self) {
+        self.0.zeroize()
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<X: ZeroizeOnDrop> ZeroizeOnDrop for DhEncapsulator<X> {}
+
+#[cfg(feature = "zeroize")]
+impl<X: ZeroizeOnDrop> ZeroizeOnDrop for DhDecapsulator<X> {}
 
 /// This is a trait that all KEM models should implement, and should probably be
 /// promoted to the kem crate itself. It specifies the types of encapsulating and

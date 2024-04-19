@@ -1,4 +1,4 @@
-use crate::{Decapsulator, DhKem, Encapsulator};
+use crate::{DhDecapsulator, DhKem, DhEncapsulator};
 use elliptic_curve::ecdh::{EphemeralSecret, SharedSecret};
 use elliptic_curve::{CurveArithmetic, PublicKey};
 use kem::{Decapsulate, Encapsulate};
@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 
 pub struct ArithmeticKem<C: CurveArithmetic>(PhantomData<C>);
 
-impl<C> Encapsulate<PublicKey<C>, SharedSecret<C>> for Encapsulator<PublicKey<C>>
+impl<C> Encapsulate<PublicKey<C>, SharedSecret<C>> for DhEncapsulator<PublicKey<C>>
 where
     C: CurveArithmetic,
 {
@@ -26,7 +26,7 @@ where
     }
 }
 
-impl<C> Decapsulate<PublicKey<C>, SharedSecret<C>> for Decapsulator<EphemeralSecret<C>>
+impl<C> Decapsulate<PublicKey<C>, SharedSecret<C>> for DhDecapsulator<EphemeralSecret<C>>
 where
     C: CurveArithmetic,
 {
@@ -43,8 +43,8 @@ impl<C> DhKem for ArithmeticKem<C>
 where
     C: CurveArithmetic,
 {
-    type DecapsulatingKey = Decapsulator<EphemeralSecret<C>>;
-    type EncapsulatingKey = Encapsulator<PublicKey<C>>;
+    type DecapsulatingKey = DhDecapsulator<EphemeralSecret<C>>;
+    type EncapsulatingKey = DhEncapsulator<PublicKey<C>>;
     type EncapsulatedKey = PublicKey<C>;
     type SharedSecret = SharedSecret<C>;
 
@@ -54,6 +54,6 @@ where
         let sk = EphemeralSecret::random(rng);
         let pk = PublicKey::from(&sk);
 
-        (Decapsulator(sk), Encapsulator(pk))
+        (DhDecapsulator(sk), DhEncapsulator(pk))
     }
 }

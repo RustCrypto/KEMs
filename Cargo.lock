@@ -309,6 +309,7 @@ dependencies = [
  "rand_core",
  "sm2",
  "x25519-dalek",
+ "zeroize",
 ]
 
 [[package]]

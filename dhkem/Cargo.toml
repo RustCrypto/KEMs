@@ -26,8 +26,10 @@ p256 = { version = "0.13.2", optional = true }
 p384 = { version = "0.13.0", optional = true }
 p521 = { version = "0.13.3", optional = true }
 sm2 = { version = "0.13.3", optional = true }
+zeroize = { version = "1.7.0", optional = true }
 
 [features]
+default = ["zeroize"]
 arithmetic = ["dep:elliptic-curve", "elliptic-curve/ecdh"]
 x25519 = ["dep:x25519", "x25519/reusable_secrets"]
 bign256 = ["dep:bign256", "arithmetic"]
@@ -38,6 +40,11 @@ p256 = ["dep:p256", "arithmetic"]
 p384 = ["dep:p384", "arithmetic"]
 p521 = ["dep:p521", "arithmetic"]
 sm2 = ["dep:sm2", "arithmetic"]
+zeroize = ["dep:zeroize"]
 
 [dev-dependencies]
 rand = "0.8.5"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
