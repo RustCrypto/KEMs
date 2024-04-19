@@ -1,4 +1,4 @@
-use crate::{DhDecapsulator, DhKem, DhEncapsulator};
+use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 use x25519::{PublicKey, ReusableSecret, SharedSecret};

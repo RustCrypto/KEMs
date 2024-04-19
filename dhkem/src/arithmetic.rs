@@ -1,4 +1,4 @@
-use crate::{DhDecapsulator, DhKem, DhEncapsulator};
+use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use elliptic_curve::ecdh::{EphemeralSecret, SharedSecret};
 use elliptic_curve::{CurveArithmetic, PublicKey};
 use kem::{Decapsulate, Encapsulate};
