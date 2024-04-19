@@ -25,7 +25,7 @@ impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
     type Error = ();
 
     fn decapsulate(&self, encapsulated_key: &PublicKey) -> Result<SharedSecret, Self::Error> {
-        let ss = self.0.diffie_hellman(&encapsulated_key);
+        let ss = self.0.diffie_hellman(encapsulated_key);
 
         Ok(ss)
     }

@@ -33,7 +33,7 @@ where
     type Error = ();
 
     fn decapsulate(&self, encapsulated_key: &PublicKey<C>) -> Result<SharedSecret<C>, Self::Error> {
-        let ss = self.0.diffie_hellman(&encapsulated_key);
+        let ss = self.0.diffie_hellman(encapsulated_key);
 
         Ok(ss)
     }
