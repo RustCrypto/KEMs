@@ -17,7 +17,7 @@ where
     const POW2_HALF: u32 = 1 << (T::USIZE - 1);
     const MASK: Integer = ((1 as Integer) << T::USIZE) - 1;
     const DIV_SHIFT: u32 = 28 + (T::U32 >> 3) * 4;
-    const DIV_MUL: u64 = 2u64.pow(T::DIV_SHIFT) / FieldElement::Q64;
+    const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / FieldElement::Q64;
 }
 
 // Traits for objects that allow compression / decompression
@@ -34,7 +34,7 @@ impl Compress for FieldElement {
     //   round(a / b) = floor((a + b/2) / b)
     //   a / q ~= (a * x) >> s where x / (2^s) ~= 1/q
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
-        const Q_HALF: u64 = (FieldElement::Q64 - 1) / 2;
+        const Q_HALF: u64 = (FieldElement::Q64 - 1) >> 1;
         let x = u64::from(self.0);
         let y = ((((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT).truncate();
         self.0 = y.truncate() & D::MASK;
@@ -95,14 +95,17 @@ pub(crate) mod test {
     fn compression_decompression_inequality<D: CompressionFactor>() {
         for x in 0..FieldElement::Q {
             let mut y = FieldElement(x);
-            
+
             y.compress::<D>();
             y.decompress::<D>();
 
             let lhs = (i32::from(y.0) - i32::from(x)) % (i32::from(FieldElement::Q));
             let rhs = ((FieldElement::Q32 + (1 << (D::U32 + 1)) - 1) / (1 << (D::U32 + 1))) as i32;
 
-            assert!(lhs <= rhs, "Inequality failed for x = {x}: lhs = {lhs}, rhs = {rhs}");
+            assert!(
+                lhs <= rhs,
+                "Inequality failed for x = {x}: lhs = {lhs}, rhs = {rhs}"
+            );
         }
     }
 
