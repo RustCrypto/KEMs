@@ -6,6 +6,8 @@ use crate::util::Truncate;
 pub trait CompressionFactor: EncodingSize {
     const POW2_HALF: u32;
     const MASK: Integer;
+    const DIV_SHIFT: u32;
+    const DIV_MUL: u64;
 }
 
 impl<T> CompressionFactor for T
@@ -14,6 +16,8 @@ where
 {
     const POW2_HALF: u32 = 1 << (T::USIZE - 1);
     const MASK: Integer = ((1 as Integer) << T::USIZE) - 1;
+    const DIV_SHIFT: u32 = 28 + (T::U32 >> 3) * 4;
+    const DIV_MUL: u64 = 2u64.pow(T::DIV_SHIFT) / FieldElement::Q64;
 }
 
 // Traits for objects that allow compression / decompression
@@ -25,16 +29,18 @@ pub trait Compress {
 impl Compress for FieldElement {
     // Equation 4.5: Compress_d(x) = round((2^d / q) x)
     //
-    // Here and in decompression, we leverage the following fact:
+    // Here and in decompression, we leverage the following facts:
     //
     //   round(a / b) = floor((a + b/2) / b)
+    //   a / q ~= (a * x) >> s where x / (2^s) ~= 1/q
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
-        const Q_HALF: u32 = (FieldElement::Q32 - 1) / 2;
-        let x = u32::from(self.0);
-        let y = ((x << D::USIZE) + Q_HALF) / FieldElement::Q32;
+        const Q_HALF: u64 = (FieldElement::Q64 - 1) / 2;
+        let x = u64::from(self.0);
+        let y = ((((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT).truncate();
         self.0 = y.truncate() & D::MASK;
         self
     }
+
     // Equation 4.6: Decomporess_d(x) = round((q / 2^d) x)
     fn decompress<D: CompressionFactor>(&mut self) -> &Self {
         let x = u32::from(self.0);
@@ -85,36 +91,29 @@ pub(crate) mod test {
     use super::*;
     use hybrid_array::typenum::{U1, U10, U11, U12, U4, U5, U6};
 
-    // Verify that the integer compression routine produces the same results as rounding with
-    // floats.
-    fn compression_known_answer_test<D: CompressionFactor>() {
-        let fq: f64 = FieldElement::Q as f64;
-        let f2d: f64 = 2.0_f64.powi(D::I32);
-
+    // Verify against inequality 4.7
+    fn compression_decompression_inequality<D: CompressionFactor>() {
         for x in 0..FieldElement::Q {
-            let fx = x as f64;
-            let mut x = FieldElement(x);
+            let mut y = FieldElement(x);
+            
+            y.compress::<D>();
+            y.decompress::<D>();
 
-            // Verify equivalence of compression
-            x.compress::<D>();
-            let fcx = ((f2d / fq * fx).round() as Integer) % (1 << D::USIZE);
-            assert_eq!(x.0, fcx);
+            let lhs = (i32::from(y.0) - i32::from(x)) % (i32::from(FieldElement::Q));
+            let rhs = ((FieldElement::Q32 + (1 << (D::U32 + 1)) - 1) / (1 << (D::U32 + 1))) as i32;
 
-            // Verify equivalence of decompression
-            x.decompress::<D>();
-            let fdx = (fq / f2d * (fcx as f64)).round() as Integer;
-            assert_eq!(x.0, fdx);
+            assert!(lhs <= rhs, "Inequality failed for x = {x}: lhs = {lhs}, rhs = {rhs}");
         }
     }
 
     #[test]
     fn compress_decompress() {
-        compression_known_answer_test::<U1>();
-        compression_known_answer_test::<U4>();
-        compression_known_answer_test::<U5>();
-        compression_known_answer_test::<U6>();
-        compression_known_answer_test::<U10>();
-        compression_known_answer_test::<U11>();
-        compression_known_answer_test::<U12>();
+        compression_decompression_inequality::<U1>();
+        compression_decompression_inequality::<U4>();
+        compression_decompression_inequality::<U5>();
+        compression_decompression_inequality::<U6>();
+        compression_decompression_inequality::<U10>();
+        compression_decompression_inequality::<U11>();
+        compression_decompression_inequality::<U12>();
     }
 }

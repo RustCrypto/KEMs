@@ -17,7 +17,7 @@ pub struct FieldElement(pub Integer);
 impl FieldElement {
     pub const Q: Integer = 3329;
     pub const Q32: u32 = Self::Q as u32;
-    const Q64: u64 = Self::Q as u64;
+    pub const Q64: u64 = Self::Q as u64;
     const BARRETT_SHIFT: usize = 24;
     const BARRETT_MULTIPLIER: u64 = (1 << Self::BARRETT_SHIFT) / Self::Q64;
 
