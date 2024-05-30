@@ -1,3 +1,4 @@
+use ::kem::{Decapsulate, Encapsulate};
 use criterion::{criterion_group, criterion_main, Criterion};
 use crypto_common::rand_core::CryptoRngCore;
 use hybrid_array::{Array, ArraySize};
