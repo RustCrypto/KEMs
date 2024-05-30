@@ -29,6 +29,7 @@ criterion = "0.5.1"
 hex = "0.4.3"
 hex-literal = "0.4.1"
 rand = "0.8.5"
+crypto-common = { version = "0.1.6", features = ["rand_core"] }
 
 [[bench]]
 name = "mlkem"
