@@ -80,7 +80,7 @@ jobs:
         with:
           toolchain: stable
       - run: cargo install cargo-codspeed
-      - run: cargo codspeed build --features=deterministic
+      - run: cargo codspeed build --features=bench
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v2
         with:
