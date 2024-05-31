@@ -30,7 +30,6 @@ hex = "0.4.3"
 hex-literal = "0.4.1"
 rand = "0.8.5"
 crypto-common = { version = "0.1.6", features = ["rand_core"] }
-codspeed-criterion-compat = "2.6.0"
 
 [[bench]]
 name = "mlkem"
