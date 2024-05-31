@@ -1,3 +1,5 @@
+#![cfg(feature = "bench")]
+
 use ::kem::{Decapsulate, Encapsulate};
 use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
 use crypto_common::rand_core::CryptoRngCore;

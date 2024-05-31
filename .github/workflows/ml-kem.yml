@@ -68,7 +68,7 @@ jobs:
           toolchain: ${{ matrix.rust }}
       - run: cargo test --no-default-features
       - run: cargo test
-      - run: cargo test --all-features
+      - run: cargo test --features=all
 
   bench:
     needs: set-msrv
@@ -104,4 +104,4 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
       - uses: RustCrypto/actions/cross-install@master
-      - run: cross test --release --target ${{ matrix.target }} --all-features
+      - run: cross test --release --target ${{ matrix.target }} --features=all
