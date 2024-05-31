@@ -1,5 +1,5 @@
 use ::kem::{Decapsulate, Encapsulate};
-use codspeed_criterion_compat::{criterion_group, criterion_main, Criterion};
+use criterion::{criterion_group, criterion_main, Criterion};
 use crypto_common::rand_core::CryptoRngCore;
 use hybrid_array::{Array, ArraySize};
 use ml_kem::*;
