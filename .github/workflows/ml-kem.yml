@@ -7,8 +7,9 @@ on:
       - "ml-kem/**"
       - "Cargo.*"
   push:
-    branches: master
-  workflow-dispatch:
+    branches:
+      - master
+  workflow_dispatch:
 
 defaults:
   run:
