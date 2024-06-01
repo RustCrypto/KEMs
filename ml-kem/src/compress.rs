@@ -32,7 +32,7 @@ impl Compress for FieldElement {
     // Here and in decompression, we leverage the following facts:
     //
     //   round(a / b) = floor((a + b/2) / b)
-    //   a / q ~= (a * x) >> s where x / (2^s) ~= 1/q
+    //   a / q ~= (a * x) >> s where x >> s ~= 1/q
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
         const Q_HALF: u64 = (FieldElement::Q64 - 1) >> 1;
         let x = u64::from(self.0);
@@ -93,18 +93,23 @@ pub(crate) mod test {
 
     // Verify against inequality 4.7
     fn compression_decompression_inequality<D: CompressionFactor>() {
+        let half_q: i32 = i32::from(FieldElement::Q) / 2;
+        let error_threshold = ((FieldElement::Q as f64) / ((1 << (D::U32 + 1)) as f64)).round() as i32;
         for x in 0..FieldElement::Q {
             let mut y = FieldElement(x);
 
             y.compress::<D>();
             y.decompress::<D>();
 
-            let lhs = (i32::from(y.0) - i32::from(x)) % (i32::from(FieldElement::Q));
-            let rhs = ((FieldElement::Q32 + (1 << (D::U32 + 1)) - 1) / (1 << (D::U32 + 1))) as i32;
+            let mut error = (i32::from(y.0) - i32::from(x)) % half_q;
+            if error < - half_q {
+                error += half_q;
+            }
 
             assert!(
-                lhs <= rhs,
-                "Inequality failed for x = {x}: lhs = {lhs}, rhs = {rhs}"
+                error <= error_threshold,
+                "Inequality failed for x = {x}: error = {error}, error_threshold = {error_threshold}, D = {:?}",
+                D::USIZE
             );
         }
     }
