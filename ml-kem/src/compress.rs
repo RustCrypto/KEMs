@@ -96,7 +96,8 @@ pub(crate) mod test {
     #[allow(clippy::integer_division_remainder_used)]
     fn compression_decompression_inequality<D: CompressionFactor>() {
         let half_q: i32 = i32::from(FieldElement::Q) / 2;
-        let error_threshold = ((f64::from(FieldElement::Q)) / f64::from(1 << (D::U32 + 1))).round() as i32;
+        let error_threshold =
+            ((f64::from(FieldElement::Q)) / f64::from(1 << (D::U32 + 1))).round() as i32;
         for x in 0..FieldElement::Q {
             let mut y = FieldElement(x);
 
@@ -104,7 +105,7 @@ pub(crate) mod test {
             y.decompress::<D>();
 
             let mut error = (i32::from(y.0) - i32::from(x)) % half_q;
-            if error < - half_q {
+            if error < -half_q {
                 error += half_q;
             }
 
