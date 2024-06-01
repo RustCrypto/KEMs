@@ -165,11 +165,13 @@ pub(crate) mod test {
         D: ArraySize + Rem<N>,
         Mod<D, N>: Zero,
     {
+        #[allow(clippy::integer_division_remainder_used)]
         fn repeat(&self) -> Array<T, D> {
             Array::from_fn(|i| self[i % N::USIZE].clone())
         }
     }
 
+    #[allow(clippy::integer_division_remainder_used)]
     fn byte_codec_test<D>(decoded: DecodedValue, encoded: EncodedPolynomial<D>)
     where
         D: EncodingSize,
@@ -247,6 +249,7 @@ pub(crate) mod test {
         byte_codec_test::<U12>(decoded, encoded);
     }
 
+    #[allow(clippy::integer_division_remainder_used)]
     #[test]
     fn byte_codec_12_mod() {
         // DecodeBytes_12 is required to reduce mod q

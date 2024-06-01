@@ -17,6 +17,7 @@ where
     const POW2_HALF: u32 = 1 << (T::USIZE - 1);
     const MASK: Integer = ((1 as Integer) << T::USIZE) - 1;
     const DIV_SHIFT: u32 = 28 + (T::U32 >> 3) * 4;
+    #[allow(clippy::integer_division_remainder_used)]
     const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / FieldElement::Q64;
 }
 
@@ -92,9 +93,10 @@ pub(crate) mod test {
     use hybrid_array::typenum::{U1, U10, U11, U12, U4, U5, U6};
 
     // Verify against inequality 4.7
+    #[allow(clippy::integer_division_remainder_used)]
     fn compression_decompression_inequality<D: CompressionFactor>() {
         let half_q: i32 = i32::from(FieldElement::Q) / 2;
-        let error_threshold = ((FieldElement::Q as f64) / ((1 << (D::U32 + 1)) as f64)).round() as i32;
+        let error_threshold = ((f64::from(FieldElement::Q)) / f64::from(1 << (D::U32 + 1))).round() as i32;
         for x in 0..FieldElement::Q {
             let mut y = FieldElement(x);
 

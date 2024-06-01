@@ -19,6 +19,7 @@ impl FieldElement {
     pub const Q32: u32 = Self::Q as u32;
     pub const Q64: u64 = Self::Q as u64;
     const BARRETT_SHIFT: usize = 24;
+    #[allow(clippy::integer_division_remainder_used)]
     const BARRETT_MULTIPLIER: u64 = (1 << Self::BARRETT_SHIFT) / Self::Q64;
 
     // A fast modular reduction for small numbers `x < 2*q`
@@ -263,6 +264,7 @@ impl NttPolynomial {
 #[allow(clippy::cast_possible_truncation)]
 const ZETA_POW_BITREV: [FieldElement; 128] = {
     const ZETA: u64 = 17;
+    #[allow(clippy::integer_division_remainder_used)]
     const fn bitrev7(x: usize) -> usize {
         ((x >> 6) % 2)
             | (((x >> 5) % 2) << 1)
@@ -277,6 +279,7 @@ const ZETA_POW_BITREV: [FieldElement; 128] = {
     let mut pow = [FieldElement(0); 128];
     let mut i = 0;
     let mut curr = 1u64;
+    #[allow(clippy::integer_division_remainder_used)]
     while i < 128 {
         pow[i] = FieldElement(curr as u16);
         i += 1;
@@ -300,6 +303,7 @@ const GAMMA: [FieldElement; 128] = {
     let mut i = 0;
     while i < 128 {
         let zpr = ZETA_POW_BITREV[i].0 as u64;
+        #[allow(clippy::integer_division_remainder_used)]
         let g = (zpr * zpr * ZETA) % FieldElement::Q64;
         gamma[i] = FieldElement(g as u16);
         i += 1;

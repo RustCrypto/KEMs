@@ -117,6 +117,7 @@ where
     let mut x = 0usize;
     while x < max {
         let mut y = 0usize;
+        #[allow(clippy::integer_division_remainder_used)]
         while y < max {
             let x_ones = x.count_ones() as u16;
             let y_ones = y.count_ones() as u16;
