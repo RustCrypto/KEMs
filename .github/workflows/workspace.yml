@@ -21,7 +21,7 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@1.78.0
+      - uses: dtolnay/rust-toolchain@beta # TODO: use `1.79` after 2024-06-13
         with:
           components: clippy
       - run: cargo clippy -- -D warnings
