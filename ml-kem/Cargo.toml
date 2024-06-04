@@ -28,6 +28,7 @@ sha3 = { version = "0.10.8", default-features = false }
 criterion = "0.5.1"
 hex = "0.4.3"
 hex-literal = "0.4.1"
+num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
 rand = "0.8.5"
 crypto-common = { version = "0.1.6", features = ["rand_core"] }
 
