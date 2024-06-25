@@ -169,9 +169,10 @@ mod test {
 
     #[test]
     fn prf() {
-        let s = B32::from_slice("Input s to an invocation of PRF2".as_bytes());
+        let s = B32::try_from("Input s to an invocation of PRF2".as_bytes())
+            .expect("Failed to create B32 from slice");
         let b = b'b';
-        let actual = PRF::<U2>(s, b);
+        let actual = PRF::<U2>(&s, b);
         let expected = hex!(
             "54c002415c2219b564d5c17b0df0c82f83ddf3fdecc7d814ed5d85457c06c2c3\
              ed0b0584f926dffb1e57c6105f8604e81c4605b93f8284e44585104101042075\
@@ -180,9 +181,10 @@ mod test {
         );
         assert_eq!(actual, expected);
 
-        let s = B32::from_slice("Input s to an invocation of PRF3".as_bytes());
+        let s = B32::try_from("Input s to an invocation of PRF3".as_bytes())
+            .expect("Failed to create B32 from slice");
         let b = b'b';
-        let actual = PRF::<U3>(s, b);
+        let actual = PRF::<U3>(&s, b);
         let expected = hex!(
             "5e12028f67479b862a12713cda833e21b8ccd51bff9ddc2bfb9ab2910a9dc2e6\
              c58264a3f51ccc9ef4ff936a15505e016f60c36ffe300be01b9fb12eacd57867\
@@ -196,11 +198,12 @@ mod test {
 
     #[test]
     fn xof() {
-        let rho = B32::from_slice("Input rho, to an XOF invocation!".as_bytes());
+        let rho = B32::try_from("Input rho, to an XOF invocation!".as_bytes())
+            .expect("Failed to create B32 from slice");
         let i = b'i';
         let j = b'j';
 
-        let mut reader = XOF(rho, i, j);
+        let mut reader = XOF(&rho, i, j);
         let mut actual = [0u8; 32];
         reader.read(&mut actual);
 

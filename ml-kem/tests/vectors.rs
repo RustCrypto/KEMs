@@ -13,17 +13,17 @@ pub struct GenerateVector {
 
 impl GenerateVector {
     pub fn verify<K: KemCore>(&self) {
-        let d = Array::from_slice(&self.d);
-        let z = Array::from_slice(&self.z);
-        let (dk, ek) = K::generate_deterministic(d, z);
+        let d = Array::try_from(self.d).unwrap();
+        let z = Array::try_from(self.z).unwrap();
+        let (dk, ek) = K::generate_deterministic(&d, &z);
         assert_eq!(dk.as_bytes().as_slice(), self.dk);
         assert_eq!(ek.as_bytes().as_slice(), self.ek);
 
-        let dk_bytes = Encoded::<K::DecapsulationKey>::from_slice(self.dk);
-        assert_eq!(dk, K::DecapsulationKey::from_bytes(dk_bytes));
+        let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(self.dk).unwrap();
+        assert_eq!(dk, K::DecapsulationKey::from_bytes(&dk_bytes));
 
-        let ek_bytes = Encoded::<K::EncapsulationKey>::from_slice(self.ek);
-        assert_eq!(ek, K::EncapsulationKey::from_bytes(ek_bytes));
+        let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(self.ek).unwrap();
+        assert_eq!(ek, K::EncapsulationKey::from_bytes(&ek_bytes));
     }
 }
 
@@ -36,10 +36,10 @@ pub struct EncapsulateVector {
 
 impl EncapsulateVector {
     pub fn verify<K: KemCore>(&self) {
-        let m = Array::from_slice(&self.m);
-        let ek_bytes = Encoded::<K::EncapsulationKey>::from_slice(self.ek);
-        let ek = K::EncapsulationKey::from_bytes(ek_bytes);
-        let (c, k) = ek.encapsulate_deterministic(m).unwrap();
+        let m = Array::try_from(self.m).unwrap();
+        let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(self.ek).unwrap();
+        let ek = K::EncapsulationKey::from_bytes(&ek_bytes);
+        let (c, k) = ek.encapsulate_deterministic(&m).unwrap();
         assert_eq!(k.as_slice(), &self.k);
         assert_eq!(c.as_slice(), self.c);
     }
@@ -53,11 +53,11 @@ pub struct DecapsulateVector {
 
 impl DecapsulateVector {
     pub fn verify<K: KemCore>(&self) {
-        let dk_bytes = Encoded::<K::DecapsulationKey>::from_slice(self.dk);
-        let dk = K::DecapsulationKey::from_bytes(dk_bytes);
+        let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(self.dk).unwrap();
+        let dk = K::DecapsulationKey::from_bytes(&dk_bytes);
 
-        let c_bytes = Ciphertext::<K>::from_slice(self.c);
-        let k = dk.decapsulate(c_bytes).unwrap();
+        let c_bytes = Ciphertext::<K>::try_from(self.c).unwrap();
+        let k = dk.decapsulate(&c_bytes).unwrap();
         assert_eq!(k.as_slice(), &self.k);
     }
 }
