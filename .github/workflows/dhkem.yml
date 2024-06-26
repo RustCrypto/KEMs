@@ -1,0 +1,68 @@
+name: dhkem
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/dhkem.yml"
+      - "dhkem/**"
+      - "Cargo.*"
+  push:
+    branches: master
+
+defaults:
+  run:
+    working-directory: dhkem
+
+env:
+  RUSTFLAGS: "-Dwarnings"
+  CARGO_INCREMENTAL: 0
+
+jobs:
+  set-msrv:
+    uses: RustCrypto/actions/.github/workflows/set-msrv.yml@master
+    with:
+      msrv: 1.74.0
+
+  minimal-versions:
+    # temporarily disabled as requested by Tony (https://github.com/RustCrypto/KEMs/pull/15#pullrequestreview-2006378802)
+    if: false
+    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
+    with:
+      working-directory: ${{ github.workflow }}
+
+  test:
+    needs: set-msrv
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - ${{needs.set-msrv.outputs.msrv}}
+          - stable
+    steps:
+      - uses: actions/checkout@v4
+      - uses: RustCrypto/actions/cargo-cache@master
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+      - run: cargo test --no-default-features
+      - run: cargo test
+      - run: cargo test --all-features
+
+  cross:
+    needs: set-msrv
+    strategy:
+      matrix:
+        include:
+          - target: powerpc-unknown-linux-gnu
+            rust: ${{needs.set-msrv.outputs.msrv}}
+          - target: powerpc-unknown-linux-gnu
+            rust: stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+      - uses: RustCrypto/actions/cross-install@master
+      - run: cross test --release --target ${{ matrix.target }} --all-features
