@@ -1,0 +1,10 @@
+[package]
+name = "ntru"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hybrid-array = { path="../../hybrid-array", features = ["extra-sizes"] }
+
+[dev-dependencies]
+rayon="1.10.0"
