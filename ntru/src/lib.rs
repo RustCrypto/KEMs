@@ -17,5 +17,6 @@
     clippy::similar_names,
 )]
 
+pub mod algebra;
 pub mod const_time;
 pub mod params;
