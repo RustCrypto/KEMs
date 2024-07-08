@@ -16,3 +16,5 @@
     clippy::many_single_char_names,
     clippy::similar_names,
 )]
+
+pub mod const_time;
