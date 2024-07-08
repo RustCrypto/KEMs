@@ -22,6 +22,7 @@ mod algebra;
 pub mod const_time;
 mod core;
 pub mod encoded;
+pub mod hashes;
 pub mod params;
 use hybrid_array::sizes::{U1013, U1277, U653, U761, U857, U953};
 use params::{Lpr, Streamlined};
