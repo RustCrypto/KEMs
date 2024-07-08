@@ -1,0 +1,15 @@
+[package]
+name = "ntru"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+hybrid-array = { path="../../hybrid-array", features = ["extra-sizes"] }
+rand_core = "0.6.4"
+sha2 = "0.10.8"
+
+[dev-dependencies]
+aes="0.8.4"
+hex = "0.4.3"
+itertools = "0.13.0"
+rayon="1.10.0"
