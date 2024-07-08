@@ -17,8 +17,9 @@
     clippy::similar_names,
 )]
 
+mod algebra;
 pub mod const_time;
-pub mod algebra;
+pub mod core;
 pub mod params;
 
 use hybrid_array::sizes::{U1013, U1277, U653, U761, U857, U953};
