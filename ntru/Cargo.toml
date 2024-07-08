@@ -5,3 +5,7 @@ edition = "2021"
 
 [dependencies]
 hybrid-array = { path="../../hybrid-array", features = ["extra-sizes"] }
+rand_core = "0.6.4"
+
+[dev-dependencies]
+rayon="1.10.0"

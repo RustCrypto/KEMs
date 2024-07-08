@@ -18,6 +18,7 @@
 )]
 
 pub mod const_time;
+pub mod algebra;
 pub mod params;
 
 use hybrid_array::sizes::{U1013, U1277, U653, U761, U857, U953};
