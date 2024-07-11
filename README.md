@@ -1,4 +1,7 @@
-# [RustCrypto]: Key Encapsulation Mechanisms (KEMs) [![Project Chat][chat-image]][chat-link] [![dependency status][deps-image]][deps-link]
+# [RustCrypto]: Key Encapsulation Mechanisms (KEMs)
+
+[![Project Chat][chat-image]][chat-link]
+[![Dependency Status][deps-image]][deps-link]
 
 Collection of [Key Encapsulation Mechanisms] (KEMs) written in pure Rust.
 
