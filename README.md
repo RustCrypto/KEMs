@@ -12,10 +12,10 @@ commonly used in transport encryption protocols (e.g. [TLS]) and hybrid cryptosy
 
 ## Crates
 
-| Name     | crates.io                                                                                   | Docs                                                                         | Description        |
-|----------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|--------------------|
-| `dhkem`  | [![crates.io](https://img.shields.io/crates/v/dhkem.svg)](https://crates.io/crates/dhkem)   | [![Documentation](https://docs.rs/dhkem/badge.svg)](https://docs.rs/dhkem)   | Diffie-Hellman KEM |
-| `ml-kem` | [![crates.io](https://img.shields.io/crates/v/ml-kem.svg)](https://crates.io/crates/ml-kem) | [![Documentation](https://docs.rs/ml-kem/badge.svg)](https://docs.rs/ml-kem) | Module Lattice KEM |
+| Name                 | crates.io                                                                                   | Docs                                                                         | Description        |
+|----------------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|--------------------|
+| [`dhkem`](./dhkem)   | [![crates.io](https://img.shields.io/crates/v/dhkem.svg)](https://crates.io/crates/dhkem)   | [![Documentation](https://docs.rs/dhkem/badge.svg)](https://docs.rs/dhkem)   | Diffie-Hellman KEM |
+| [`ml-kem`](./ml-kem) | [![crates.io](https://img.shields.io/crates/v/ml-kem.svg)](https://crates.io/crates/ml-kem) | [![Documentation](https://docs.rs/ml-kem/badge.svg)](https://docs.rs/ml-kem) | Module Lattice KEM |
 
 ## License
 
