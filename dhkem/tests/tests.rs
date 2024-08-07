@@ -1,4 +1,4 @@
-use crate::DhKem;
+use dhkem::DhKem;
 use kem::{Decapsulate, Encapsulate};
 use rand::thread_rng;
 
@@ -41,53 +41,53 @@ where
 #[cfg(feature = "x25519")]
 #[test]
 fn test_x25519() {
-    test_kem::<crate::X25519>();
+    test_kem::<dhkem::X25519>();
 }
 
 #[cfg(feature = "bign256")]
 #[test]
 fn test_bign256() {
-    test_kem::<crate::BignP256>();
+    test_kem::<dhkem::BignP256>();
 }
 
 #[cfg(feature = "k256")]
 #[test]
 fn test_k256() {
-    test_kem::<crate::Secp256k1>();
+    test_kem::<dhkem::Secp256k1>();
 }
 
 #[cfg(feature = "p192")]
 #[test]
 fn test_p192() {
-    test_kem::<crate::NistP192>();
+    test_kem::<dhkem::NistP192>();
 }
 
 #[cfg(feature = "p224")]
 #[test]
 fn test_p224() {
-    test_kem::<crate::NistP224>();
+    test_kem::<dhkem::NistP224>();
 }
 
 #[cfg(feature = "p256")]
 #[test]
 fn test_p256() {
-    test_kem::<crate::NistP256>();
+    test_kem::<dhkem::NistP256>();
 }
 
 #[cfg(feature = "p384")]
 #[test]
 fn test_p384() {
-    test_kem::<crate::NistP384>();
+    test_kem::<dhkem::NistP384>();
 }
 
 #[cfg(feature = "p521")]
 #[test]
 fn test_p521() {
-    test_kem::<crate::NistP521>();
+    test_kem::<dhkem::NistP521>();
 }
 
 #[cfg(feature = "sm2")]
 #[test]
 fn test_sm2() {
-    test_kem::<crate::Sm2>();
+    test_kem::<dhkem::Sm2>();
 }

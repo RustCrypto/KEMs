@@ -23,6 +23,13 @@ jobs:
     with:
       msrv: 1.74.0
 
+  minimal-versions:
+    # temporarily disabled as requested by Tony (https://github.com/RustCrypto/KEMs/pull/15#pullrequestreview-2006378802)
+    if: false
+    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
+    with:
+      working-directory: ${{ github.workflow }}
+
   no_std:
     needs: set-msrv
     runs-on: ubuntu-latest
@@ -42,13 +49,6 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
       - run: cargo build --no-default-features --target ${{ matrix.target }}
-
-  minimal-versions:
-    # temporarily disabled as requested by Tony (https://github.com/RustCrypto/KEMs/pull/15#pullrequestreview-2006378802)
-    if: false
-    uses: RustCrypto/actions/.github/workflows/minimal-versions.yml@master
-    with:
-      working-directory: ${{ github.workflow }}
 
   test:
     needs: set-msrv

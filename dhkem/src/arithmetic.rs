@@ -1,9 +1,11 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
-use elliptic_curve::ecdh::{EphemeralSecret, SharedSecret};
-use elliptic_curve::{CurveArithmetic, PublicKey};
+use core::marker::PhantomData;
+use elliptic_curve::{
+    ecdh::{EphemeralSecret, SharedSecret},
+    CurveArithmetic, PublicKey,
+};
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
-use std::marker::PhantomData;
 
 pub struct ArithmeticKem<C: CurveArithmetic>(PhantomData<C>);
 
