@@ -1,3 +1,4 @@
+#![no_std]
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
 #![doc = include_str!("../README.md")]
 #![doc(
@@ -16,8 +17,24 @@
 //! draft of the [TLS KEM
 //! combiner](https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10).
 
+#[cfg(feature = "arithmetic")]
+pub mod arithmetic;
+
+#[cfg(feature = "x25519")]
+mod x25519_kem;
+
+#[cfg(feature = "x25519")]
+pub use x25519_kem::X25519;
+
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
+
+#[cfg(feature = "arithmetic")]
+use elliptic_curve::{
+    sec1::{self, ToEncodedPoint},
+    CurveArithmetic, PublicKey,
+};
+
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -66,6 +83,18 @@ impl<X> DhDecapsulator<X> {
     }
 }
 
+#[cfg(feature = "arithmetic")]
+impl<C> ToEncodedPoint<C> for DhEncapsulator<PublicKey<C>>
+where
+    C: CurveArithmetic,
+    C::FieldBytesSize: sec1::ModulusSize,
+    PublicKey<C>: ToEncodedPoint<C>,
+{
+    fn to_encoded_point(&self, compress: bool) -> sec1::EncodedPoint<C> {
+        self.0.to_encoded_point(compress)
+    }
+}
+
 #[cfg(feature = "zeroize")]
 impl<X: Zeroize> Zeroize for DhEncapsulator<X> {
     fn zeroize(&mut self) {
@@ -110,14 +139,6 @@ pub trait DhKem {
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey);
 }
 
-#[cfg(feature = "arithmetic")]
-pub mod arithmetic;
-
-#[cfg(feature = "x25519")]
-mod x25519_kem;
-#[cfg(feature = "x25519")]
-pub use x25519_kem::X25519;
-
 #[cfg(feature = "bign256")]
 pub type BignP256 = arithmetic::ArithmeticKem<bign256::BignP256>;
 #[cfg(feature = "k256")]
@@ -137,10 +158,3 @@ pub type NistP384 = arithmetic::ArithmeticKem<p384::NistP384>;
 pub type NistP521 = arithmetic::ArithmeticKem<p521::NistP521>;
 #[cfg(feature = "sm2")]
 pub type Sm2 = arithmetic::ArithmeticKem<sm2::Sm2>;
-
-#[cfg(test)]
-mod tests;
-
-#[cfg(test)]
-#[cfg(feature = "p256")]
-mod hpke_p256_test;

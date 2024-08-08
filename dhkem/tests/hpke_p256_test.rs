@@ -1,4 +1,6 @@
-use crate::{DhKem, NistP256};
+#![cfg(feature = "p256")]
+
+use dhkem::{DhKem, NistP256};
 use elliptic_curve::sec1::ToEncodedPoint;
 use hex_literal::hex;
 use hkdf::Hkdf;
@@ -87,7 +89,7 @@ fn test_dhkem_p256_hkdf_sha256() {
     let (skr, pkr) = NistP256::random_keypair(&mut ConstantRng(&hex!(
         "f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2"
     )));
-    assert_eq!(pkr.0.to_encoded_point(false).as_bytes(), &pkr_hex);
+    assert_eq!(pkr.to_encoded_point(false).as_bytes(), &pkr_hex);
 
     let (pke, ss1) = pkr
         .encapsulate(&mut ConstantRng(&hex!(

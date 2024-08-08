@@ -15,17 +15,17 @@ readme = "README.md"
 [dependencies]
 kem = "0.3.0-pre.0"
 rand_core = "0.6.4"
-x25519 = { version = "2.0.1", package = "x25519-dalek", optional = true }
-elliptic-curve = { version = "0.13.8", optional = true }
-bign256 = { version = "0.13.1", optional = true }
-k256 = { version = "0.13.3", optional = true }
-p192 = { version = "0.13.0", optional = true }
-p224 = { version = "0.13.2", optional = true }
-p256 = { version = "0.13.2", optional = true }
-p384 = { version = "0.13.0", optional = true }
-p521 = { version = "0.13.3", optional = true }
-sm2 = { version = "0.13.3", optional = true }
-zeroize = { version = "1.8.1", optional = true }
+x25519 = { version = "2.0.1", package = "x25519-dalek", optional = true, default-features = false }
+elliptic-curve = { version = "0.13.8", optional = true, default-features = false }
+bign256 = { version = "0.13.1", optional = true, default-features = false, features = ["arithmetic"] }
+k256 = { version = "0.13.3", optional = true, default-features = false, features = ["arithmetic"] }
+p192 = { version = "0.13.0", optional = true, default-features = false, features = ["arithmetic"] }
+p224 = { version = "0.13.2", optional = true, default-features = false, features = ["arithmetic"] }
+p256 = { version = "0.13.2", optional = true, default-features = false, features = ["arithmetic"] }
+p384 = { version = "0.13.0", optional = true, default-features = false, features = ["arithmetic"] }
+p521 = { version = "0.13.3", optional = true, default-features = false, features = ["arithmetic"] }
+sm2 = { version = "0.13.3", optional = true, default-features = false, features = ["arithmetic"] }
+zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [features]
 default = ["zeroize"]
