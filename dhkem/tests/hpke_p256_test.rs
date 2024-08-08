@@ -1,6 +1,6 @@
 #![cfg(feature = "p256")]
 
-use dhkem::{DhKem, NistP256};
+use dhkem::{DhKem, NistP256Kem};
 use elliptic_curve::sec1::ToEncodedPoint;
 use hex_literal::hex;
 use hkdf::Hkdf;
@@ -67,7 +67,7 @@ fn labeled_expand(prk: &[u8], label: &[u8], info: &[u8], l: u16) -> Vec<u8> {
     out
 }
 
-fn extract_and_expand(dh: <NistP256 as DhKem>::SharedSecret, kem_context: &[u8]) -> Vec<u8> {
+fn extract_and_expand(dh: <NistP256Kem as DhKem>::SharedSecret, kem_context: &[u8]) -> Vec<u8> {
     let eae_prk = labeled_extract(b"", b"eae_prk", dh.raw_secret_bytes());
     labeled_expand(&eae_prk, b"shared_secret", kem_context, 32)
 }
@@ -86,7 +86,7 @@ fn test_dhkem_p256_hkdf_sha256() {
     let shared_secret_hex =
         hex!("c0d26aeab536609a572b07695d933b589dcf363ff9d93c93adea537aeabb8cb8");
 
-    let (skr, pkr) = NistP256::random_keypair(&mut ConstantRng(&hex!(
+    let (skr, pkr) = NistP256Kem::random_keypair(&mut ConstantRng(&hex!(
         "f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2"
     )));
     assert_eq!(pkr.to_encoded_point(false).as_bytes(), &pkr_hex);

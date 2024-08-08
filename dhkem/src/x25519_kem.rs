@@ -3,7 +3,10 @@ use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
 
-pub struct X25519;
+/// X22519 Diffie-Hellman KEM adapter.
+///
+/// Implements a KEM interface that internally uses X25519 ECDH.
+pub struct X25519Kem;
 
 impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
     type Error = ();
@@ -31,7 +34,7 @@ impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
     }
 }
 
-impl DhKem for X25519 {
+impl DhKem for X25519Kem {
     type DecapsulatingKey = DhDecapsulator<ReusableSecret>;
     type EncapsulatingKey = DhEncapsulator<PublicKey>;
     type EncapsulatedKey = PublicKey;

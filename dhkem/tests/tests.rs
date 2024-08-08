@@ -41,53 +41,29 @@ where
 #[cfg(feature = "x25519")]
 #[test]
 fn test_x25519() {
-    test_kem::<dhkem::X25519>();
-}
-
-#[cfg(feature = "bign256")]
-#[test]
-fn test_bign256() {
-    test_kem::<dhkem::BignP256>();
+    test_kem::<dhkem::X25519Kem>();
 }
 
 #[cfg(feature = "k256")]
 #[test]
 fn test_k256() {
-    test_kem::<dhkem::Secp256k1>();
-}
-
-#[cfg(feature = "p192")]
-#[test]
-fn test_p192() {
-    test_kem::<dhkem::NistP192>();
-}
-
-#[cfg(feature = "p224")]
-#[test]
-fn test_p224() {
-    test_kem::<dhkem::NistP224>();
+    test_kem::<dhkem::Secp256k1Kem>();
 }
 
 #[cfg(feature = "p256")]
 #[test]
 fn test_p256() {
-    test_kem::<dhkem::NistP256>();
+    test_kem::<dhkem::NistP256Kem>();
 }
 
 #[cfg(feature = "p384")]
 #[test]
 fn test_p384() {
-    test_kem::<dhkem::NistP384>();
+    test_kem::<dhkem::NistP384Kem>();
 }
 
 #[cfg(feature = "p521")]
 #[test]
 fn test_p521() {
-    test_kem::<dhkem::NistP521>();
-}
-
-#[cfg(feature = "sm2")]
-#[test]
-fn test_sm2() {
-    test_kem::<dhkem::Sm2>();
+    test_kem::<dhkem::NistP521Kem>();
 }
