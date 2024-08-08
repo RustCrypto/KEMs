@@ -13,7 +13,7 @@ impl SecretBytes for x25519::SharedSecret {
     }
 }
 
-#[cfg(feature = "arithmetic")]
+#[cfg(feature = "ecdh")]
 impl<C> SecretBytes for elliptic_curve::ecdh::SharedSecret<C>
 where
     C: elliptic_curve::CurveArithmetic,
