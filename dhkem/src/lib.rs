@@ -5,26 +5,40 @@
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
 )]
+#![warn(missing_docs)]
 
 //! # Diffie-Hellman (DH) based Key Encapsulation Mechanisms (KEM)
 //!
-//! This crate provides a KEM interface for DH protocols as specified in
-//! [RFC9180](https://datatracker.ietf.org/doc/html/rfc9180#name-dh-based-kem-dhkem)
-//! without the shared secret extraction process. In particular, `Encaps(pk)` in the
-//! RFC returns the encapsulated key and an extracted shared secret, while our
-//! implementation leaves the extraction process up to the user. This type of KEM
-//! construction is currently being used in HPKE, as per the RFC, and in the current
-//! draft of the [TLS KEM
-//! combiner](https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10).
+//! This crate provides a KEM interface for DH protocols as specified in [RFC9180]
+//! without the shared secret extraction process.
+//!
+//! In particular, `Encaps(pk)` in the RFC returns the encapsulated key and an extracted shared
+//! secret, while our implementation leaves the extraction process up to the user.
+//!
+//! This type of KEM construction is currently being used in HPKE, as per the RFC, and in the
+//! current draft of the [TLS KEM combiner].
+//!
+//! ## Supported elliptic curves
+//!
+//! Support for specific elliptic curves is gated behind the following features:
+//!
+//! - `k256`: secp256k1
+//! - `p256`: NIST P-256
+//! - `p384`: NIST P-384
+//! - `p521`: NIST P-521
+//!
+//! [RFC9180]: https://datatracker.ietf.org/doc/html/rfc9180#name-dh-based-kem-dhkem
+//! [TLS KEM combiner]: https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10
 
 #[cfg(feature = "ecdh")]
-pub mod ecdh;
-
+mod ecdh_kem;
 #[cfg(feature = "x25519")]
 mod x25519_kem;
 
+#[cfg(feature = "ecdh")]
+pub use ecdh_kem::EcdhKem;
 #[cfg(feature = "x25519")]
-pub use x25519_kem::X25519;
+pub use x25519_kem::X25519Kem;
 
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
@@ -139,22 +153,18 @@ pub trait DhKem {
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey);
 }
 
-#[cfg(feature = "bign256")]
-pub type BignP256 = ecdh::ArithmeticKem<bign256::BignP256>;
+/// secp256k1 ECDH KEM.
 #[cfg(feature = "k256")]
-pub type Secp256k1 = ecdh::ArithmeticKem<k256::Secp256k1>;
-#[cfg(feature = "p192")]
-pub type NistP192 = ecdh::ArithmeticKem<p192::NistP192>;
-#[cfg(feature = "p224")]
-pub type NistP224 = ecdh::ArithmeticKem<p224::NistP224>;
+pub type Secp256k1Kem = EcdhKem<k256::Secp256k1>;
+
+/// NIST P-256 ECDH KEM.
 #[cfg(feature = "p256")]
-pub type NistP256 = ecdh::ArithmeticKem<p256::NistP256>;
-// include an additional alias Secp256r1 = NistP256
-#[cfg(feature = "p256")]
-pub type Secp256r1 = ecdh::ArithmeticKem<p256::NistP256>;
+pub type NistP256Kem = EcdhKem<p256::NistP256>;
+
+/// NIST P-384 ECDH KEM.
 #[cfg(feature = "p384")]
-pub type NistP384 = ecdh::ArithmeticKem<p384::NistP384>;
+pub type NistP384Kem = EcdhKem<p384::NistP384>;
+
+/// NIST P-521 ECDH KEM.
 #[cfg(feature = "p521")]
-pub type NistP521 = ecdh::ArithmeticKem<p521::NistP521>;
-#[cfg(feature = "sm2")]
-pub type Sm2 = ecdh::ArithmeticKem<sm2::Sm2>;
+pub type NistP521Kem = EcdhKem<p521::NistP521>;

@@ -1,3 +1,5 @@
+//! Generic Elliptic Curve Diffie-Hellman KEM adapter.
+
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use core::marker::PhantomData;
 use elliptic_curve::{
@@ -7,7 +9,11 @@ use elliptic_curve::{
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 
-pub struct ArithmeticKem<C: CurveArithmetic>(PhantomData<C>);
+/// Generic Elliptic Curve Diffie-Hellman KEM adapter compatible with curves implemented using
+/// traits from the `elliptic-curve` crate.
+///
+/// Implements a KEM interface that internally uses ECDH.
+pub struct EcdhKem<C: CurveArithmetic>(PhantomData<C>);
 
 impl<C> Encapsulate<PublicKey<C>, SharedSecret<C>> for DhEncapsulator<PublicKey<C>>
 where
@@ -41,7 +47,7 @@ where
     }
 }
 
-impl<C> DhKem for ArithmeticKem<C>
+impl<C> DhKem for EcdhKem<C>
 where
     C: CurveArithmetic,
 {
