@@ -17,8 +17,8 @@
 //! draft of the [TLS KEM
 //! combiner](https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10).
 
-#[cfg(feature = "arithmetic")]
-pub mod arithmetic;
+#[cfg(feature = "ecdh")]
+pub mod ecdh;
 
 #[cfg(feature = "x25519")]
 mod x25519_kem;
@@ -29,7 +29,7 @@ pub use x25519_kem::X25519;
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 
-#[cfg(feature = "arithmetic")]
+#[cfg(feature = "ecdh")]
 use elliptic_curve::{
     sec1::{self, ToEncodedPoint},
     CurveArithmetic, PublicKey,
@@ -83,7 +83,7 @@ impl<X> DhDecapsulator<X> {
     }
 }
 
-#[cfg(feature = "arithmetic")]
+#[cfg(feature = "ecdh")]
 impl<C> ToEncodedPoint<C> for DhEncapsulator<PublicKey<C>>
 where
     C: CurveArithmetic,
@@ -140,21 +140,21 @@ pub trait DhKem {
 }
 
 #[cfg(feature = "bign256")]
-pub type BignP256 = arithmetic::ArithmeticKem<bign256::BignP256>;
+pub type BignP256 = ecdh::ArithmeticKem<bign256::BignP256>;
 #[cfg(feature = "k256")]
-pub type Secp256k1 = arithmetic::ArithmeticKem<k256::Secp256k1>;
+pub type Secp256k1 = ecdh::ArithmeticKem<k256::Secp256k1>;
 #[cfg(feature = "p192")]
-pub type NistP192 = arithmetic::ArithmeticKem<p192::NistP192>;
+pub type NistP192 = ecdh::ArithmeticKem<p192::NistP192>;
 #[cfg(feature = "p224")]
-pub type NistP224 = arithmetic::ArithmeticKem<p224::NistP224>;
+pub type NistP224 = ecdh::ArithmeticKem<p224::NistP224>;
 #[cfg(feature = "p256")]
-pub type NistP256 = arithmetic::ArithmeticKem<p256::NistP256>;
+pub type NistP256 = ecdh::ArithmeticKem<p256::NistP256>;
 // include an additional alias Secp256r1 = NistP256
 #[cfg(feature = "p256")]
-pub type Secp256r1 = arithmetic::ArithmeticKem<p256::NistP256>;
+pub type Secp256r1 = ecdh::ArithmeticKem<p256::NistP256>;
 #[cfg(feature = "p384")]
-pub type NistP384 = arithmetic::ArithmeticKem<p384::NistP384>;
+pub type NistP384 = ecdh::ArithmeticKem<p384::NistP384>;
 #[cfg(feature = "p521")]
-pub type NistP521 = arithmetic::ArithmeticKem<p521::NistP521>;
+pub type NistP521 = ecdh::ArithmeticKem<p521::NistP521>;
 #[cfg(feature = "sm2")]
-pub type Sm2 = arithmetic::ArithmeticKem<sm2::Sm2>;
+pub type Sm2 = ecdh::ArithmeticKem<sm2::Sm2>;
