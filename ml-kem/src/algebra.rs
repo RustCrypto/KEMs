@@ -401,14 +401,10 @@ impl NttPolynomial {
 pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
 
 impl<K: ArraySize> NttVector<K> {
-    // Note the transpose here: Apparently the specification is incorrect, and the proper order
-    // of indices is reversed.
-    //
-    // https://github.com/FiloSottile/mlkem768/blob/main/mlkem768.go#L110C4-L112C51
     pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {
         Self(Array::from_fn(|j| {
-            let (i, j) = if transpose { (i, j) } else { (j, i) };
-            let mut xof = XOF(rho, i.truncate(), j.truncate());
+            let (i, j) = if transpose { (j, i) } else { (i, j) };
+            let mut xof = XOF(rho, j.truncate(), i.truncate());
             NttPolynomial::sample_uniform(&mut xof)
         }))
     }
