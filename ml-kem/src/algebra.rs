@@ -261,6 +261,9 @@ impl NttPolynomial {
 // Note that the const environment here imposes some annoying conditions.  Because operator
 // overloading can't be const, we have to do all the reductions here manually.  Because `for` loops
 // are forbidden in `const` functions, we do them manually with `while` loops.
+//
+// The values computed here match those provided in Appendix A of FIPS 203.  ZETA_POW_BITREV
+// corresponds to the first table, and GAMMA to the second table.
 #[allow(clippy::cast_possible_truncation)]
 const ZETA_POW_BITREV: [FieldElement; 128] = {
     const ZETA: u64 = 17;

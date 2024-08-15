@@ -25,7 +25,8 @@ where
     // Algorithm 12. K-PKE.KeyGen()
     pub fn generate(d: &B32) -> (Self, EncryptionKey<P>) {
         // Generate random seeds
-        let (rho, sigma) = G(&[d]);
+        let k = P::K::U8;
+        let (rho, sigma) = G(&[&d[..], &[k]]);
 
         // Sample pseudo-random matrix and vectors
         let A_hat: NttMatrix<P::K> = NttMatrix::sample_uniform(&rho, false);
