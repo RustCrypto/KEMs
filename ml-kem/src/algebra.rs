@@ -7,12 +7,25 @@ use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
 use crate::util::{Truncate, B32};
 
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 pub type Integer = u16;
 
 /// An element of GF(q).  Although `q` is only 16 bits wide, we use a wider uint type to so that we
 /// can defer modular reductions.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct FieldElement(pub Integer);
+
+#[cfg(feature = "zeroize")]
+impl Zeroize for FieldElement {
+    fn zeroize(&mut self) {
+        self.0.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl ZeroizeOnDrop for FieldElement {}
 
 impl FieldElement {
     pub const Q: Integer = 3329;
@@ -173,6 +186,18 @@ impl<K: ArraySize> PolynomialVector<K> {
 /// An element of the ring `T_q`, i.e., a tuple of 128 elements of the direct sum components of `T_q`.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NttPolynomial(pub Array<FieldElement, U256>);
+
+#[cfg(feature = "zeroize")]
+impl Zeroize for NttPolynomial {
+    fn zeroize(&mut self) {
+        for fe in self.0.iter_mut() {
+            fe.zeroize()
+        }
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl ZeroizeOnDrop for NttPolynomial {}
 
 impl Add<&NttPolynomial> for &NttPolynomial {
     type Output = NttPolynomial;
@@ -409,6 +434,21 @@ impl<K: ArraySize> NttVector<K> {
         }))
     }
 }
+
+#[cfg(feature = "zeroize")]
+impl<K> Zeroize for NttVector<K>
+where
+    K: ArraySize,
+{
+    fn zeroize(&mut self) {
+        for poly in self.0.iter_mut() {
+            poly.zeroize();
+        }
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<K> ZeroizeOnDrop for NttVector<K> where K: ArraySize {}
 
 impl<K: ArraySize> Add<&NttVector<K>> for &NttVector<K> {
     type Output = NttVector<K>;

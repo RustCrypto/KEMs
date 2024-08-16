@@ -8,6 +8,9 @@ use crate::pke::{DecryptionKey, EncryptionKey};
 use crate::util::B32;
 use crate::{Encoded, EncodedSizeUser};
 
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 // Re-export traits from the `kem` crate
 pub use ::kem::{Decapsulate, Encapsulate};
 
@@ -25,6 +28,20 @@ where
     ek: EncapsulationKey<P>,
     z: B32,
 }
+
+#[cfg(feature = "zeroize")]
+impl<P> Zeroize for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn zeroize(&mut self) {
+        self.dk_pke.zeroize();
+        self.z.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<P> ZeroizeOnDrop for DecapsulationKey<P> where P: KemParams {}
 
 impl<P> EncodedSizeUser for DecapsulationKey<P>
 where
