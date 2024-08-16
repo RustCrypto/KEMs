@@ -2,7 +2,7 @@
 name = "ml-kem"
 description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
-(formerly known as Kyber) as described in the FIPS 203 Initial Public Draft
+(formerly known as Kyber) as described in FIPS 203
 """
 version = "0.1.1"
 edition = "2021"
