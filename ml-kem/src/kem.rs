@@ -100,14 +100,15 @@ impl<P> DecapsulationKey<P>
 where
     P: KemParams,
 {
+    /// Get the [`EncapsulationKey`] which corresponds to this [`DecapsulationKey`].
+    pub fn encapsulation_key(&self) -> &EncapsulationKey<P> {
+        &self.ek
+    }
+
     pub(crate) fn generate(rng: &mut impl CryptoRngCore) -> Self {
         let d: B32 = rand(rng);
         let z: B32 = rand(rng);
         Self::generate_deterministic(&d, &z)
-    }
-
-    pub(crate) fn encapsulation_key(&self) -> &EncapsulationKey<P> {
-        &self.ek
     }
 
     #[must_use]
