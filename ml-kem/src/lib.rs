@@ -73,6 +73,8 @@ use hybrid_array::{
 };
 use rand_core::CryptoRngCore;
 
+pub use hybrid_array as array;
+
 #[cfg(feature = "deterministic")]
 pub use util::B32;
 

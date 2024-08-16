@@ -8,6 +8,9 @@ use crate::pke::{DecryptionKey, EncryptionKey};
 use crate::util::B32;
 use crate::{Encoded, EncodedSizeUser};
 
+// Re-export traits from the `kem` crate
+pub use ::kem::{Decapsulate, Encapsulate};
+
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
 
