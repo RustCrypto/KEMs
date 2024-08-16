@@ -8,7 +8,7 @@
 [![Project Chat][chat-image]][chat-link]
 
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
-(formerly known as Kyber) as described in the [FIPS 203 Initial Public Draft].
+(formerly known as Kyber) as described in [FIPS 203].
 
 [Documentation][docs-link]
 
@@ -73,4 +73,4 @@ dual licensed as above, without any additional terms or conditions.
 [//]: # (links)
 
 [RustCrypto]: https://github.com/rustcrypto
-[FIPS 203 Initial Public Draft]: https://csrc.nist.gov/pubs/fips/203/ipd
+[FIPS 203]: https://csrc.nist.gov/pubs/fips/203/final

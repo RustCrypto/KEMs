@@ -261,6 +261,9 @@ impl NttPolynomial {
 // Note that the const environment here imposes some annoying conditions.  Because operator
 // overloading can't be const, we have to do all the reductions here manually.  Because `for` loops
 // are forbidden in `const` functions, we do them manually with `while` loops.
+//
+// The values computed here match those provided in Appendix A of FIPS 203.  ZETA_POW_BITREV
+// corresponds to the first table, and GAMMA to the second table.
 #[allow(clippy::cast_possible_truncation)]
 const ZETA_POW_BITREV: [FieldElement; 128] = {
     const ZETA: u64 = 17;
@@ -398,14 +401,10 @@ impl NttPolynomial {
 pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
 
 impl<K: ArraySize> NttVector<K> {
-    // Note the transpose here: Apparently the specification is incorrect, and the proper order
-    // of indices is reversed.
-    //
-    // https://github.com/FiloSottile/mlkem768/blob/main/mlkem768.go#L110C4-L112C51
     pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {
         Self(Array::from_fn(|j| {
-            let (i, j) = if transpose { (i, j) } else { (j, i) };
-            let mut xof = XOF(rho, i.truncate(), j.truncate());
+            let (i, j) = if transpose { (j, i) } else { (i, j) };
+            let mut xof = XOF(rho, j.truncate(), i.truncate());
             NttPolynomial::sample_uniform(&mut xof)
         }))
     }

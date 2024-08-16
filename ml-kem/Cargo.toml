@@ -2,7 +2,7 @@
 name = "ml-kem"
 description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
-(formerly known as Kyber) as described in the FIPS 203 Initial Public Draft
+(formerly known as Kyber) as described in FIPS 203
 """
 version = "0.1.1"
 edition = "2021"
@@ -13,6 +13,7 @@ homepage = "https://github.com/RustCrypto/KEMs/tree/master/ml-kem"
 repository = "https://github.com/RustCrypto/KEMs"
 categories = ["cryptography", "no-std"]
 keywords = ["crypto", "kyber", "lattice", "post-quantum"]
+exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
 default = ["std"]
@@ -27,11 +28,13 @@ sha3 = { version = "0.10.8", default-features = false }
 
 [dev-dependencies]
 criterion = "0.5.1"
-hex = "0.4.3"
+hex = { version = "0.4.3", features = ["serde"] }
 hex-literal = "0.4.1"
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
 rand = "0.8.5"
 crypto-common = { version = "0.1.6", features = ["rand_core"] }
+serde = { version = "1.0.208", features = ["derive"] }
+serde_json = "1.0.125"
 
 [[bench]]
 name = "mlkem"
