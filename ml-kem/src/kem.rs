@@ -30,11 +30,11 @@ where
 }
 
 #[cfg(feature = "zeroize")]
-impl<P> Zeroize for DecapsulationKey<P>
+impl<P> Drop for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    fn zeroize(&mut self) {
+    fn drop(&mut self) {
         self.dk_pke.zeroize();
         self.z.zeroize();
     }
