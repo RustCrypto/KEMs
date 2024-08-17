@@ -8,7 +8,7 @@ use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey
 use crate::util::B32;
 
 #[cfg(feature = "zeroize")]
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::Zeroize;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
@@ -29,9 +29,6 @@ where
         self.s_hat.zeroize();
     }
 }
-
-#[cfg(feature = "zeroize")]
-impl<P> ZeroizeOnDrop for DecryptionKey<P> where P: PkeParams {}
 
 impl<P> DecryptionKey<P>
 where

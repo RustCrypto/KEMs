@@ -8,7 +8,7 @@ use crate::param::{ArraySize, CbdSamplingSize};
 use crate::util::{Truncate, B32};
 
 #[cfg(feature = "zeroize")]
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::Zeroize;
 
 pub type Integer = u16;
 
@@ -23,9 +23,6 @@ impl Zeroize for FieldElement {
         self.0.zeroize();
     }
 }
-
-#[cfg(feature = "zeroize")]
-impl ZeroizeOnDrop for FieldElement {}
 
 impl FieldElement {
     pub const Q: Integer = 3329;
@@ -195,9 +192,6 @@ impl Zeroize for NttPolynomial {
         }
     }
 }
-
-#[cfg(feature = "zeroize")]
-impl ZeroizeOnDrop for NttPolynomial {}
 
 impl Add<&NttPolynomial> for &NttPolynomial {
     type Output = NttPolynomial;
@@ -446,9 +440,6 @@ where
         }
     }
 }
-
-#[cfg(feature = "zeroize")]
-impl<K> ZeroizeOnDrop for NttVector<K> where K: ArraySize {}
 
 impl<K: ArraySize> Add<&NttVector<K>> for &NttVector<K> {
     type Output = NttVector<K>;
