@@ -7,6 +7,9 @@ use crate::encode::Encode;
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use crate::util::B32;
 
+#[cfg(feature = "zeroize")]
+use zeroize::Zeroize;
+
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -15,6 +18,16 @@ where
     P: PkeParams,
 {
     s_hat: NttVector<P::K>,
+}
+
+#[cfg(feature = "zeroize")]
+impl<P> Zeroize for DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn zeroize(&mut self) {
+        self.s_hat.zeroize();
+    }
 }
 
 impl<P> DecryptionKey<P>

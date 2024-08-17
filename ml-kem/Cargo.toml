@@ -19,12 +19,14 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 default = ["std"]
 std = ["sha3/std"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
+zeroize = ["dep:zeroize"]
 
 [dependencies]
 kem = "0.3.0-pre.0"
 hybrid-array = { version = "0.2.0-rc.9", features = ["extra-sizes"] }
 rand_core = "0.6.4"
 sha3 = { version = "0.10.8", default-features = false }
+zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
 criterion = "0.5.1"
