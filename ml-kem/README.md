@@ -8,22 +8,23 @@
 [![Project Chat][chat-image]][chat-link]
 
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
-(formerly known as Kyber) as described in [FIPS 203].
+(formerly known as Kyber) as described in [FIPS 203] (final).
 
 [Documentation][docs-link]
 
 ## About
 
-ML-KEM is a cutting-edge post-quantum secure key encapsulation mechanism (KEM). KEMs play a vital
-role in modern cryptographic systems by securely exchanging keys between parties, ensuring
-confidential communication over insecure channels.
+ML-KEM is an algorithm which uses public-key cryptography to securely transfer a symmetric key
+between two parties who want to establish encrypted communications with each other. It uses
+algorithms which resist potential attacks by hypothetical future quantum computers which,
+when such computers are sufficiently mature, pose a problem for the algorithms we typically use for
+secure key establishment using public-key cryptography such as ECDH and RSA key encipherment.
 
-Originally developed as Kyber, ML-KEM inherits the foundation of its predecessor while introducing
-refinements and optimizations to enhance its security and efficiency. ML-KEM and Kyber are
-intimately related, with ML-KEM representing a refined and evolved version of the original Kyber
-algorithm. While Kyber pioneered lattice-based cryptography and provided a reliable framework for
-secure key exchange, ML-KEM builds upon this foundation, incorporating advancements in
-cryptographic research and addressing potential vulnerabilities.
+Originally developed as [CRYSTALS-Kyber] (a.k.a. "Kyber"), ML-KEM is a refinement of the original
+Kyber algorithm after it was selected for standardization by [NIST]'s [Post-Quantum Cryptography]
+(PQC) competition. The Kyber algorithm received considerable feedback as part of the standardization
+process and as such, ML-KEM includes many changes from the original Kyber. It can be though of as
+the official successor of Kyber.
 
 In summary, ML-KEM stands at the forefront of post-quantum cryptography, offering enhanced security
 and efficiency in key encapsulation mechanisms to safeguard sensitive communications in an era where
@@ -74,3 +75,6 @@ dual licensed as above, without any additional terms or conditions.
 
 [RustCrypto]: https://github.com/rustcrypto
 [FIPS 203]: https://csrc.nist.gov/pubs/fips/203/final
+[CRYSTALS-Kyber]: https://pq-crystals.org/kyber/
+[NIST]: https://www.nist.gov/cryptography
+[Post-Quantum Cryptography]: https://csrc.nist.gov/projects/post-quantum-cryptography
