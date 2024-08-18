@@ -18,7 +18,7 @@ ML-KEM is an algorithm which uses public-key cryptography to securely transfer a
 between two parties who want to establish encrypted communications with each other. It uses
 algorithms which resist potential attacks by hypothetical future quantum computers which,
 when such computers are sufficiently mature, pose a problem for the algorithms we typically use for
-secure key establishment using public-key cryptography such as ECDH and RSA key encipherment.
+secure key establishment using public-key cryptography such as (EC)DH and RSA key encipherment.
 
 Originally developed as [CRYSTALS-Kyber] (a.k.a. "Kyber"), ML-KEM is a refinement of the original
 Kyber algorithm after it was selected for standardization by [NIST]'s [Post-Quantum Cryptography]
