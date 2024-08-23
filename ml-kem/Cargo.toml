@@ -16,8 +16,9 @@ keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-default = ["std"]
+default = ["std", "asm"]
 std = ["sha3/std"]
+asm = ["sha3/asm"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
 
