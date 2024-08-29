@@ -1,3 +1,4 @@
+use core::convert::Infallible;
 use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
 use rand_core::CryptoRngCore;
@@ -85,12 +86,12 @@ impl<P> ::kem::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey
 where
     P: KemParams,
 {
-    // Decapsulation is infallible
-    // XXX(RLB): Maybe we should reflect decryption failure as an error?
-    // TODO(RLB) Make Infallible
-    type Error = ();
+    type Error = Infallible;
 
-    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> Result<SharedKey, ()> {
+    fn decapsulate(
+        &self,
+        encapsulated_key: &EncodedCiphertext<P>,
+    ) -> Result<SharedKey, Self::Error> {
         let mp = self.dk_pke.decrypt(encapsulated_key);
         let (Kp, rp) = G(&[&mp, &self.ek.h]);
         let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
@@ -187,9 +188,7 @@ impl<P> ::kem::Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey
 where
     P: KemParams,
 {
-    // TODO(RLB) Make Infallible
-    // TODO(RLB) Swap the order of the
-    type Error = ();
+    type Error = Infallible;
 
     fn encapsulate(
         &self,
@@ -205,8 +204,7 @@ impl<P> crate::EncapsulateDeterministic<EncodedCiphertext<P>, SharedKey> for Enc
 where
     P: KemParams,
 {
-    // TODO(RLB) Make Infallible
-    type Error = ();
+    type Error = Infallible;
 
     fn encapsulate_deterministic(
         &self,
