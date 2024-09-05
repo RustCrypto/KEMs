@@ -51,7 +51,7 @@ dual licensed as above, without any additional terms or conditions.
 
 [//]: # (badges)
 
-[crate-image]: https://buildstats.info/crate/dhkem
+[crate-image]: https://img.shields.io/crates/v/dhkem
 [crate-link]: https://crates.io/crates/dhkem
 [docs-image]: https://docs.rs/dhkem/badge.svg
 [docs-link]: https://docs.rs/dhkem/
