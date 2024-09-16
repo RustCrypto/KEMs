@@ -1,0 +1,43 @@
+[package]
+name = "x-wing"
+description = """
+Pure Rust implementation of the X-Wing Key-Encapsulation Mechanism
+"""
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.81"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+homepage = "https://github.com/RustCrypto/KEMs/tree/master/x-wing"
+repository = "https://github.com/RustCrypto/KEMs/tree/master/x-wing"
+categories = ["cryptography", "no-std"]
+keywords = ["crypto", "x-wing-kem", "x-wing", "xwing", "kem", "post-quantum"]
+exclude = ["src/test-vectors.json"]
+
+[lints.clippy]
+pedantic = "warn"                                 # Be pedantic by default
+similar_names = { level = "allow", priority = 1 } # So we can use the names as in the RFC
+
+[lints.rust]
+missing_docs = "deny" # Require all public interfaces to be documented
+
+[dependencies]
+rand_core = { version = "0.6", default-features = false }
+x25519-dalek = { version = "2.0", default-features = false, features = [
+    "static_secrets",
+] }
+ml-kem = { version = "0.2", default-features = false, features = [
+    "deterministic",
+], path = "../ml-kem" }
+sha3 = { version = "0.10", default-features = false }
+
+[dev-dependencies]
+rand_core = { version = "0.6" }
+hex = { version = "0.4", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+rand = "0.8"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]

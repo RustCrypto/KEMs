@@ -1065,6 +1065,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32b752e52a2da0ddfbdbcc6fceadfeede4c939ed16d13e648833a61dfb611ed8"
 
 [[package]]
+name = "x-wing"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "ml-kem",
+ "rand",
+ "rand_core",
+ "serde",
+ "serde_json",
+ "sha3",
+ "x25519-dalek",
+]
+
+[[package]]
 name = "x25519-dalek"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

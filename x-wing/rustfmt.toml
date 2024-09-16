@@ -1,0 +1,8 @@
+# Take a preview on the style of https://rust-lang.github.io/rfcs/3309-style-team.html
+
+# The default setting now is to order the imports blocks alphabetically.
+# The setting will combine the blocks, split them in std, external and crate and order them alphabetically.
+group_imports = "StdExternalCrate"
+
+# Combine the import per module inplace of the default of do nothing.
+imports_granularity = "Module"
