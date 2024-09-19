@@ -115,6 +115,12 @@ pub struct DecapsulationKey {
 }
 
 impl DecapsulationKey {
+    /// Generate a new `DecapsulationKey` using `OsRng`
+    #[cfg(feature = "getrandom")]
+    pub fn generate_rng() -> DecapsulationKey {
+        Self::generate(&mut rand_core::OsRng)
+    }
+
     /// Generate a new `DecapsulationKey` using the provided RNG
     pub fn generate(rng: &mut impl CryptoRngCore) -> DecapsulationKey {
         let sk = generate(rng);
@@ -209,6 +215,12 @@ impl From<&[u8; 1120]> for Ciphertext {
 
         Ciphertext { ct_m, ct_x }
     }
+}
+
+/// Generate a X-Wing key pair using a the `OsRng`
+#[cfg(feature = "getrandom")]
+pub fn generate_key_pair_rng() -> (DecapsulationKey, EncapsulationKey) {
+    generate_key_pair(&mut rand_core::OsRng)
 }
 
 /// Generate a X-Wing key pair
