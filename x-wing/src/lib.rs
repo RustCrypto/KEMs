@@ -15,13 +15,14 @@
 //!
 //! ```
 //! # use rand;
+//! # use kem::{Decapsulate, Encapsulate};
 //! let mut rng = rand::thread_rng();
 //!
 //! let (sk, pk) = x_wing::generate_key_pair(&mut rng);
 //!
-//! let (ss_sender, ct) = pk.encapsulate(&mut rng);
+//! let (ct, ss_sender) = pk.encapsulate(&mut rng).unwrap();
 //!
-//! let ss_receiver = sk.decapsulate(&ct);
+//! let ss_receiver = sk.decapsulate(&ct).unwrap();
 //!
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
@@ -29,7 +30,7 @@
 //! [X-Wing draft]: https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem
 
 use array::Array;
-use ml_kem::kem::{Decapsulate, Encapsulate};
+use kem::{Decapsulate, Encapsulate};
 use ml_kem::{array, kem, EncodedSizeUser, KemCore, MlKem768, MlKem768Params};
 use rand_core::CryptoRngCore;
 use sha3::digest::core_api::XofReaderCoreWrapper;
@@ -45,6 +46,9 @@ const X_WING_LABEL: &[u8; 6] = br"\.//^\";
 const PUBLIC_KEY_SIZE: usize = 1216;
 const PRIVATE_KEY_SIZE: usize = 32;
 
+/// Shared secret key
+pub type SharedSecret = [u8; 32];
+
 // The naming convention of variables matches the RFC.
 // ss -> Shared Secret
 // ct -> Cipher Text
@@ -55,22 +59,24 @@ const PRIVATE_KEY_SIZE: usize = 32;
 // _m -> ML-Kem related key
 // _x -> x25519 related key
 
-/// X-Wing encapsulation or public key
+/// The X-Wing encapsulation or public key
 #[derive(Clone, PartialEq)]
 pub struct EncapsulationKey {
     pk_m: MlKem768EncapsulationKey,
     pk_x: x25519_dalek::PublicKey,
 }
 
-/// The X-Wing encapsulation or public key
-impl EncapsulationKey {
-    /// Generates the shared secret and the `Ciphertext`
-    #[allow(clippy::missing_panics_doc)]
-    pub fn encapsulate(&self, rng: &mut impl CryptoRngCore) -> ([u8; 32], Ciphertext) {
-        // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
-        let (ct_m, ss_m) = self.pk_m.encapsulate(rng).expect("Operation is Infallible");
+impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
+    type Error = ();
 
-        let ek_x: [u8; 32] = generate(rng);
+    fn encapsulate(
+        &self,
+        rng: &mut impl CryptoRngCore,
+    ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
+        // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
+        let (ct_m, ss_m) = self.pk_m.encapsulate(rng)?;
+
+        let ek_x: SharedSecret = generate(rng);
         let ct_x = x25519(ek_x, X25519_BASEPOINT_BYTES);
         let ss_x = x25519(ek_x, self.pk_x.to_bytes());
 
@@ -81,9 +87,11 @@ impl EncapsulationKey {
             ct_x,
         };
 
-        (ss, ct)
+        Ok((ct, ss))
     }
+}
 
+impl EncapsulationKey {
     /// Covert the key to the following format:
     /// ML-KEM-768 public key(1184 bytes) | X25519 public key(32 bytes)
     #[must_use]
@@ -114,6 +122,18 @@ pub struct DecapsulationKey {
     sk: [u8; PRIVATE_KEY_SIZE],
 }
 
+impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
+    type Error = ();
+
+    fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
+        let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
+        let ss_m = sk_m.decapsulate(&Array::from(ct.ct_m))?;
+        let ss_x = x25519(sk_x.to_bytes(), ct.ct_x);
+        let ss = combiner(&ss_m.into(), &ss_x, &ct.ct_x, &pk_x);
+        Ok(ss)
+    }
+}
+
 impl DecapsulationKey {
     /// Generate a new `DecapsulationKey` using `OsRng`
     #[cfg(feature = "getrandom")]
@@ -132,21 +152,6 @@ impl DecapsulationKey {
     pub fn encapsulation_key(&self) -> EncapsulationKey {
         let (_sk_m, _sk_x, pk_m, pk_x) = self.expand_key();
         EncapsulationKey { pk_m, pk_x }
-    }
-
-    /// Decapsulate the given ciphertext and recover the shared secret
-    #[must_use]
-    #[allow(clippy::missing_panics_doc)]
-    pub fn decapsulate(&self, ct: &Ciphertext) -> [u8; 32] {
-        let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
-
-        let ss_m = sk_m
-            .decapsulate(&Array::from(ct.ct_m))
-            .expect("Operation is infallible");
-
-        let ss_x = x25519(sk_x.to_bytes(), ct.ct_x);
-
-        combiner(&ss_m.into(), &ss_x, &ct.ct_x, &pk_x)
     }
 
     fn expand_key(
@@ -235,7 +240,7 @@ fn combiner(
     ss_x: &[u8; 32],
     ct_x: &[u8; 32],
     pk_x: &x25519_dalek::PublicKey,
-) -> [u8; 32] {
+) -> SharedSecret {
     use sha3::Digest;
 
     let mut hasher = Sha3_256::new();
@@ -321,16 +326,18 @@ mod tests {
 
     /// Test with test vectors from: https://github.com/dconnolly/draft-connolly-cfrg-xwing-kem/blob/main/spec/test-vectors.json
     #[test]
-    fn rfc_test_vectors() {
+    fn rfc_test_vectors() -> Result<(), ()> {
         let test_vectors =
             serde_json::from_str::<Vec<TestVector>>(include_str!("test-vectors.json")).unwrap();
 
         for test_vector in test_vectors {
-            run_test(test_vector)
+            run_test(test_vector)?;
         }
+
+        Ok(())
     }
 
-    fn run_test(test_vector: TestVector) {
+    fn run_test(test_vector: TestVector) -> Result<(), ()> {
         let mut seed = SeedRng::new(test_vector.seed);
         let (sk, pk) = generate_key_pair(&mut seed);
 
@@ -338,13 +345,15 @@ mod tests {
         assert_eq!(pk.as_bytes().to_vec(), test_vector.pk);
 
         let mut eseed = SeedRng::new(test_vector.eseed);
-        let (ss, ct) = pk.encapsulate(&mut eseed);
+        let (ct, ss) = pk.encapsulate(&mut eseed)?;
 
         assert_eq!(ss, test_vector.ss);
         assert_eq!(ct.as_bytes().to_vec(), test_vector.ct);
 
-        let ss = sk.decapsulate(&ct);
+        let ss = sk.decapsulate(&ct)?;
         assert_eq!(ss, test_vector.ss);
+
+        Ok(())
     }
 
     #[test]

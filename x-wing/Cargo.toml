@@ -33,6 +33,7 @@ ml-kem = { version = "0.2", default-features = false, features = [
     "deterministic",
 ], path = "../ml-kem" }
 sha3 = { version = "0.10", default-features = false }
+kem = "0.3.0-pre.0"
 
 [dev-dependencies]
 rand_core = { version = "0.6" }
