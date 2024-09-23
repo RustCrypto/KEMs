@@ -29,14 +29,16 @@
 //!
 //! [X-Wing draft]: https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem
 
-use array::Array;
 use kem::{Decapsulate, Encapsulate};
-use ml_kem::{array, kem, EncodedSizeUser, KemCore, MlKem768, MlKem768Params};
+use ml_kem::array::ArrayN;
+use ml_kem::{kem, EncodedSizeUser, KemCore, MlKem768, MlKem768Params, B32};
 use rand_core::CryptoRngCore;
 use sha3::digest::core_api::XofReaderCoreWrapper;
 use sha3::digest::{ExtendableOutput, XofReader};
 use sha3::{Sha3_256, Shake128, Shake128ReaderCore};
 use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 type MlKem768DecapsulationKey = kem::DecapsulationKey<MlKem768Params>;
 type MlKem768EncapsulationKey = kem::EncapsulationKey<MlKem768Params>;
@@ -80,13 +82,15 @@ impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
         let ct_x = x25519(ek_x, X25519_BASEPOINT_BYTES);
         let ss_x = x25519(ek_x, self.pk_x.to_bytes());
 
-        let ss = combiner(&ss_m.into(), &ss_x, &ct_x, &self.pk_x);
+        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
 
-        let ct = Ciphertext {
-            ct_m: ct_m.into(),
-            ct_x,
-        };
+        #[cfg(feature = "zeroize")]
+        {
+            let mut ss_x = ss_x;
+            ss_x.zeroize();
+        }
 
+        let ct = Ciphertext { ct_m, ct_x };
         Ok((ct, ss))
     }
 }
@@ -118,6 +122,7 @@ impl From<&[u8; PUBLIC_KEY_SIZE]> for EncapsulationKey {
 
 /// X-Wing decapsulation key or private key
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct DecapsulationKey {
     sk: [u8; PRIVATE_KEY_SIZE],
 }
@@ -127,9 +132,16 @@ impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
 
     fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
         let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
-        let ss_m = sk_m.decapsulate(&Array::from(ct.ct_m))?;
+        let ss_m = sk_m.decapsulate(&ct.ct_m)?;
         let ss_x = x25519(sk_x.to_bytes(), ct.ct_x);
-        let ss = combiner(&ss_m.into(), &ss_x, &ct.ct_x, &pk_x);
+        let ss = combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x);
+
+        #[cfg(feature = "zeroize")]
+        {
+            let mut ss_x = ss_x;
+            ss_x.zeroize();
+        }
+
         Ok(ss)
     }
 }
@@ -167,12 +179,11 @@ impl DecapsulationKey {
         shaker.update(&self.sk);
         let mut expanded = shaker.finalize_xof();
 
-        let d = read_from(&mut expanded);
-        let z = read_from(&mut expanded);
+        let d = read_from(&mut expanded).into();
+        let z = read_from(&mut expanded).into();
+        let (sk_m, pk_m) = MlKem768::generate_deterministic(&d, &z);
 
-        let (sk_m, pk_m) = MlKem768::generate_deterministic(&d.into(), &z.into());
         let sk_x = read_from(&mut expanded);
-
         let sk_x = x25519_dalek::StaticSecret::from(sk_x);
         let pk_x = x25519_dalek::PublicKey::from(&sk_x);
 
@@ -194,8 +205,9 @@ impl From<[u8; PRIVATE_KEY_SIZE]> for DecapsulationKey {
 
 /// X-Wing ciphertext
 #[derive(Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct Ciphertext {
-    ct_m: [u8; 1088],
+    ct_m: ArrayN<u8, 1088>,
     ct_x: [u8; 32],
 }
 
@@ -218,7 +230,10 @@ impl From<&[u8; 1120]> for Ciphertext {
         let mut ct_x = [0; 32];
         ct_x.copy_from_slice(&value[1088..]);
 
-        Ciphertext { ct_m, ct_x }
+        Ciphertext {
+            ct_m: ct_m.into(),
+            ct_x,
+        }
     }
 }
 
@@ -236,7 +251,7 @@ pub fn generate_key_pair(rng: &mut impl CryptoRngCore) -> (DecapsulationKey, Enc
 }
 
 fn combiner(
-    ss_m: &[u8; 32],
+    ss_m: &B32,
     ss_x: &[u8; 32],
     ct_x: &[u8; 32],
     pk_x: &x25519_dalek::PublicKey,
@@ -361,7 +376,7 @@ mod tests {
         let mut rng = OsRng;
 
         let ct_a = Ciphertext {
-            ct_m: generate(&mut rng),
+            ct_m: generate(&mut rng).into(),
             ct_x: generate(&mut rng),
         };
 
