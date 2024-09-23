@@ -26,8 +26,6 @@
 //!
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
-//!
-//! [X-Wing draft]: https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem
 
 use kem::{Decapsulate, Encapsulate};
 use ml_kem::array::ArrayN;
@@ -45,10 +43,14 @@ type MlKem768EncapsulationKey = kem::EncapsulationKey<MlKem768Params>;
 
 const X_WING_LABEL: &[u8; 6] = br"\.//^\";
 
-const PUBLIC_KEY_SIZE: usize = 1216;
-const PRIVATE_KEY_SIZE: usize = 32;
+/// Size in bytes of the `EncapsulationKey`.
+pub const ENCAPSULATION_KEY_SIZE: usize = 1216;
+/// Size in bytes of the `DecapsulationKey`.
+pub const DECAPSULATION_KEY_SIZE: usize = 32;
+/// Size in bytes of the `Ciphertext`.
+pub const CIPHERTEXT_SIZE: usize = 1120;
 
-/// Shared secret key
+/// Shared secret key.
 pub type SharedSecret = [u8; 32];
 
 // The naming convention of variables matches the RFC.
@@ -61,7 +63,7 @@ pub type SharedSecret = [u8; 32];
 // _m -> ML-Kem related key
 // _x -> x25519 related key
 
-/// The X-Wing encapsulation or public key
+/// X-Wing encapsulation or public key.
 #[derive(Clone, PartialEq)]
 pub struct EncapsulationKey {
     pk_m: MlKem768EncapsulationKey,
@@ -96,19 +98,19 @@ impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
 }
 
 impl EncapsulationKey {
-    /// Covert the key to the following format:
-    /// ML-KEM-768 public key(1184 bytes) | X25519 public key(32 bytes)
+    /// Convert the key to the following format:
+    /// ML-KEM-768 public key(1184 bytes) | X25519 public key(32 bytes).
     #[must_use]
-    pub fn as_bytes(&self) -> [u8; PUBLIC_KEY_SIZE] {
-        let mut buffer = [0u8; PUBLIC_KEY_SIZE];
+    pub fn as_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
+        let mut buffer = [0u8; ENCAPSULATION_KEY_SIZE];
         buffer[0..1184].copy_from_slice(&self.pk_m.as_bytes());
         buffer[1184..1216].copy_from_slice(self.pk_x.as_bytes());
         buffer
     }
 }
 
-impl From<&[u8; PUBLIC_KEY_SIZE]> for EncapsulationKey {
-    fn from(value: &[u8; PUBLIC_KEY_SIZE]) -> Self {
+impl From<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
+    fn from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Self {
         let mut pk_m = [0; 1184];
         pk_m.copy_from_slice(&value[0..1184]);
         let pk_m = MlKem768EncapsulationKey::from_bytes(&pk_m.into());
@@ -120,11 +122,11 @@ impl From<&[u8; PUBLIC_KEY_SIZE]> for EncapsulationKey {
     }
 }
 
-/// X-Wing decapsulation key or private key
+/// X-Wing decapsulation key or private key.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct DecapsulationKey {
-    sk: [u8; PRIVATE_KEY_SIZE],
+    sk: [u8; DECAPSULATION_KEY_SIZE],
 }
 
 impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
@@ -147,19 +149,19 @@ impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
 }
 
 impl DecapsulationKey {
-    /// Generate a new `DecapsulationKey` using `OsRng`
+    /// Generate a new `DecapsulationKey` using `OsRng`.
     #[cfg(feature = "getrandom")]
     pub fn generate_rng() -> DecapsulationKey {
         Self::generate(&mut rand_core::OsRng)
     }
 
-    /// Generate a new `DecapsulationKey` using the provided RNG
+    /// Generate a new `DecapsulationKey` using the provided RNG.
     pub fn generate(rng: &mut impl CryptoRngCore) -> DecapsulationKey {
         let sk = generate(rng);
         DecapsulationKey { sk }
     }
 
-    /// Provide the matching `EncapsulationKey`
+    /// Provide the matching `EncapsulationKey`.
     #[must_use]
     pub fn encapsulation_key(&self) -> EncapsulationKey {
         let (_sk_m, _sk_x, pk_m, pk_x) = self.expand_key();
@@ -190,20 +192,20 @@ impl DecapsulationKey {
         (sk_m, sk_x, pk_m, pk_x)
     }
 
-    /// Private key
+    /// Private key as bytes.
     #[must_use]
-    pub fn as_bytes(&self) -> &[u8; PRIVATE_KEY_SIZE] {
+    pub fn as_bytes(&self) -> &[u8; DECAPSULATION_KEY_SIZE] {
         &self.sk
     }
 }
 
-impl From<[u8; PRIVATE_KEY_SIZE]> for DecapsulationKey {
-    fn from(sk: [u8; PRIVATE_KEY_SIZE]) -> Self {
+impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKey {
+    fn from(sk: [u8; DECAPSULATION_KEY_SIZE]) -> Self {
         DecapsulationKey { sk }
     }
 }
 
-/// X-Wing ciphertext
+/// X-Wing ciphertext.
 #[derive(Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct Ciphertext {
@@ -212,19 +214,19 @@ pub struct Ciphertext {
 }
 
 impl Ciphertext {
-    /// Covert the ciphertext to the following format:
-    /// ML-KEM-768 ciphertext(1088 bytes) | X25519 ciphertext(32 bytes)
+    /// Convert the ciphertext to the following format:
+    /// ML-KEM-768 ciphertext(1088 bytes) | X25519 ciphertext(32 bytes).
     #[must_use]
-    pub fn as_bytes(&self) -> [u8; 1120] {
-        let mut buffer = [0; 1120];
+    pub fn as_bytes(&self) -> [u8; CIPHERTEXT_SIZE] {
+        let mut buffer = [0; CIPHERTEXT_SIZE];
         buffer[0..1088].copy_from_slice(&self.ct_m);
         buffer[1088..].copy_from_slice(&self.ct_x);
         buffer
     }
 }
 
-impl From<&[u8; 1120]> for Ciphertext {
-    fn from(value: &[u8; 1120]) -> Self {
+impl From<&[u8; CIPHERTEXT_SIZE]> for Ciphertext {
+    fn from(value: &[u8; CIPHERTEXT_SIZE]) -> Self {
         let mut ct_m = [0; 1088];
         ct_m.copy_from_slice(&value[0..1088]);
         let mut ct_x = [0; 32];
@@ -237,13 +239,13 @@ impl From<&[u8; 1120]> for Ciphertext {
     }
 }
 
-/// Generate a X-Wing key pair using a the `OsRng`
+/// Generate a X-Wing key pair using `OsRng`.
 #[cfg(feature = "getrandom")]
 pub fn generate_key_pair_rng() -> (DecapsulationKey, EncapsulationKey) {
     generate_key_pair(&mut rand_core::OsRng)
 }
 
-/// Generate a X-Wing key pair
+/// Generate a X-Wing key pair using the provided rng.
 pub fn generate_key_pair(rng: &mut impl CryptoRngCore) -> (DecapsulationKey, EncapsulationKey) {
     let sk = DecapsulationKey::generate(rng);
     let pk = sk.encapsulation_key();

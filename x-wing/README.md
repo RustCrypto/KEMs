@@ -12,6 +12,8 @@ hybrid key encapsulation mechanism (PQ/T KEM) built on X25519 and ML-KEM-768. Us
 
 Current implementation matches the [draft RFC][RFC-DRAFT] version 04.
 
+The original paper: [X-Wing The Hybrid KEM You’ve Been Looking For][X-WING-PAPER]
+
 [Documentation][docs-link]
 
 ## About
