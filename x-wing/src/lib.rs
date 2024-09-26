@@ -31,6 +31,8 @@ use kem::{Decapsulate, Encapsulate};
 use ml_kem::array::ArrayN;
 use ml_kem::{kem, EncodedSizeUser, KemCore, MlKem768, MlKem768Params, B32};
 use rand_core::CryptoRngCore;
+#[cfg(feature = "getrandom")]
+use rand_core::OsRng;
 use sha3::digest::core_api::XofReaderCoreWrapper;
 use sha3::digest::{ExtendableOutput, XofReader};
 use sha3::{Sha3_256, Shake128, Shake128ReaderCore};
@@ -151,8 +153,8 @@ impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
 impl DecapsulationKey {
     /// Generate a new `DecapsulationKey` using `OsRng`.
     #[cfg(feature = "getrandom")]
-    pub fn generate_rng() -> DecapsulationKey {
-        Self::generate(&mut rand_core::OsRng)
+    pub fn generate_from_os_rng() -> DecapsulationKey {
+        Self::generate(&mut OsRng)
     }
 
     /// Generate a new `DecapsulationKey` using the provided RNG.
@@ -241,8 +243,8 @@ impl From<&[u8; CIPHERTEXT_SIZE]> for Ciphertext {
 
 /// Generate a X-Wing key pair using `OsRng`.
 #[cfg(feature = "getrandom")]
-pub fn generate_key_pair_rng() -> (DecapsulationKey, EncapsulationKey) {
-    generate_key_pair(&mut rand_core::OsRng)
+pub fn generate_key_pair_from_os_rng() -> (DecapsulationKey, EncapsulationKey) {
+    generate_key_pair(&mut OsRng)
 }
 
 /// Generate a X-Wing key pair using the provided rng.
