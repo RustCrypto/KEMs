@@ -125,8 +125,9 @@ impl From<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
 }
 
 /// X-Wing decapsulation key or private key.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone)]
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
+#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct DecapsulationKey {
     sk: [u8; DECAPSULATION_KEY_SIZE],
 }
