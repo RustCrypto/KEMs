@@ -1,4 +1,4 @@
-# [RustCrypto]: ML-KEM
+# [RustCrypto]: X-Wing KEM
 
 [![crate][crate-image]][crate-link]
 [![Docs][docs-image]][docs-link]
