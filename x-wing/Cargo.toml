@@ -3,7 +3,7 @@ name = "x-wing"
 description = """
 Pure Rust implementation of the X-Wing Key-Encapsulation Mechanism
 """
-version = "0.1.0"
+version = "0.0.1-alpha"
 edition = "2021"
 rust-version = "1.81"
 license = "Apache-2.0 OR MIT"
@@ -27,17 +27,11 @@ missing_docs = "deny" # Require all public interfaces to be documented
 
 [dependencies]
 rand_core = { version = "0.6", default-features = false }
-x25519-dalek = { version = "2.0", default-features = false, features = [
-    "static_secrets",
-] }
-ml-kem = { version = "0.2", default-features = false, features = [
-    "deterministic",
-], path = "../ml-kem" }
+x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
+ml-kem = { version = "0.2", default-features = false, features = ["deterministic"], path = "../ml-kem" }
 sha3 = { version = "0.10", default-features = false }
 kem = "0.3.0-pre.0"
-zeroize = { version = "1.8.1", optional = true, default-features = true, features = [
-    "zeroize_derive",
-] }
+zeroize = { version = "1.8.1", optional = true, default-features = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]
 rand_core = { version = "0.6" }
