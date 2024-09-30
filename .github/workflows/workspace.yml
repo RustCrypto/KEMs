@@ -32,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: cargo doc --workspace --all-features --document-private-items
+      - run: cargo doc --workspace --all-features --no-deps --document-private-items
 
   rustfmt:
     runs-on: ubuntu-latest
