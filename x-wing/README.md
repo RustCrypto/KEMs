@@ -8,7 +8,8 @@
 [![Project Chat][chat-image]][chat-link]
 
 Pure Rust implementation of X-Wing, a general-purpose post-quantum/traditional
-hybrid key encapsulation mechanism (PQ/T KEM) built on X25519 and ML-KEM-768. Using the crates [x25519_dalek][X25519-DALEK] and [ml-kem][ML-KEM].
+hybrid key encapsulation mechanism (PQ/T KEM) built on X25519 and ML-KEM-768.
+Built on the [ml-kem] and [x25519-dalek] crates.
 
 Current implementation matches the [draft RFC][RFC-DRAFT] version 04.
 
@@ -17,7 +18,6 @@ The original paper: [X-Wing The Hybrid KEM You’ve Been Looking For][X-WING-PAP
 [Documentation][docs-link]
 
 ## About
-
 
 ## ⚠️ Security Warning
 
@@ -49,7 +49,7 @@ dual licensed as above, without any additional terms or conditions.
 
 [//]: # (badges)
 
-[crate-image]: https://img.shields.io/crates/v/x-wing
+[crate-image]: https://img.shields.io/crates/v/x-wing?logo=rust
 [crate-link]: https://crates.io/crates/x-wing
 [docs-image]: https://docs.rs/x-wing/badge.svg
 [docs-link]: https://docs.rs/x-wing/
@@ -65,5 +65,5 @@ dual licensed as above, without any additional terms or conditions.
 [RustCrypto]: https://github.com/rustcrypto
 [RFC-DRAFT]: https://datatracker.ietf.org/doc/html/draft-connolly-cfrg-xwing-kem
 [X-WING-PAPER]: https://eprint.iacr.org/2024/039.pdf
-[X25519-DALEK]: https://crates.io/crates/x25519-dalek
-[ML-KEM]: https://crates.io/crates/ml-kem
+[x25519-dalek]: https://crates.io/crates/x25519-dalek
+[ml-kem]: https://crates.io/crates/ml-kem
