@@ -6,7 +6,7 @@ Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism
 """
 version = "0.2.1"
 edition = "2021"
-rust-version = "1.74"
+rust-version = "1.81"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 homepage = "https://github.com/RustCrypto/KEMs/tree/master/ml-kem"
