@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - ".github/workflows/x-wing.yml"
+      - "ml-kem/**"
       - "x-wing/**"
       - "Cargo.*"
   push:
