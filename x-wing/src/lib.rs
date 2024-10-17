@@ -27,6 +27,8 @@
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
+use core::convert::Infallible;
+
 use kem::{Decapsulate, Encapsulate};
 use ml_kem::array::ArrayN;
 use ml_kem::{kem, EncodedSizeUser, KemCore, MlKem768, MlKem768Params, B32};
@@ -73,7 +75,7 @@ pub struct EncapsulationKey {
 }
 
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
-    type Error = ();
+    type Error = Infallible;
 
     fn encapsulate(
         &self,
@@ -133,7 +135,7 @@ pub struct DecapsulationKey {
 }
 
 impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
-    type Error = ();
+    type Error = Infallible;
 
     fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
         let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
@@ -346,18 +348,16 @@ mod tests {
 
     /// Test with test vectors from: https://github.com/dconnolly/draft-connolly-cfrg-xwing-kem/blob/main/spec/test-vectors.json
     #[test]
-    fn rfc_test_vectors() -> Result<(), ()> {
+    fn rfc_test_vectors() {
         let test_vectors =
             serde_json::from_str::<Vec<TestVector>>(include_str!("test-vectors.json")).unwrap();
 
         for test_vector in test_vectors {
-            run_test(test_vector)?;
+            run_test(test_vector);
         }
-
-        Ok(())
     }
 
-    fn run_test(test_vector: TestVector) -> Result<(), ()> {
+    fn run_test(test_vector: TestVector) {
         let mut seed = SeedRng::new(test_vector.seed);
         let (sk, pk) = generate_key_pair(&mut seed);
 
@@ -365,15 +365,13 @@ mod tests {
         assert_eq!(pk.as_bytes().to_vec(), test_vector.pk);
 
         let mut eseed = SeedRng::new(test_vector.eseed);
-        let (ct, ss) = pk.encapsulate(&mut eseed)?;
+        let (ct, ss) = pk.encapsulate(&mut eseed).unwrap();
 
         assert_eq!(ss, test_vector.ss);
         assert_eq!(ct.as_bytes().to_vec(), test_vector.ct);
 
-        let ss = sk.decapsulate(&ct)?;
+        let ss = sk.decapsulate(&ct).unwrap();
         assert_eq!(ss, test_vector.ss);
-
-        Ok(())
     }
 
     #[test]
