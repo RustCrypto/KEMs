@@ -1,7 +1,7 @@
 //! Generic Elliptic Curve Diffie-Hellman KEM adapter.
 
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
-use core::marker::PhantomData;
+use core::{convert::Infallible, marker::PhantomData};
 use elliptic_curve::{
     ecdh::{EphemeralSecret, SharedSecret},
     CurveArithmetic, PublicKey,
@@ -19,7 +19,7 @@ impl<C> Encapsulate<PublicKey<C>, SharedSecret<C>> for DhEncapsulator<PublicKey<
 where
     C: CurveArithmetic,
 {
-    type Error = ();
+    type Error = Infallible;
 
     fn encapsulate(
         &self,
@@ -38,7 +38,7 @@ impl<C> Decapsulate<PublicKey<C>, SharedSecret<C>> for DhDecapsulator<EphemeralS
 where
     C: CurveArithmetic,
 {
-    type Error = ();
+    type Error = Infallible;
 
     fn decapsulate(&self, encapsulated_key: &PublicKey<C>) -> Result<SharedSecret<C>, Self::Error> {
         let ss = self.0.diffie_hellman(encapsulated_key);

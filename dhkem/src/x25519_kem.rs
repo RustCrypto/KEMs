@@ -1,4 +1,5 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
+use core::convert::Infallible;
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRngCore;
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
@@ -9,7 +10,7 @@ use x25519::{PublicKey, ReusableSecret, SharedSecret};
 pub struct X25519Kem;
 
 impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
-    type Error = ();
+    type Error = Infallible;
 
     fn encapsulate(
         &self,
@@ -25,7 +26,7 @@ impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
 }
 
 impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
-    type Error = ();
+    type Error = Infallible;
 
     fn decapsulate(&self, encapsulated_key: &PublicKey) -> Result<SharedSecret, Self::Error> {
         let ss = self.0.diffie_hellman(encapsulated_key);
