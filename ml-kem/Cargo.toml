@@ -4,7 +4,7 @@ description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
 (formerly known as Kyber) as described in FIPS 203
 """
-version = "0.2.1"
+version = "0.3.0-pre"
 edition = "2021"
 rust-version = "1.81"
 license = "Apache-2.0 OR MIT"
