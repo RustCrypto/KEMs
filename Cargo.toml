@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["dhkem", "ml-kem", "x-wing"]
+members = ["dhkem", "frodo-kem", "ml-kem", "x-wing"]
 
 [profile.bench]
 debug = true
