@@ -2,7 +2,7 @@
     Copyright Michael Lodder. All Rights Reserved.
     SPDX-License-Identifier: Apache-2.0
 */
-//! ⚠️ Low-level "hazmat" AES functions.
+//! ⚠️ Low-level "hazmat" FRODO-KEM functions.
 //!
 //! # ☢️️ WARNING: HAZARDOUS API ☢️
 //!
