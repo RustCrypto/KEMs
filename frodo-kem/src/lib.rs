@@ -13,9 +13,9 @@
 //! use rand_core::OsRng;
 //!
 //! let alg = Algorithm::FrodoKem640Shake;
-//! let (pk, sk) = alg.generate_keypair(OsRng);
-//! let (ct, enc_ss) = alg.encapsulate_with_rng(&pk, OsRng).unwrap();
-//! let (dec_ss, msg) = alg.decapsulate(&sk, &ct).unwrap();
+//! let (ek, dk) = alg.generate_keypair(OsRng);
+//! let (ct, enc_ss) = alg.encapsulate_with_rng(&ek, OsRng).unwrap();
+//! let (dec_ss, msg) = alg.decapsulate(&dk, &ct).unwrap();
 //!
 //! assert_eq!(enc_ss, dec_ss);
 //! ```
@@ -27,11 +27,11 @@
 //! use rand_core::OsRng;
 //!
 //! let alg = Algorithm::FrodoKem1344Shake;
-//! let (pk, sk) = alg.generate_keypair(OsRng);
+//! let (ek, dk) = alg.generate_keypair(OsRng);
 //! // Top secret don't disclose
 //! let aes_256_key = [3u8; 32];
-//! let (ct, enc_ss) = alg.encapsulate(&pk, &aes_256_key).unwrap();
-//! let (dec_ss, dec_msg) = alg.decapsulate(&sk, &ct).unwrap();
+//! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key).unwrap();
+//! let (dec_ss, dec_msg) = alg.decapsulate(&dk, &ct).unwrap();
 //!
 //! assert_eq!(enc_ss, dec_ss);
 //! assert_eq!(&aes_256_key[..], dec_msg.as_slice());
@@ -75,7 +75,6 @@
 compile_error!("no algorithm feature enabled");
 
 mod error;
-
 pub use error::*;
 
 #[cfg(feature = "hazmat")]
@@ -83,18 +82,16 @@ pub mod hazmat;
 #[cfg(not(feature = "hazmat"))]
 mod hazmat;
 
-use zeroize::{Zeroize, ZeroizeOnDrop};
-
 use hazmat::{
-    CiphertextRef, Frodo1344, Frodo640, Frodo976, FrodoKem1344Aes, FrodoKem1344Shake,
-    FrodoKem640Aes, FrodoKem640Shake, FrodoKem976Aes, FrodoKem976Shake, Kem, Params, PublicKeyRef,
-    SecretKeyRef,
+    CiphertextRef, DecryptionKeyRef, EncryptionKeyRef, Frodo1344, Frodo640, Frodo976,
+    FrodoKem1344Aes, FrodoKem1344Shake, FrodoKem640Aes, FrodoKem640Shake, FrodoKem976Aes,
+    FrodoKem976Shake, Kem, Params,
 };
 
 use rand_core::CryptoRngCore;
-use std::fmt::Debug;
 use std::marker::PhantomData;
 use subtle::{Choice, ConstantTimeEq};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 macro_rules! serde_impl {
     ($name:ident, $from_method:ident) => {
@@ -263,22 +260,30 @@ impl Ciphertext {
 
 /// A FrodoKEM public key
 #[derive(Debug, Clone, Default)]
-pub struct PublicKey {
+pub struct EncryptionKey {
     pub(crate) algorithm: Algorithm,
     pub(crate) value: Vec<u8>,
 }
 
-impl AsRef<[u8]> for PublicKey {
+impl AsRef<[u8]> for EncryptionKey {
     fn as_ref(&self) -> &[u8] {
         self.value.as_ref()
     }
 }
 
-ct_eq_imp!(PublicKey);
+impl From<&DecryptionKey> for EncryptionKey {
+    fn from(secret_key: &DecryptionKey) -> Self {
+        secret_key
+            .algorithm
+            .encryption_key_from_decryption_key(secret_key)
+    }
+}
 
-serde_impl!(PublicKey, public_key_from_bytes);
+ct_eq_imp!(EncryptionKey);
 
-impl PublicKey {
+serde_impl!(EncryptionKey, encryption_key_from_bytes);
+
+impl EncryptionKey {
     /// Get the algorithm
     pub fn algorithm(&self) -> Algorithm {
         self.algorithm
@@ -289,38 +294,58 @@ impl PublicKey {
         self.value.as_slice()
     }
 
-    /// Convert a slice of bytes into a [`PublicKey`] according to the specified [`Algorithm`].
+    /// Convert a slice of bytes into a [`EncryptionKey`] according to the specified [`Algorithm`].
     pub fn from_bytes<B: AsRef<[u8]>>(algorithm: Algorithm, value: B) -> FrodoResult<Self> {
-        algorithm.public_key_from_bytes(value.as_ref())
+        algorithm.encryption_key_from_bytes(value.as_ref())
+    }
+
+    /// Encapsulate a random value to generate a [`SharedSecret`] and a [`Ciphertext`].
+    pub fn encapsulate_with_rng(
+        &self,
+        rng: impl CryptoRngCore,
+    ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        self.algorithm.encapsulate_with_rng(self, rng)
+    }
+
+    /// Encapsulate with given message to generate a [`SharedSecret`] and a [`Ciphertext`].
+    ///
+    /// NOTE: The message must be of the correct length for the algorithm.
+    /// Also, this method is deterministic, meaning that using the same message
+    /// will yield the same [`SharedSecret`] and [`Ciphertext`]
+    pub fn encapsulate<B: AsRef<[u8]>>(
+        &self,
+        message: B,
+    ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        self.algorithm.encapsulate(self, message)
     }
 }
 
 /// A FrodoKEM secret key
 #[derive(Debug, Clone, Default)]
-pub struct SecretKey {
+pub struct DecryptionKey {
     pub(crate) algorithm: Algorithm,
     pub(crate) value: Vec<u8>,
 }
 
-impl AsRef<[u8]> for SecretKey {
+impl AsRef<[u8]> for DecryptionKey {
     fn as_ref(&self) -> &[u8] {
         self.value.as_ref()
     }
 }
 
-ct_eq_imp!(SecretKey);
+ct_eq_imp!(DecryptionKey);
 
-serde_impl!(SecretKey, secret_key_from_bytes);
+serde_impl!(DecryptionKey, decryption_key_from_bytes);
 
-impl Zeroize for SecretKey {
+impl Zeroize for DecryptionKey {
     fn zeroize(&mut self) {
         self.value.zeroize();
     }
 }
 
-impl ZeroizeOnDrop for SecretKey {}
+impl ZeroizeOnDrop for DecryptionKey {}
 
-impl SecretKey {
+impl DecryptionKey {
     /// Get the algorithm
     pub fn algorithm(&self) -> Algorithm {
         self.algorithm
@@ -331,9 +356,18 @@ impl SecretKey {
         self.value.as_slice()
     }
 
-    /// Convert a slice of bytes into a [`SecretKey`] according to the specified [`Algorithm`].
+    /// Convert a slice of bytes into a [`DecryptionKey`] according to the specified [`Algorithm`].
     pub fn from_bytes<B: AsRef<[u8]>>(algorithm: Algorithm, value: B) -> FrodoResult<Self> {
-        algorithm.secret_key_from_bytes(value.as_ref())
+        algorithm.decryption_key_from_bytes(value.as_ref())
+    }
+
+    /// Decapsulate the [`Ciphertext`] to return the [`SharedSecret`] and
+    /// message generated during encapsulation.
+    pub fn decapsulate<B: AsRef<[u8]>>(
+        &self,
+        ciphertext: &Ciphertext,
+    ) -> FrodoResult<(SharedSecret, Vec<u8>)> {
+        self.algorithm.decapsulate(self, ciphertext)
     }
 }
 
@@ -710,7 +744,7 @@ impl Algorithm {
     }
 
     /// Get the length of the public key
-    pub fn public_key_length(&self) -> usize {
+    pub fn encryption_key_length(&self) -> usize {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => <Frodo640 as Params>::PUBLIC_KEY_LENGTH,
@@ -728,7 +762,7 @@ impl Algorithm {
     }
 
     /// Get the length of the secret key
-    pub fn secret_key_length(&self) -> usize {
+    pub fn decryption_key_length(&self) -> usize {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => <Frodo640 as Params>::SECRET_KEY_LENGTH,
@@ -781,45 +815,50 @@ impl Algorithm {
         }
     }
 
-    /// Get the [`PublicKey`] from a [`SecretKey`]
-    pub fn public_key_from_secret_key(&self, secret_key: &SecretKey) -> PublicKey {
+    /// Get the [`EncryptionKey`] from a [`DecryptionKey`]
+    pub fn encryption_key_from_decryption_key(&self, secret_key: &DecryptionKey) -> EncryptionKey {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
-                let sk = SecretKeyRef::<FrodoKem640Aes>(secret_key.value.as_slice(), PhantomData);
-                PublicKey {
+                let sk =
+                    DecryptionKeyRef::<FrodoKem640Aes>(secret_key.value.as_slice(), PhantomData);
+                EncryptionKey {
                     algorithm: *self,
                     value: sk.public_key().to_vec(),
                 }
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
-                let sk = SecretKeyRef::<FrodoKem976Aes>(secret_key.value.as_slice(), PhantomData);
-                PublicKey {
+                let sk =
+                    DecryptionKeyRef::<FrodoKem976Aes>(secret_key.value.as_slice(), PhantomData);
+                EncryptionKey {
                     algorithm: *self,
                     value: sk.public_key().to_vec(),
                 }
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
-                let sk = SecretKeyRef::<FrodoKem1344Aes>(secret_key.value.as_slice(), PhantomData);
-                PublicKey {
+                let sk =
+                    DecryptionKeyRef::<FrodoKem1344Aes>(secret_key.value.as_slice(), PhantomData);
+                EncryptionKey {
                     algorithm: *self,
                     value: sk.public_key().to_vec(),
                 }
             }
             #[cfg(feature = "frodo640shake")]
             Self::FrodoKem640Shake => {
-                let sk = SecretKeyRef::<FrodoKem640Shake>(secret_key.value.as_slice(), PhantomData);
-                PublicKey {
+                let sk =
+                    DecryptionKeyRef::<FrodoKem640Shake>(secret_key.value.as_slice(), PhantomData);
+                EncryptionKey {
                     algorithm: *self,
                     value: sk.public_key().to_vec(),
                 }
             }
             #[cfg(feature = "frodo976shake")]
             Self::FrodoKem976Shake => {
-                let sk = SecretKeyRef::<FrodoKem976Shake>(secret_key.value.as_slice(), PhantomData);
-                PublicKey {
+                let sk =
+                    DecryptionKeyRef::<FrodoKem976Shake>(secret_key.value.as_slice(), PhantomData);
+                EncryptionKey {
                     algorithm: *self,
                     value: sk.public_key().to_vec(),
                 }
@@ -827,8 +866,8 @@ impl Algorithm {
             #[cfg(feature = "frodo1344shake")]
             Self::FrodoKem1344Shake => {
                 let sk =
-                    SecretKeyRef::<FrodoKem1344Shake>(secret_key.value.as_slice(), PhantomData);
-                PublicKey {
+                    DecryptionKeyRef::<FrodoKem1344Shake>(secret_key.value.as_slice(), PhantomData);
+                EncryptionKey {
                     algorithm: *self,
                     value: sk.public_key().to_vec(),
                 }
@@ -839,100 +878,94 @@ impl Algorithm {
     /// Obtain a secret key from a byte slice
     ///
     /// Returns Err if the byte slice is not the correct length
-    pub fn secret_key_from_bytes(&self, buf: &[u8]) -> FrodoResult<SecretKey> {
+    pub fn decryption_key_from_bytes(&self, buf: &[u8]) -> FrodoResult<DecryptionKey> {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
-                hazmat::SecretKey::<FrodoKem640Aes>::from_slice(buf).map(|s| SecretKey {
+                hazmat::DecryptionKey::<FrodoKem640Aes>::from_slice(buf).map(|s| DecryptionKey {
                     algorithm: *self,
                     value: s.0,
                 })
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
-                hazmat::SecretKey::<FrodoKem976Aes>::from_slice(buf).map(|s| SecretKey {
+                hazmat::DecryptionKey::<FrodoKem976Aes>::from_slice(buf).map(|s| DecryptionKey {
                     algorithm: *self,
                     value: s.0,
                 })
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
-                hazmat::SecretKey::<FrodoKem1344Aes>::from_slice(buf).map(|s| SecretKey {
+                hazmat::DecryptionKey::<FrodoKem1344Aes>::from_slice(buf).map(|s| DecryptionKey {
                     algorithm: *self,
                     value: s.0,
                 })
             }
             #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => {
-                hazmat::SecretKey::<FrodoKem640Shake>::from_slice(buf).map(|s| SecretKey {
+            Self::FrodoKem640Shake => hazmat::DecryptionKey::<FrodoKem640Shake>::from_slice(buf)
+                .map(|s| DecryptionKey {
                     algorithm: *self,
                     value: s.0,
-                })
-            }
+                }),
             #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => {
-                hazmat::SecretKey::<FrodoKem976Shake>::from_slice(buf).map(|s| SecretKey {
+            Self::FrodoKem976Shake => hazmat::DecryptionKey::<FrodoKem976Shake>::from_slice(buf)
+                .map(|s| DecryptionKey {
                     algorithm: *self,
                     value: s.0,
-                })
-            }
+                }),
             #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => {
-                hazmat::SecretKey::<FrodoKem1344Shake>::from_slice(buf).map(|s| SecretKey {
+            Self::FrodoKem1344Shake => hazmat::DecryptionKey::<FrodoKem1344Shake>::from_slice(buf)
+                .map(|s| DecryptionKey {
                     algorithm: *self,
                     value: s.0,
-                })
-            }
+                }),
         }
     }
 
     /// Obtain a public key from a byte slice
     ///
     /// Returns Err if the byte slice is not the correct length
-    pub fn public_key_from_bytes(&self, buf: &[u8]) -> FrodoResult<PublicKey> {
+    pub fn encryption_key_from_bytes(&self, buf: &[u8]) -> FrodoResult<EncryptionKey> {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
-                hazmat::PublicKey::<FrodoKem640Aes>::from_slice(buf).map(|s| PublicKey {
+                hazmat::EncryptionKey::<FrodoKem640Aes>::from_slice(buf).map(|s| EncryptionKey {
                     algorithm: *self,
                     value: s.0,
                 })
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
-                hazmat::PublicKey::<FrodoKem976Aes>::from_slice(buf).map(|s| PublicKey {
+                hazmat::EncryptionKey::<FrodoKem976Aes>::from_slice(buf).map(|s| EncryptionKey {
                     algorithm: *self,
                     value: s.0,
                 })
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
-                hazmat::PublicKey::<FrodoKem1344Aes>::from_slice(buf).map(|s| PublicKey {
+                hazmat::EncryptionKey::<FrodoKem1344Aes>::from_slice(buf).map(|s| EncryptionKey {
                     algorithm: *self,
                     value: s.0,
                 })
             }
             #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => {
-                hazmat::PublicKey::<FrodoKem640Shake>::from_slice(buf).map(|s| PublicKey {
+            Self::FrodoKem640Shake => hazmat::EncryptionKey::<FrodoKem640Shake>::from_slice(buf)
+                .map(|s| EncryptionKey {
                     algorithm: *self,
                     value: s.0,
-                })
-            }
+                }),
             #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => {
-                hazmat::PublicKey::<FrodoKem976Shake>::from_slice(buf).map(|s| PublicKey {
+            Self::FrodoKem976Shake => hazmat::EncryptionKey::<FrodoKem976Shake>::from_slice(buf)
+                .map(|s| EncryptionKey {
                     algorithm: *self,
                     value: s.0,
-                })
-            }
+                }),
             #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => {
-                hazmat::PublicKey::<FrodoKem1344Shake>::from_slice(buf).map(|s| PublicKey {
+            Self::FrodoKem1344Shake => hazmat::EncryptionKey::<FrodoKem1344Shake>::from_slice(buf)
+                .map(|s| EncryptionKey {
                     algorithm: *self,
                     value: s.0,
-                })
-            }
+                }),
         }
     }
 
@@ -1032,18 +1065,18 @@ impl Algorithm {
         }
     }
 
-    /// Generate a new keypair consisting of a [`PublicKey`] and a [`SecretKey`]
-    pub fn generate_keypair(&self, rng: impl CryptoRngCore) -> (PublicKey, SecretKey) {
+    /// Generate a new keypair consisting of a [`EncryptionKey`] and a [`DecryptionKey`]
+    pub fn generate_keypair(&self, rng: impl CryptoRngCore) -> (EncryptionKey, DecryptionKey) {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
                 let (pk, sk) = FrodoKem640Aes::default().generate_keypair(rng);
                 (
-                    PublicKey {
+                    EncryptionKey {
                         algorithm: *self,
                         value: pk.0,
                     },
-                    SecretKey {
+                    DecryptionKey {
                         algorithm: *self,
                         value: sk.0,
                     },
@@ -1053,11 +1086,11 @@ impl Algorithm {
             Self::FrodoKem976Aes => {
                 let (pk, sk) = FrodoKem976Aes::default().generate_keypair(rng);
                 (
-                    PublicKey {
+                    EncryptionKey {
                         algorithm: *self,
                         value: pk.0,
                     },
-                    SecretKey {
+                    DecryptionKey {
                         algorithm: *self,
                         value: sk.0,
                     },
@@ -1067,11 +1100,11 @@ impl Algorithm {
             Self::FrodoKem1344Aes => {
                 let (pk, sk) = FrodoKem1344Aes::default().generate_keypair(rng);
                 (
-                    PublicKey {
+                    EncryptionKey {
                         algorithm: *self,
                         value: pk.0,
                     },
-                    SecretKey {
+                    DecryptionKey {
                         algorithm: *self,
                         value: sk.0,
                     },
@@ -1081,11 +1114,11 @@ impl Algorithm {
             Self::FrodoKem640Shake => {
                 let (pk, sk) = FrodoKem640Shake::default().generate_keypair(rng);
                 (
-                    PublicKey {
+                    EncryptionKey {
                         algorithm: *self,
                         value: pk.0,
                     },
-                    SecretKey {
+                    DecryptionKey {
                         algorithm: *self,
                         value: sk.0,
                     },
@@ -1095,11 +1128,11 @@ impl Algorithm {
             Self::FrodoKem976Shake => {
                 let (pk, sk) = FrodoKem976Shake::default().generate_keypair(rng);
                 (
-                    PublicKey {
+                    EncryptionKey {
                         algorithm: *self,
                         value: pk.0,
                     },
-                    SecretKey {
+                    DecryptionKey {
                         algorithm: *self,
                         value: sk.0,
                     },
@@ -1109,11 +1142,11 @@ impl Algorithm {
             Self::FrodoKem1344Shake => {
                 let (pk, sk) = FrodoKem1344Shake::default().generate_keypair(rng);
                 (
-                    PublicKey {
+                    EncryptionKey {
                         algorithm: *self,
                         value: pk.0,
                     },
-                    SecretKey {
+                    DecryptionKey {
                         algorithm: *self,
                         value: sk.0,
                     },
@@ -1122,19 +1155,24 @@ impl Algorithm {
         }
     }
 
-    /// Encapsulate with given message to generate a [`SharedSecret`] and a [`Ciphertext`]
-    pub fn encapsulate(
+    /// Encapsulate with given message to generate a [`SharedSecret`] and a [`Ciphertext`].
+    ///
+    /// NOTE: The message must be of the correct length for the algorithm.
+    /// Also, this method is deterministic, meaning that using the same message
+    /// will yield the same [`SharedSecret`] and [`Ciphertext`]
+    pub fn encapsulate<B: AsRef<[u8]>>(
         &self,
-        public_key: &PublicKey,
-        msg: &[u8],
+        public_key: &EncryptionKey,
+        msg: B,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        let msg = msg.as_ref();
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
                 if <Frodo640 as Params>::BYTES_MU != msg.len() {
                     return Err(Error::InvalidMessageLength(msg.len()));
                 }
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (ct, ss) = FrodoKem640Aes::default().encapsulate(pk, msg);
                 Ok((
                     Ciphertext {
@@ -1152,7 +1190,7 @@ impl Algorithm {
                 if <Frodo976 as Params>::BYTES_MU != msg.len() {
                     return Err(Error::InvalidMessageLength(msg.len()));
                 }
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem976Aes::default().encapsulate(pk, msg);
                 Ok((
                     Ciphertext {
@@ -1170,7 +1208,7 @@ impl Algorithm {
                 if <Frodo1344 as Params>::BYTES_MU != msg.len() {
                     return Err(Error::InvalidMessageLength(msg.len()));
                 }
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem1344Aes::default().encapsulate(pk, msg);
                 Ok((
                     Ciphertext {
@@ -1188,7 +1226,7 @@ impl Algorithm {
                 if <Frodo640 as Params>::BYTES_MU != msg.len() {
                     return Err(Error::InvalidMessageLength(msg.len()));
                 }
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem640Shake::default().encapsulate(pk, msg);
                 Ok((
                     Ciphertext {
@@ -1206,7 +1244,7 @@ impl Algorithm {
                 if <Frodo976 as Params>::BYTES_MU != msg.len() {
                     return Err(Error::InvalidMessageLength(msg.len()));
                 }
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem976Shake::default().encapsulate(pk, msg);
                 Ok((
                     Ciphertext {
@@ -1224,7 +1262,7 @@ impl Algorithm {
                 if <Frodo1344 as Params>::BYTES_MU != msg.len() {
                     return Err(Error::InvalidMessageLength(msg.len()));
                 }
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem1344Shake::default().encapsulate(pk, msg);
                 Ok((
                     Ciphertext {
@@ -1240,16 +1278,16 @@ impl Algorithm {
         }
     }
 
-    /// Encapsulate a message generated randomly to generate a [`SharedSecret`] and a [`Ciphertext`]
+    /// Encapsulate a random value to generate a [`SharedSecret`] and a [`Ciphertext`].
     pub fn encapsulate_with_rng(
         &self,
-        public_key: &PublicKey,
+        public_key: &EncryptionKey,
         rng: impl CryptoRngCore,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (ct, ss) = FrodoKem640Aes::default().encapsulate_with_rng(pk, rng);
                 Ok((
                     Ciphertext {
@@ -1264,7 +1302,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem976Aes::default().encapsulate_with_rng(pk, rng);
                 Ok((
                     Ciphertext {
@@ -1279,7 +1317,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem1344Aes::default().encapsulate_with_rng(pk, rng);
                 Ok((
                     Ciphertext {
@@ -1294,7 +1332,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo640shake")]
             Self::FrodoKem640Shake => {
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem640Shake::default().encapsulate_with_rng(pk, rng);
                 Ok((
                     Ciphertext {
@@ -1309,7 +1347,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo976shake")]
             Self::FrodoKem976Shake => {
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem976Shake::default().encapsulate_with_rng(pk, rng);
                 Ok((
                     Ciphertext {
@@ -1324,7 +1362,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo1344shake")]
             Self::FrodoKem1344Shake => {
-                let pk = PublicKeyRef::from_slice(public_key.value.as_slice())?;
+                let pk = EncryptionKeyRef::from_slice(public_key.value.as_slice())?;
                 let (pk, sk) = FrodoKem1344Shake::default().encapsulate_with_rng(pk, rng);
                 Ok((
                     Ciphertext {
@@ -1340,16 +1378,17 @@ impl Algorithm {
         }
     }
 
-    /// Decapsulate a [`Ciphertext`] to generate a [`SharedSecret`]
+    /// Decapsulate the [`Ciphertext`] to return the [`SharedSecret`] and
+    /// message generated during encapsulation.
     pub fn decapsulate(
         &self,
-        secret_key: &SecretKey,
+        secret_key: &DecryptionKey,
         ciphertext: &Ciphertext,
     ) -> FrodoResult<(SharedSecret, Vec<u8>)> {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
-                let sk = SecretKeyRef::from_slice(secret_key.value.as_slice())?;
+                let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
                 let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
                 let (ss, mu) = FrodoKem640Aes::default().decapsulate(sk, ct);
                 Ok((
@@ -1362,7 +1401,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
-                let sk = SecretKeyRef::from_slice(secret_key.value.as_slice())?;
+                let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
                 let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
                 let (ss, mu) = FrodoKem976Aes::default().decapsulate(sk, ct);
                 Ok((
@@ -1375,7 +1414,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
-                let sk = SecretKeyRef::from_slice(secret_key.value.as_slice())?;
+                let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
                 let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
                 let (ss, mu) = FrodoKem1344Aes::default().decapsulate(sk, ct);
                 Ok((
@@ -1388,7 +1427,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo640shake")]
             Self::FrodoKem640Shake => {
-                let sk = SecretKeyRef::from_slice(secret_key.value.as_slice())?;
+                let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
                 let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
                 let (ss, mu) = FrodoKem640Shake::default().decapsulate(sk, ct);
                 Ok((
@@ -1401,7 +1440,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo976shake")]
             Self::FrodoKem976Shake => {
-                let sk = SecretKeyRef::from_slice(secret_key.value.as_slice())?;
+                let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
                 let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
                 let (ss, mu) = FrodoKem976Shake::default().decapsulate(sk, ct);
                 Ok((
@@ -1414,7 +1453,7 @@ impl Algorithm {
             }
             #[cfg(feature = "frodo1344shake")]
             Self::FrodoKem1344Shake => {
-                let sk = SecretKeyRef::from_slice(secret_key.value.as_slice())?;
+                let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
                 let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
                 let (ss, mu) = FrodoKem1344Shake::default().decapsulate(sk, ct);
                 Ok((

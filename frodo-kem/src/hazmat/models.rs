@@ -124,7 +124,7 @@ impl<P: Params> Ciphertext<P> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct CiphertextRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
 
-impl<'a, P: Params> AsRef<[u8]> for CiphertextRef<'a, P> {
+impl<P: Params> AsRef<[u8]> for CiphertextRef<'_, P> {
     fn as_ref(&self) -> &[u8] {
         self.0
     }
@@ -165,37 +165,37 @@ impl<'a, P: Params> CiphertextRef<'a, P> {
 
 /// A FrodoKEM public key
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct PublicKey<P: Params>(pub(crate) Vec<u8>, pub(crate) PhantomData<P>);
+pub struct EncryptionKey<P: Params>(pub(crate) Vec<u8>, pub(crate) PhantomData<P>);
 
-impl<P: Params> AsRef<[u8]> for PublicKey<P> {
+impl<P: Params> AsRef<[u8]> for EncryptionKey<P> {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }
 }
 
-impl<P: Params> Default for PublicKey<P> {
+impl<P: Params> Default for EncryptionKey<P> {
     fn default() -> Self {
         Self(vec![0u8; P::PUBLIC_KEY_LENGTH], PhantomData)
     }
 }
 
-impl<P: Params> From<&SecretKey<P>> for PublicKey<P> {
-    fn from(value: &SecretKey<P>) -> Self {
+impl<P: Params> From<&DecryptionKey<P>> for EncryptionKey<P> {
+    fn from(value: &DecryptionKey<P>) -> Self {
         Self(value.public_key().to_vec(), PhantomData)
     }
 }
 
-impl<'a, P: Params> From<&'a PublicKey<P>> for PublicKeyRef<'a, P> {
-    fn from(value: &'a PublicKey<P>) -> Self {
+impl<'a, P: Params> From<&'a EncryptionKey<P>> for EncryptionKeyRef<'a, P> {
+    fn from(value: &'a EncryptionKey<P>) -> Self {
         Self(value.0.as_slice(), value.1)
     }
 }
 
-from_slice_impl!(PublicKey);
+from_slice_impl!(EncryptionKey);
 
-serde_impl!(PublicKey);
+serde_impl!(EncryptionKey);
 
-impl<P: Params> PublicKey<P> {
+impl<P: Params> EncryptionKey<P> {
     /// Convert a slice of bytes into a public key
     pub fn from_slice(bytes: &[u8]) -> FrodoResult<Self> {
         if bytes.len() != P::PUBLIC_KEY_LENGTH {
@@ -228,9 +228,9 @@ impl<P: Params> PublicKey<P> {
 
 /// A FrodoKEM public key reference
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct PublicKeyRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
+pub struct EncryptionKeyRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
 
-impl<'a, P: Params> PublicKeyRef<'a, P> {
+impl<'a, P: Params> EncryptionKeyRef<'a, P> {
     /// Create a public key reference
     pub fn from_slice(bytes: &'a [u8]) -> FrodoResult<Self> {
         if bytes.len() != P::PUBLIC_KEY_LENGTH {
@@ -251,40 +251,40 @@ impl<'a, P: Params> PublicKeyRef<'a, P> {
 
     /// Convert the public key reference into an owned public key
     #[allow(dead_code)]
-    pub fn to_owned(&self) -> PublicKey<P> {
-        PublicKey(self.0.to_vec(), PhantomData)
+    pub fn to_owned(&self) -> EncryptionKey<P> {
+        EncryptionKey(self.0.to_vec(), PhantomData)
     }
 }
 
 /// A FrodoKEM secret key
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct SecretKey<P: Params>(pub(crate) Vec<u8>, pub(crate) PhantomData<P>);
+pub struct DecryptionKey<P: Params>(pub(crate) Vec<u8>, pub(crate) PhantomData<P>);
 
-impl<P: Params> AsRef<[u8]> for SecretKey<P> {
+impl<P: Params> AsRef<[u8]> for DecryptionKey<P> {
     fn as_ref(&self) -> &[u8] {
         &self.0
     }
 }
 
-impl<P: Params> Default for SecretKey<P> {
+impl<P: Params> Default for DecryptionKey<P> {
     fn default() -> Self {
         Self(vec![0u8; P::SECRET_KEY_LENGTH], PhantomData)
     }
 }
 
-impl<P: Params> Zeroize for SecretKey<P> {
+impl<P: Params> Zeroize for DecryptionKey<P> {
     fn zeroize(&mut self) {
         self.0.zeroize()
     }
 }
 
-impl<P: Params> ZeroizeOnDrop for SecretKey<P> {}
+impl<P: Params> ZeroizeOnDrop for DecryptionKey<P> {}
 
-from_slice_impl!(SecretKey);
+from_slice_impl!(DecryptionKey);
 
-serde_impl!(SecretKey);
+serde_impl!(DecryptionKey);
 
-impl<P: Params> SecretKey<P> {
+impl<P: Params> DecryptionKey<P> {
     /// Convert a slice of bytes into a secret key
     pub fn from_slice(bytes: &[u8]) -> FrodoResult<Self> {
         if bytes.len() != P::SECRET_KEY_LENGTH {
@@ -341,21 +341,21 @@ impl<P: Params> SecretKey<P> {
 
 /// A FrodoKEM secret key reference
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-pub struct SecretKeyRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
+pub struct DecryptionKeyRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
 
-impl<'a, P: Params> AsRef<[u8]> for SecretKeyRef<'a, P> {
+impl<P: Params> AsRef<[u8]> for DecryptionKeyRef<'_, P> {
     fn as_ref(&self) -> &[u8] {
         self.0
     }
 }
 
-impl<'a, P: Params> From<&'a SecretKey<P>> for SecretKeyRef<'a, P> {
-    fn from(value: &'a SecretKey<P>) -> Self {
+impl<'a, P: Params> From<&'a DecryptionKey<P>> for DecryptionKeyRef<'a, P> {
+    fn from(value: &'a DecryptionKey<P>) -> Self {
         Self(value.0.as_slice(), value.1)
     }
 }
 
-impl<'a, P: Params> SecretKeyRef<'a, P> {
+impl<'a, P: Params> DecryptionKeyRef<'a, P> {
     /// Create a secret key reference
     pub fn from_slice(bytes: &'a [u8]) -> FrodoResult<Self> {
         if bytes.len() != P::SECRET_KEY_LENGTH {
@@ -388,8 +388,8 @@ impl<'a, P: Params> SecretKeyRef<'a, P> {
 
     /// Convert the secret key reference into an owned secret key
     #[allow(dead_code)]
-    pub fn to_owned(&self) -> SecretKey<P> {
-        SecretKey(self.0.to_vec(), PhantomData)
+    pub fn to_owned(&self) -> DecryptionKey<P> {
+        DecryptionKey(self.0.to_vec(), PhantomData)
     }
 }
 
@@ -435,7 +435,7 @@ impl<P: Params> SharedSecret<P> {
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct SharedSecretRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
 
-impl<'a, P: Params> AsRef<[u8]> for SharedSecretRef<'a, P> {
+impl<P: Params> AsRef<[u8]> for SharedSecretRef<'_, P> {
     fn as_ref(&self) -> &[u8] {
         self.0
     }
@@ -481,14 +481,14 @@ impl<P: Params, E: Expanded, S: Sample> Params for FrodoKem<P, E, S> {
 
 impl<P: Params, E: Expanded, S: Sample> Expanded for FrodoKem<P, E, S> {
     const METHOD: &'static str = E::METHOD;
-    fn expand_a(seed_a: &[u8], a: &mut [u16]) {
-        E::expand_a(seed_a, a)
+    fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
+        E::expand_a(&E::default(), seed_a, a)
     }
 }
 
 impl<P: Params, E: Expanded, S: Sample> Sample for FrodoKem<P, E, S> {
-    fn sample(s: &mut [u16]) {
-        S::sample(s)
+    fn sample(&self, s: &mut [u16]) {
+        S::sample(&S::default(), s)
     }
 }
 
@@ -564,7 +564,7 @@ pub struct FrodoAes<P: Params>(pub(crate) PhantomData<P>);
 impl<P: Params> Expanded for FrodoAes<P> {
     const METHOD: &'static str = "AES";
 
-    fn expand_a(seed_a: &[u8], a: &mut [u16]) {
+    fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
         use aes::{
             cipher::{BlockEncrypt, KeyInit, KeySizeUser},
             Aes128Enc, Block,
@@ -615,7 +615,7 @@ pub struct FrodoShake<P: Params>(pub PhantomData<P>);
 ))]
 impl<P: Params> Expanded for FrodoShake<P> {
     const METHOD: &'static str = "SHAKE";
-    fn expand_a(seed_a: &[u8], a: &mut [u16]) {
+    fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
         use sha3::{
             digest::{ExtendableOutputReset, Update},
             Shake128,
@@ -650,7 +650,7 @@ impl<P: Params> Expanded for FrodoShake<P> {
 pub struct FrodoCdfSample<P: Params>(pub PhantomData<P>);
 
 impl<P: Params> Sample for FrodoCdfSample<P> {
-    fn sample(s: &mut [u16]) {
+    fn sample(&self, s: &mut [u16]) {
         for s_i in s.iter_mut() {
             let mut sample = 0u16;
             let prnd = *s_i >> 1; // Drop the least significant bit

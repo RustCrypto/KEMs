@@ -9,11 +9,12 @@ use subtle::{Choice, ConditionallySelectable};
 use zeroize::Zeroize;
 
 use super::{
-    Ciphertext, CiphertextRef, PublicKey, PublicKeyRef, SecretKey, SecretKeyRef, SharedSecret,
+    Ciphertext, CiphertextRef, DecryptionKey, DecryptionKeyRef, EncryptionKey, EncryptionKeyRef,
+    SharedSecret,
 };
 
 /// The FrodoKEM parameters
-pub trait Params: Sized {
+pub trait Params: Sized + Default {
     /// The SHAKE method
     type Shake: Default + ExtendableOutput + ExtendableOutputReset + Update;
     /// The number of elements in the ring
@@ -80,23 +81,23 @@ pub trait Params: Sized {
 /// Trait for implementing the FrodoKEM sampling algorithm
 ///
 /// See Algorithm 5 and 6 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-pub trait Sample {
+pub trait Sample: Default {
     /// The method used to sample.
     ///
     /// s is the input that will be modified in place with the noise
-    fn sample(s: &mut [u16]);
+    fn sample(&self, s: &mut [u16]);
 }
 
 /// Trait for implementing equivalents to
 /// Algorithm 7 and 8 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
 ///
 /// Expand the seed to produce the matrix A
-pub trait Expanded {
+pub trait Expanded: Default {
     /// The method used to expand the seed
     const METHOD: &'static str;
     /// Expand the seed to produce the matrix A
     /// Generate matrix A (N x N) column-wise
-    fn expand_a(seed_a: &[u8], a: &mut [u16]);
+    fn expand_a(&self, seed_a: &[u8], a: &mut [u16]);
 }
 
 /// Trait for implementing FrodoKem
@@ -109,9 +110,12 @@ pub trait Kem: Params + Expanded + Sample {
     /// Generate a keypair
     ///
     /// See Algorithm 9 in [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    fn generate_keypair(&self, mut rng: impl CryptoRngCore) -> (PublicKey<Self>, SecretKey<Self>) {
-        let mut sk = SecretKey::default();
-        let mut pk = PublicKey::default();
+    fn generate_keypair(
+        &self,
+        mut rng: impl CryptoRngCore,
+    ) -> (EncryptionKey<Self>, DecryptionKey<Self>) {
+        let mut sk = DecryptionKey::default();
+        let mut pk = EncryptionKey::default();
         let mut randomness = vec![0u8; Self::KEY_SEED_SIZE];
         rng.fill_bytes(&mut randomness);
 
@@ -138,10 +142,10 @@ pub trait Kem: Params + Expanded + Sample {
             *b = u16::from_le_bytes(u16_buffer);
         }
 
-        Self::sample(&mut bytes_se);
+        self.sample(&mut bytes_se);
 
         let mut a_matrix = vec![0u16; Self::N_X_N];
-        Self::expand_a(pk.seed_a(), &mut a_matrix);
+        self.expand_a(pk.seed_a(), &mut a_matrix);
 
         let mut matrix_b = vec![0u16; Self::N_X_N_BAR];
         self.mul_add_as_plus_e(
@@ -176,7 +180,7 @@ pub trait Kem: Params + Expanded + Sample {
     /// Encapsulate a random message into a ciphertext.
     ///
     /// See Algorithm 10 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    fn encapsulate_with_rng<'a, P: Into<PublicKeyRef<'a, Self>>>(
+    fn encapsulate_with_rng<'a, P: Into<EncryptionKeyRef<'a, Self>>>(
         &self,
         public_key: P,
         mut rng: impl CryptoRngCore,
@@ -191,7 +195,7 @@ pub trait Kem: Params + Expanded + Sample {
     /// Encapsulate a message into a ciphertext.
     ///
     /// See Algorithm 10 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    fn encapsulate<'a, P: Into<PublicKeyRef<'a, Self>>>(
+    fn encapsulate<'a, P: Into<EncryptionKeyRef<'a, Self>>>(
         &self,
         public_key: P,
         mu: &[u8],
@@ -221,14 +225,14 @@ pub trait Kem: Params + Expanded + Sample {
             *b = u16::from_le_bytes(u16_buffer);
         }
 
-        Self::sample(&mut sp);
+        self.sample(&mut sp);
 
         let s = &sp[..Self::N_X_N_BAR];
         let ep = &sp[Self::N_X_N_BAR..2 * Self::N_X_N_BAR];
         let epp = &sp[2 * Self::N_X_N_BAR..];
 
         let mut matrix_a = vec![0u16; Self::N_X_N];
-        Self::expand_a(public_key.seed_a(), &mut matrix_a);
+        self.expand_a(public_key.seed_a(), &mut matrix_a);
 
         let mut matrix_b = vec![0u16; Self::N_X_N_BAR];
         self.mul_add_sa_plus_e(s, &matrix_a, ep, &mut matrix_b);
@@ -264,7 +268,12 @@ pub trait Kem: Params + Expanded + Sample {
     /// Decapsulate the ciphertext into a shared secret.
     ///
     /// See Algorithm 11 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    fn decapsulate<'a, 'b, S: Into<SecretKeyRef<'a, Self>>, C: Into<CiphertextRef<'b, Self>>>(
+    fn decapsulate<
+        'a,
+        'b,
+        S: Into<DecryptionKeyRef<'a, Self>>,
+        C: Into<CiphertextRef<'b, Self>>,
+    >(
         &self,
         secret_key: S,
         ciphertext: C,
@@ -274,8 +283,8 @@ pub trait Kem: Params + Expanded + Sample {
 
         let mut ss = SharedSecret::default();
         let mut matrix_s = vec![0u16; Self::N_X_N_BAR];
-        let pk =
-            PublicKeyRef::<Self>::from_slice(secret_key.public_key()).expect("Invalid public key");
+        let pk = EncryptionKeyRef::<Self>::from_slice(secret_key.public_key())
+            .expect("Invalid public key");
 
         for (i, b) in matrix_s.iter_mut().enumerate() {
             let bb = [
@@ -317,14 +326,14 @@ pub trait Kem: Params + Expanded + Sample {
             *b = u16::from_le_bytes(u16_buffer);
         }
 
-        Self::sample(&mut sp);
+        self.sample(&mut sp);
 
         let s = &sp[..Self::N_X_N_BAR];
         let ep = &sp[Self::N_X_N_BAR..2 * Self::N_X_N_BAR];
         let epp = &sp[2 * Self::N_X_N_BAR..];
 
         let mut matrix_a = vec![0u16; Self::N_X_N];
-        Self::expand_a(pk.seed_a(), &mut matrix_a);
+        self.expand_a(pk.seed_a(), &mut matrix_a);
 
         let mut matrix_bpp = vec![0u16; Self::N_X_N_BAR];
         self.mul_add_sa_plus_e(s, &matrix_a, ep, &mut matrix_bpp);

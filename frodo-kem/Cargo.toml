@@ -10,7 +10,7 @@ license = "Apache-2.0 OR MIT"
 name = "frodo-kem-rs"
 readme = "README.md"
 repository = "https://github.com/mikelodder7/frodoKem"
-version = "0.1.0"
+version = "0.2.0"
 
 [features]
 default = ["frodo640aes", "frodo640shake", "frodo976aes", "frodo976shake", "frodo1344aes", "frodo1344shake", "serde"]

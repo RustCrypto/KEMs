@@ -2,7 +2,7 @@
     Copyright Michael Lodder. All Rights Reserved.
     SPDX-License-Identifier: Apache-2.0
 */
-//! ⚠️ Low-level "hazmat" FRODO-KEM functions.
+//! ⚠️ Low-level "hazmat" AES functions.
 //!
 //! # ☢️️ WARNING: HAZARDOUS API ☢️
 //!
@@ -122,8 +122,8 @@ mod tests {
     fn liboqs_compatibility<F: Kem>(#[case] kem: F, #[case] alg: safe_oqs::kem::Algorithm) {
         let safe_kem = safe_oqs::kem::Kem::new(alg).unwrap();
         let (their_pk, their_sk) = safe_kem.keypair().unwrap();
-        let my_pk = PublicKey::<F>::from_slice(their_pk.as_ref()).unwrap();
-        let my_sk = SecretKey::<F>::from_slice(their_sk.as_ref()).unwrap();
+        let my_pk = EncryptionKey::<F>::from_slice(their_pk.as_ref()).unwrap();
+        let my_sk = DecryptionKey::<F>::from_slice(their_sk.as_ref()).unwrap();
 
         let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
 
