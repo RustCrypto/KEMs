@@ -1,7 +1,3 @@
-/*
-    Copyright Michael Lodder. All Rights Reserved.
-    SPDX-License-Identifier: Apache-2.0
-*/
 use super::{Expanded, Kem, Params, Sample};
 use crate::{Error, FrodoResult};
 use std::marker::PhantomData;

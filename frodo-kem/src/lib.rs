@@ -1,7 +1,3 @@
-/*
-    Copyright Michael Lodder. All Rights Reserved.
-    SPDX-License-Identifier: Apache-2.0
-*/
 //! ## Usage
 //!
 //! The standard safe method to use FrodoKEM is to use the [`Algorithm`]

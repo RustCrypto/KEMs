@@ -1,7 +1,3 @@
-/*
-    Copyright Michael Lodder. All Rights Reserved.
-    SPDX-License-Identifier: Apache-2.0
-*/
 use thiserror::Error;
 
 /// The errors that can occur for FrodoKEM
