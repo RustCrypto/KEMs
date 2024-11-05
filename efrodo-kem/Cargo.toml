@@ -1,7 +1,7 @@
 [package]
-authors = ["Michael Lodder <redmike7@gmail.com>"]
+authors = ["The RustCrypto Team"]
 categories = ["cryptography"]
-description = "A pure rust implementation of FrodoKEM that also includes some experimental features for Zero-Knowledge Proof of Encrypted Correctness"
+description = "A pure rust implementation of eFrodoKEM"
 documentation = "https://docs.rs/frodo-kem-rs"
 edition = "2021"
 homepage = "https://github.com/mikelodder7/frodoKem"
@@ -15,7 +15,6 @@ version = "0.2.0"
 [features]
 default = ["frodo640aes", "frodo640shake", "frodo976aes", "frodo976shake", "frodo1344aes", "frodo1344shake", "serde"]
 hazmat = []
-experimental = []
 frodo640aes = ["dep:aes"]
 frodo640shake = []
 frodo976aes = ["dep:aes"]

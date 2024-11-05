@@ -557,6 +557,11 @@ impl Params for Frodo1344 {
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FrodoAes<P: Params>(pub(crate) PhantomData<P>);
 
+#[cfg(any(
+    feature = "frodo640aes",
+    feature = "frodo976aes",
+    feature = "frodo1344aes"
+))]
 impl<P: Params> Expanded for FrodoAes<P> {
     const METHOD: &'static str = "AES";
 

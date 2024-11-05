@@ -1,11 +1,11 @@
 //! ## Usage
 //!
-//! The standard safe method to use FrodoKEM is to use the [`Algorithm`]
+//! The standard safe method to use eFrodoKEM is to use the [`Algorithm`]
 //! enum to select the desired algorithm then encapsulate a randomly generated
 //! value, and decapsulate it on the other side.
 //!
 //! ```
-//! use frodo_kem_rs::Algorithm;
+//! use efrodo_kem_rs::Algorithm;
 //! use rand_core::OsRng;
 //!
 //! let alg = Algorithm::FrodoKem640Shake;
@@ -19,7 +19,7 @@
 //! `encapsulate` will error if the message is not the correct size.
 //!
 //! ```
-//! use frodo_kem_rs::Algorithm;
+//! use efrodo_kem_rs::Algorithm;
 //! use rand_core::OsRng;
 //!
 //! let alg = Algorithm::FrodoKem1344Shake;
