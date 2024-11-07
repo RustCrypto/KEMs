@@ -1,0 +1,20 @@
+{
+  "ignore": [
+      {
+        "id": "CVE-2024-3296",
+        "reason": "Update after a newer version of openssl-sys is patched"
+      },
+      {
+        "id": "CVE-2023-5363",
+        "reason": "Update after a newer version of openssl-sys is patched"
+      },
+      {
+        "id": "CVE-2023-2975",
+        "reason": "Update after a newer version of openssl-sys is patched"
+      },
+      {
+        "id": "CVE-2023-1255",
+        "reason": "Update after a newer version of openssl-sys is patched"
+      }
+  ]
+}

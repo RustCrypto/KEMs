@@ -8,8 +8,10 @@ on:
     paths-ignore: 
       - README.md
       - SECURITY.md
-      - LICENSE-Apache
+      - LICENSE-APACHE
       - LICENSE-MIT
+      - .pants-ignore
+      - rustfmt.toml
   push:
     branches: master
       - "frodo-kem/**"
@@ -17,8 +19,10 @@ on:
     paths-ignore:
       - README.md
       - SECURITY.md
-      - LICENSE-Apache
+      - LICENSE-APACHE
       - LICENSE-MIT
+      - .pants-ignore
+      - rustfmt.toml
 
 env:
   CARGO_INCREMENTAL: 0
@@ -40,7 +44,10 @@ jobs:
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable
-      - run: cargo build
+      - run: cargo build --no-default-features --features=frodo
+      - run: cargo build --no-default-features --features=efrodo
+      - run: cargo build --no-default-features || [ $? -eq 101 ]
+      - run: cargo build --all-features
 
 
   test:
@@ -52,6 +59,7 @@ jobs:
           toolchain: stable
       - run: cargo build --all-features --benches --release --keep-going
       - run: cargo test --all-features --release
+      - run: cargo test --no-default-features --features=frodo,efrodo,serde --release
 
   careful:
     runs-on: ubuntu-latest
@@ -59,7 +67,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-careful
-      - run: cargo careful test
+      - run: cargo careful test tests
+      - run: cargo careful test test_vector --release
         
   clippy:
     runs-on: ubuntu-latest
@@ -112,7 +121,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-pants
-      - run: cargo pants --loud
+      - run: cargo pants --loud --dev
 
   cross:
     needs: set-msrv
