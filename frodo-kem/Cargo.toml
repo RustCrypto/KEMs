@@ -95,6 +95,22 @@ features = [
 ]
 rustdoc-args = ["--cfg", "docsrs"]
 
+[lints.rust]
+missing_docs = "warn"
+missing_debug_implementations = "warn"
+missing_copy_implementations = "warn"
+redundant_lifetimes = "deny"
+redundant_imports = "deny"
+rust_2018_idioms = "warn"
+trivial_casts = "warn"
+trivial_numeric_casts = "warn"
+unused = "warn"
+unused_extern_crates = "deny"
+
+[lints.clippy]
+mod_module_files = "warn"
+unwrap_used = "deny"
+
 [[bench]]
 name = "safe-oqs"
 harness = false
