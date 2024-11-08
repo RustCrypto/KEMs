@@ -1,3 +1,5 @@
+//! Random number generator for testing
+//! AES-CTR DRBG
 use aes::{
     cipher::{BlockEncrypt, KeyInit},
     Aes256Enc, Block,
@@ -5,8 +7,10 @@ use aes::{
 use hybrid_array::{typenum::U48, Array};
 use rand_core::{CryptoRng, Error, RngCore, SeedableRng};
 
+/// Seed type for the AES-CTR DRBG
 pub type RngSeed = Array<u8, U48>;
 
+/// AES-CTR DRBG
 #[derive(Debug, Default, Copy, Clone)]
 pub struct AesCtrDrbg {
     reseed_counter: usize,
@@ -71,6 +75,7 @@ impl RngCore for AesCtrDrbg {
 impl CryptoRng for AesCtrDrbg {}
 
 impl AesCtrDrbg {
+    /// Reseed the DRBG with a new seed
     pub fn reseed(&mut self, seed: &RngSeed) {
         self.counter.iter_mut().for_each(|c| *c = 0);
         self.key.iter_mut().for_each(|k| *k = 0);

@@ -79,6 +79,7 @@ jobs:
           toolchain: stable
           components: clippy
       - run: cargo clippy --all --all-features -- -D warnings
+      - run: cargo clippy --all --no-default-features --features=frodo,efrodo,serde -- -D warnings
 
   rustfmt:
     runs-on: ubuntu-latest

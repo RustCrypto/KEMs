@@ -11,7 +11,7 @@ license = "Apache-2.0 OR MIT"
 name = "frodo-kem"
 readme = "README.md"
 repository = "https://github.com/RustCrypto/KEMs/frodo-kem"
-version = "0.3.0"
+version = "0.4.0"
 
 [features]
 default = [
@@ -62,13 +62,19 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 serdect = "0.3.0-rc.0"
 subtle = "2.6"
 thiserror = "2.0"
-zeroize = "1"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
 sha3 = { version = "0.10", features = ["asm"] }
+zeroize = { version = "1", features = ["aarch64"] }
+
+[target.'cfg(any(target_arch = "x86_64", target_arch = "x86"))'.dependencies]
+zeroize = { version = "1", features = ["simd"] }
 
 [target.'cfg(not(target_arch = "aarch64"))'.dependencies]
 sha3 = { version = "0.10" }
+
+[target.'cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))'.dependencies]
+zeroize = "1"
 
 [dev-dependencies]
 aes = "0.8"
@@ -95,21 +101,14 @@ features = [
 ]
 rustdoc-args = ["--cfg", "docsrs"]
 
-[lints.rust]
-missing_docs = "warn"
-missing_debug_implementations = "warn"
-missing_copy_implementations = "warn"
-trivial_casts = "warn"
-trivial_numeric_casts = "warn"
-unused = "warn"
-
-[lints.clippy]
-mod_module_files = "warn"
-unwrap_used = "deny"
-
 [[bench]]
 name = "safe-oqs"
 harness = false
-path = "bench/safe_oqs.rs"
+path = "benches/safe_oqs.rs"
 required-features = ["efrodo"]
 
+[[bench]]
+name = "frodo"
+harness = false
+path = "benches/frodo.rs"
+required-features = ["frodo"]

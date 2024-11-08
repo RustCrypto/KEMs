@@ -1,4 +1,5 @@
-use frodo_kem_rs::*;
+//! Reader for Frodo KAT files and test vectors
+use frodo_kem::*;
 use hybrid_array::{typenum::U48, Array};
 use std::path::Path;
 use std::{
@@ -21,12 +22,15 @@ const CT_PREFIX: usize = 5;
 /// "ss = ".len()
 const SS_PREFIX: usize = 5;
 
+/// Reader for Frodo KAT files
+#[derive(Debug)]
 pub struct RspReader {
     lines: Lines<BufReader<File>>,
     scheme: Algorithm,
 }
 
 impl RspReader {
+    /// Create a new RspReader from a file
     pub fn new<P: AsRef<Path>>(file: P) -> Self {
         let path = file.as_ref();
         assert!(
@@ -88,13 +92,21 @@ impl Iterator for RspReader {
     }
 }
 
+/// Test vector data
 #[derive(Debug, Clone, Default)]
 pub struct RspData {
+    /// Algorithm used in the test vector
     pub scheme: Algorithm,
+    /// Test vector number
     pub count: usize,
+    /// RNG seed
     pub seed: Array<u8, U48>,
+    /// Public key
     pub pk: EncryptionKey,
+    /// Secret key
     pub sk: DecryptionKey,
+    /// Ciphertext
     pub ct: Ciphertext,
+    /// Shared secret
     pub ss: SharedSecret,
 }

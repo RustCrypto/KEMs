@@ -5,7 +5,7 @@
 //! and `decapsulate` it on the other side.
 //!
 //! ```
-//! use frodo_kem_rs::Algorithm;
+//! use frodo_kem::Algorithm;
 //! use rand_core::OsRng;
 //!
 //! let alg = Algorithm::FrodoKem640Shake;
@@ -26,14 +26,15 @@
 //! For more information see [ISO Standard Annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf).
 //!
 //! ```
-//! use frodo_kem_rs::Algorithm;
+//! use frodo_kem::Algorithm;
 //! use rand_core::{RngCore, OsRng};
 //!
 //! let alg = Algorithm::FrodoKem1344Shake;
+//! let params = alg.params();
 //! let (ek, dk) = alg.generate_keypair(OsRng);
 //! // Key is known, generate
-//! let aes_256_key = vec![3u8; alg.message_length()];
-//! let mut salt = vec![0u8; alg.salt_length()];
+//! let aes_256_key = vec![3u8; params.message_length];
+//! let mut salt = vec![0u8; params.salt_length];
 //! OsRng.fill_bytes(&mut salt);
 //! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, &salt).unwrap();
 //! let (dec_ss, dec_msg) = alg.decapsulate(&dk, &ct).unwrap();
@@ -58,6 +59,16 @@
 //! the necessary traits and models for creating a custom implementation.
 //! Be warned, this is not recommended unless you are sure of what you are doing.
 #![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![warn(
+    missing_docs,
+    missing_debug_implementations,
+    missing_copy_implementations,
+    trivial_casts,
+    trivial_numeric_casts,
+    unused,
+    clippy::mod_module_files
+)]
+#![deny(clippy::unwrap_used)]
 
 #[cfg(not(any(
     feature = "efrodo640aes",
@@ -635,8 +646,8 @@ impl std::str::FromStr for Algorithm {
             });
         (*ALGORITHMS)
             .get(s)
-            .ok_or(Error::UnsupportedAlgorithm)
             .copied()
+            .ok_or(Error::UnsupportedAlgorithm)
     }
 }
 
@@ -843,316 +854,55 @@ impl Algorithm {
         ]
     }
 
-    /// Get the claimed NIST level
-    pub const fn claimed_nist_level(&self) -> usize {
+    /// Get the parameters for this algorithm
+    pub const fn params(&self) -> AlgorithmParams {
         match self {
             #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_claimed_nist_level::<FrodoKem640Aes>(),
+            Self::FrodoKem640Aes => self.inner_params::<FrodoKem640Aes>(),
             #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_claimed_nist_level::<FrodoKem976Aes>(),
+            Self::FrodoKem976Aes => self.inner_params::<FrodoKem976Aes>(),
             #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_claimed_nist_level::<FrodoKem1344Aes>(),
+            Self::FrodoKem1344Aes => self.inner_params::<FrodoKem1344Aes>(),
             #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_claimed_nist_level::<FrodoKem640Shake>(),
+            Self::FrodoKem640Shake => self.inner_params::<FrodoKem640Shake>(),
             #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_claimed_nist_level::<FrodoKem976Shake>(),
+            Self::FrodoKem976Shake => self.inner_params::<FrodoKem976Shake>(),
             #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_claimed_nist_level::<FrodoKem640Shake>(),
+            Self::FrodoKem1344Shake => self.inner_params::<FrodoKem1344Shake>(),
             #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => {
-                self.inner_claimed_nist_level::<EphemeralFrodoKem640Aes>()
-            }
+            Self::EphemeralFrodoKem640Aes => self.inner_params::<EphemeralFrodoKem640Aes>(),
             #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => {
-                self.inner_claimed_nist_level::<EphemeralFrodoKem976Aes>()
-            }
+            Self::EphemeralFrodoKem976Aes => self.inner_params::<EphemeralFrodoKem976Aes>(),
             #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => {
-                self.inner_claimed_nist_level::<EphemeralFrodoKem1344Aes>()
-            }
+            Self::EphemeralFrodoKem1344Aes => self.inner_params::<EphemeralFrodoKem1344Aes>(),
             #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_claimed_nist_level::<EphemeralFrodoKem640Shake>()
-            }
+            Self::EphemeralFrodoKem640Shake => self.inner_params::<EphemeralFrodoKem640Shake>(),
             #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_claimed_nist_level::<EphemeralFrodoKem976Shake>()
-            }
+            Self::EphemeralFrodoKem976Shake => self.inner_params::<EphemeralFrodoKem976Shake>(),
             #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_claimed_nist_level::<EphemeralFrodoKem1344Shake>()
-            }
+            Self::EphemeralFrodoKem1344Shake => self.inner_params::<EphemeralFrodoKem1344Shake>(),
         }
     }
 
-    const fn inner_claimed_nist_level<B: Params>(&self) -> usize {
-        B::CLAIMED_NIST_LEVEL
-    }
-
-    /// Get the length of the message
-    pub const fn message_length(&self) -> usize {
-        match self {
-            #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_message_length::<FrodoKem640Aes>(),
-            #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_message_length::<FrodoKem976Aes>(),
-            #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_message_length::<FrodoKem1344Aes>(),
-            #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_message_length::<FrodoKem640Shake>(),
-            #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_message_length::<FrodoKem976Shake>(),
-            #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_message_length::<FrodoKem1344Shake>(),
-            #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => self.inner_message_length::<EphemeralFrodoKem640Aes>(),
-            #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => self.inner_message_length::<EphemeralFrodoKem976Aes>(),
-            #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => {
-                self.inner_message_length::<EphemeralFrodoKem1344Aes>()
-            }
-            #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_message_length::<EphemeralFrodoKem640Shake>()
-            }
-            #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_message_length::<EphemeralFrodoKem976Shake>()
-            }
-            #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_message_length::<EphemeralFrodoKem1344Shake>()
-            }
+    const fn inner_params<B: Params>(&self) -> AlgorithmParams {
+        AlgorithmParams {
+            n: B::N,
+            n_bar: B::N_BAR,
+            log_q: B::LOG_Q,
+            q: B::Q,
+            extracted_bits: B::EXTRACTED_BITS,
+            stripe_step: B::STRIPE_STEP,
+            bytes_seed_a: B::BYTES_SEED_A,
+            bytes_pk_hash: B::BYTES_PK_HASH,
+            cdf_table: B::CDF_TABLE,
+            claimed_nist_level: B::CLAIMED_NIST_LEVEL,
+            shared_secret_length: B::SHARED_SECRET_LENGTH,
+            message_length: B::BYTES_MU,
+            salt_length: B::BYTES_SALT,
+            encryption_key_length: B::PUBLIC_KEY_LENGTH,
+            decryption_key_length: B::SECRET_KEY_LENGTH,
+            ciphertext_length: B::CIPHERTEXT_LENGTH,
         }
-    }
-
-    const fn inner_message_length<P: Params>(&self) -> usize {
-        P::BYTES_MU
-    }
-
-    /// Get the length of the salt
-    pub const fn salt_length(&self) -> usize {
-        match self {
-            #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_salt_length::<FrodoKem640Aes>(),
-            #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_salt_length::<FrodoKem976Aes>(),
-            #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_salt_length::<FrodoKem1344Aes>(),
-            #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_salt_length::<FrodoKem640Shake>(),
-            #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_salt_length::<FrodoKem976Shake>(),
-            #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_salt_length::<FrodoKem1344Shake>(),
-            #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => self.inner_salt_length::<EphemeralFrodoKem640Aes>(),
-            #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => self.inner_salt_length::<EphemeralFrodoKem976Aes>(),
-            #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => self.inner_salt_length::<EphemeralFrodoKem1344Aes>(),
-            #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_salt_length::<EphemeralFrodoKem640Shake>()
-            }
-            #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_salt_length::<EphemeralFrodoKem976Shake>()
-            }
-            #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_salt_length::<EphemeralFrodoKem1344Shake>()
-            }
-        }
-    }
-
-    const fn inner_salt_length<B: Params>(&self) -> usize {
-        B::BYTES_SALT
-    }
-
-    /// Get the length of the public key
-    pub const fn encryption_key_length(&self) -> usize {
-        match self {
-            #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_public_key_length::<FrodoKem640Aes>(),
-            #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_public_key_length::<FrodoKem976Aes>(),
-            #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_public_key_length::<FrodoKem1344Aes>(),
-            #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_public_key_length::<FrodoKem640Shake>(),
-            #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_public_key_length::<FrodoKem976Shake>(),
-            #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_public_key_length::<FrodoKem1344Shake>(),
-            #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => {
-                self.inner_public_key_length::<EphemeralFrodoKem640Aes>()
-            }
-            #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => {
-                self.inner_public_key_length::<EphemeralFrodoKem976Aes>()
-            }
-            #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => {
-                self.inner_public_key_length::<EphemeralFrodoKem1344Aes>()
-            }
-            #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_public_key_length::<EphemeralFrodoKem640Aes>()
-            }
-            #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_public_key_length::<EphemeralFrodoKem976Aes>()
-            }
-            #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_public_key_length::<EphemeralFrodoKem1344Aes>()
-            }
-        }
-    }
-
-    const fn inner_public_key_length<B: Params>(&self) -> usize {
-        B::PUBLIC_KEY_LENGTH
-    }
-
-    /// Get the length of the secret key
-    pub const fn decryption_key_length(&self) -> usize {
-        match self {
-            #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_decryption_key_length::<FrodoKem640Aes>(),
-            #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_decryption_key_length::<FrodoKem976Aes>(),
-            #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_decryption_key_length::<FrodoKem1344Aes>(),
-            #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_decryption_key_length::<FrodoKem640Shake>(),
-            #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_decryption_key_length::<FrodoKem976Shake>(),
-            #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_decryption_key_length::<FrodoKem1344Shake>(),
-            #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => {
-                self.inner_decryption_key_length::<EphemeralFrodoKem640Aes>()
-            }
-            #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => {
-                self.inner_decryption_key_length::<EphemeralFrodoKem976Aes>()
-            }
-            #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => {
-                self.inner_decryption_key_length::<EphemeralFrodoKem1344Aes>()
-            }
-            #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_decryption_key_length::<EphemeralFrodoKem640Aes>()
-            }
-            #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_decryption_key_length::<EphemeralFrodoKem976Aes>()
-            }
-            #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_decryption_key_length::<EphemeralFrodoKem1344Aes>()
-            }
-        }
-    }
-
-    const fn inner_decryption_key_length<B: Params>(&self) -> usize {
-        B::SECRET_KEY_LENGTH
-    }
-
-    /// Get the length of the shared secret
-    pub const fn shared_secret_length(&self) -> usize {
-        match self {
-            #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_shared_secret_length::<FrodoKem640Aes>(),
-            #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_shared_secret_length::<FrodoKem976Aes>(),
-            #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_shared_secret_length::<FrodoKem1344Aes>(),
-            #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_shared_secret_length::<FrodoKem640Shake>(),
-            #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_shared_secret_length::<FrodoKem976Shake>(),
-            #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_shared_secret_length::<FrodoKem1344Shake>(),
-            #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => {
-                self.inner_shared_secret_length::<EphemeralFrodoKem640Aes>()
-            }
-            #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => {
-                self.inner_shared_secret_length::<EphemeralFrodoKem976Aes>()
-            }
-            #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => {
-                self.inner_shared_secret_length::<EphemeralFrodoKem1344Aes>()
-            }
-            #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_shared_secret_length::<EphemeralFrodoKem640Shake>()
-            }
-            #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_shared_secret_length::<EphemeralFrodoKem976Shake>()
-            }
-            #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_shared_secret_length::<EphemeralFrodoKem1344Shake>()
-            }
-        }
-    }
-
-    const fn inner_shared_secret_length<B: Params>(&self) -> usize {
-        B::SHARED_SECRET_LENGTH
-    }
-
-    /// Get the length of the ciphertext
-    pub const fn ciphertext_length(&self) -> usize {
-        match self {
-            #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_ciphertext_length::<FrodoKem640Aes>(),
-            #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_ciphertext_length::<FrodoKem976Aes>(),
-            #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_ciphertext_length::<FrodoKem1344Aes>(),
-            #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_ciphertext_length::<FrodoKem640Shake>(),
-            #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_ciphertext_length::<FrodoKem976Shake>(),
-            #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_ciphertext_length::<FrodoKem1344Shake>(),
-            #[cfg(feature = "efrodo640aes")]
-            Self::EphemeralFrodoKem640Aes => {
-                self.inner_ciphertext_length::<EphemeralFrodoKem640Aes>()
-            }
-            #[cfg(feature = "efrodo976aes")]
-            Self::EphemeralFrodoKem976Aes => {
-                self.inner_ciphertext_length::<EphemeralFrodoKem976Aes>()
-            }
-            #[cfg(feature = "efrodo1344aes")]
-            Self::EphemeralFrodoKem1344Aes => {
-                self.inner_ciphertext_length::<EphemeralFrodoKem1344Aes>()
-            }
-            #[cfg(feature = "efrodo640shake")]
-            Self::EphemeralFrodoKem640Shake => {
-                self.inner_ciphertext_length::<EphemeralFrodoKem640Shake>()
-            }
-            #[cfg(feature = "efrodo976shake")]
-            Self::EphemeralFrodoKem976Shake => {
-                self.inner_ciphertext_length::<EphemeralFrodoKem976Shake>()
-            }
-            #[cfg(feature = "efrodo1344shake")]
-            Self::EphemeralFrodoKem1344Shake => {
-                self.inner_ciphertext_length::<EphemeralFrodoKem1344Shake>()
-            }
-        }
-    }
-
-    const fn inner_ciphertext_length<B: Params>(&self) -> usize {
-        B::CIPHERTEXT_LENGTH
     }
 
     /// Get the [`EncryptionKey`] from a [`DecryptionKey`]
@@ -1821,6 +1571,44 @@ impl Algorithm {
     }
 }
 
+/// The algorithm underlying parameters
+#[derive(Debug, Clone, Copy)]
+pub struct AlgorithmParams {
+    /// Number of elements in the ring
+    pub n: usize,
+    /// Number of rows in the matrix
+    pub n_bar: usize,
+    /// The log of the modulus
+    pub log_q: usize,
+    /// The modulus
+    pub q: usize,
+    /// The number of bits to extract when packing/unpacking
+    /// encoding/decoding
+    pub extracted_bits: usize,
+    /// The number of steps for striping
+    pub stripe_step: usize,
+    /// The number of bytes in the seed for generating the matrix A
+    pub bytes_seed_a: usize,
+    /// The number of bytes in the public key hash
+    pub bytes_pk_hash: usize,
+    /// The CDF sampling table
+    pub cdf_table: &'static [u16],
+    /// The claimed NIST level
+    pub claimed_nist_level: usize,
+    /// The byte length of the shared secret
+    pub shared_secret_length: usize,
+    /// The byte length of an encrypted message
+    pub message_length: usize,
+    /// The byte length of the salt
+    pub salt_length: usize,
+    /// The byte length of the encryption key
+    pub encryption_key_length: usize,
+    /// The byte length of the decryption key
+    pub decryption_key_length: usize,
+    /// The byte length of the ciphertext
+    pub ciphertext_length: usize,
+}
+
 fn ct_eq_bytes(lhs: &[u8], rhs: &[u8]) -> Choice {
     if lhs.len() != rhs.len() {
         return 0u8.into();
@@ -1865,7 +1653,7 @@ mod tests {
         let their_pk = opt_pk.unwrap();
         let their_sk = opt_sk.unwrap();
 
-        let mut mu = vec![0u8; alg.message_length()];
+        let mut mu = vec![0u8; alg.params().message_length];
         rng.fill_bytes(&mut mu);
         let (our_ct, our_ess) = alg.encapsulate(&our_pk, &mu, &[]).unwrap();
         let (our_dss, mu_prime) = alg.decapsulate(&our_sk, &our_ct).unwrap();
@@ -1895,9 +1683,9 @@ mod tests {
         let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
         let (our_pk, our_sk) = alg.generate_keypair(&mut rng);
 
-        let mut mu = vec![0u8; alg.message_length()];
+        let mut mu = vec![0u8; alg.params().message_length];
         rng.fill_bytes(&mut mu);
-        let mut salt = vec![0u8; alg.salt_length()];
+        let mut salt = vec![0u8; alg.params().salt_length];
         rng.fill_bytes(&mut salt);
         let (our_ct, our_ess) = alg.encapsulate(&our_pk, &mu, &salt).unwrap();
         let (our_dss, mu_prime) = alg.decapsulate(&our_sk, &our_ct).unwrap();

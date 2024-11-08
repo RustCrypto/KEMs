@@ -1,3 +1,4 @@
+//! Tests for the FrodoKEM and FrodoKEM-640 schemes
 use rstest::*;
 use std::path::PathBuf;
 
