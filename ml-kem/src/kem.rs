@@ -216,6 +216,7 @@ where
 
 /// An implementation of overall ML-KEM functionality.  Generic over parameter sets, but then ties
 /// together all of the other related types and sizes.
+#[derive(Clone)]
 pub struct Kem<P>
 where
     P: KemParams,
