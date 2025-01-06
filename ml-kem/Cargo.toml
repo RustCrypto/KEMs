@@ -16,10 +16,11 @@ keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-default = ["std"]
+default = ["std", "decap_seed"]
 std = ["sha3/std"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
+decap_seed = [] # Use seed for decapsulation key (default behaviour). If not set, will use standard decapsulation key.
 
 [dependencies]
 kem = "0.3.0-pre.0"

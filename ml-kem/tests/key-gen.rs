@@ -1,4 +1,5 @@
 #![cfg(feature = "deterministic")]
+#![cfg(not(feature = "decap_seed"))]
 
 use ml_kem::*;
 
