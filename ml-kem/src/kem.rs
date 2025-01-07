@@ -1,7 +1,7 @@
 use core::convert::Infallible;
 use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
-#[cfg(feature = "decap_seed")]
+#[cfg(not(feature = "decap_key"))]
 use hybrid_array::typenum::U64;
 use rand_core::CryptoRngCore;
 
@@ -20,7 +20,7 @@ pub use ::kem::{Decapsulate, Encapsulate};
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
 
-#[cfg(feature = "decap_seed")]
+#[cfg(not(feature = "decap_key"))]
 #[derive(Clone, Debug, PartialEq)]
 struct DecapsulationSeed<P>
 where
@@ -43,7 +43,7 @@ where
 
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
-#[cfg(not(feature = "decap_seed"))]
+#[cfg(feature = "decap_key")]
 #[derive(Clone, Debug, PartialEq)]
 pub struct DecapsulationKey<P>
 where
@@ -53,7 +53,7 @@ where
 }
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
-#[cfg(feature = "decap_seed")]
+#[cfg(not(feature = "decap_key"))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct DecapsulationKey<P>
 where
@@ -73,7 +73,7 @@ where
     }
 }
 
-#[cfg(all(feature = "zeroize", feature = "decap_seed"))]
+#[cfg(all(feature = "zeroize", not(feature = "decap_key")))]
 impl<P> Drop for DecapsulationSeed<P>
 where
     P: KemParams,
@@ -95,7 +95,7 @@ where
     }
 }
 
-#[cfg(all(feature = "zeroize", feature = "decap_seed"))]
+#[cfg(all(feature = "zeroize", not(feature = "decap_key")))]
 impl<P> Zeroize for DecapsulationSeed<P>
 where
     P: KemParams,
@@ -119,7 +119,7 @@ where
 #[cfg(feature = "zeroize")]
 impl<P> ZeroizeOnDrop for DecapsulationKeyInner<P> where P: KemParams {}
 
-#[cfg(all(feature = "zeroize", feature = "decap_seed"))]
+#[cfg(all(feature = "zeroize", not(feature = "decap_key")))]
 impl<P> ZeroizeOnDrop for DecapsulationSeed<P> where P: KemParams {}
 
 #[cfg(feature = "zeroize")]
@@ -156,7 +156,7 @@ where
     }
 }
 
-#[cfg(feature = "decap_seed")]
+#[cfg(not(feature = "decap_key"))]
 impl<P> EncodedSizeUser for DecapsulationSeed<P>
 where
     P: KemParams,
@@ -183,20 +183,20 @@ impl<P> EncodedSizeUser for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    #[cfg(not(feature = "decap_seed"))]
+    #[cfg(not(not(feature = "decap_key")))]
     type EncodedSize = DecapsulationKeySize<P>;
-    #[cfg(feature = "decap_seed")]
+    #[cfg(not(feature = "decap_key"))]
     type EncodedSize = U64;
 
     #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     fn from_bytes(enc: &Encoded<Self>) -> Self {
-        #[cfg(not(feature = "decap_seed"))]
+        #[cfg(not(not(feature = "decap_key")))]
         {
             Self {
                 key: DecapsulationKeyInner::<P>::from_bytes(enc),
             }
         }
-        #[cfg(feature = "decap_seed")]
+        #[cfg(not(feature = "decap_key"))]
         {
             Self {
                 key: DecapsulationSeed::<P>::from_bytes(enc),
@@ -251,7 +251,7 @@ where
     }
 }
 
-#[cfg(feature = "decap_seed")]
+#[cfg(not(feature = "decap_key"))]
 impl<P> ::kem::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationSeed<P>
 where
     P: KemParams,
@@ -290,7 +290,7 @@ where
         self.ek.clone()
     }
 
-    #[cfg(not(feature = "decap_seed"))]
+    #[cfg(not(not(feature = "decap_key")))]
     pub(crate) fn generate(rng: &mut impl CryptoRngCore) -> Self {
         let d: B32 = rand(rng);
         let z: B32 = rand(rng);
@@ -307,7 +307,7 @@ where
     }
 }
 
-#[cfg(feature = "decap_seed")]
+#[cfg(not(feature = "decap_key"))]
 impl<P> DecapsulationSeed<P>
 where
     P: KemParams,
@@ -353,13 +353,13 @@ where
     }
 
     pub(crate) fn generate(rng: &mut impl CryptoRngCore) -> Self {
-        #[cfg(feature = "decap_seed")]
+        #[cfg(not(feature = "decap_key"))]
         {
             DecapsulationKey {
                 key: DecapsulationSeed::<P>::generate(rng),
             }
         }
-        #[cfg(not(feature = "decap_seed"))]
+        #[cfg(not(not(feature = "decap_key")))]
         {
             DecapsulationKey {
                 key: DecapsulationKeyInner::<P>::generate(rng),
@@ -371,13 +371,13 @@ where
     #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     #[cfg(feature = "deterministic")]
     pub(crate) fn generate_deterministic(d: &B32, z: &B32) -> Self {
-        #[cfg(feature = "decap_seed")]
+        #[cfg(not(feature = "decap_key"))]
         {
             DecapsulationKey {
                 key: DecapsulationSeed::<P>::generate_deterministic(d, z),
             }
         }
-        #[cfg(not(feature = "decap_seed"))]
+        #[cfg(not(not(feature = "decap_key")))]
         {
             DecapsulationKey {
                 key: DecapsulationKeyInner::<P>::generate_deterministic(d, z),
@@ -506,9 +506,9 @@ mod test {
     {
         let mut rng = rand::thread_rng();
 
-        // #[cfg(not(feature = "decap_seed"))]
+        // #[cfg(not(not(feature = "decap_key")))]
         // let dk = DecapsulationKey::<P>::generate(&mut rng);
-        // #[cfg(feature = "decap_seed")]
+        // #[cfg(not(feature = "decap_key"))]
         // let dk = DecapsulationSeed::<P>::generate(&mut rng);
         let dk = DecapsulationKey::<P>::generate(&mut rng);
         let ek = dk.encapsulation_key();
@@ -530,17 +530,17 @@ mod test {
         P: KemParams,
     {
         let mut rng = rand::thread_rng();
-        // #[cfg(not(feature = "decap_seed"))]
+        // #[cfg(not(not(feature = "decap_key")))]
         // let dk_original = DecapsulationKeyInner::<P>::generate(&mut rng);
-        // #[cfg(feature = "decap_seed")]
+        // #[cfg(not(feature = "decap_key"))]
         // let dk_original = DecapsulationSeed::<P>::generate(&mut rng);
         let dk_original = DecapsulationKey::<P>::generate(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
         let dk_encoded = dk_original.as_bytes();
-        // #[cfg(not(feature = "decap_seed"))]
+        // #[cfg(not(not(feature = "decap_key")))]
         // let dk_decoded = DecapsulationKeyInner::from_bytes(&dk_encoded);
-        // #[cfg(feature = "decap_seed")]
+        // #[cfg(not(feature = "decap_key"))]
         // let dk_decoded = DecapsulationSeed::from_bytes(&dk_encoded);
         let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded);
         assert_eq!(dk_original, dk_decoded);
