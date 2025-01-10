@@ -183,14 +183,14 @@ impl<P> EncodedSizeUser for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    #[cfg(not(not(feature = "decap_key")))]
+    #[cfg(feature = "decap_key")]
     type EncodedSize = DecapsulationKeySize<P>;
     #[cfg(not(feature = "decap_key"))]
     type EncodedSize = U64;
 
     #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     fn from_bytes(enc: &Encoded<Self>) -> Self {
-        #[cfg(not(not(feature = "decap_key")))]
+        #[cfg(feature = "decap_key")]
         {
             Self {
                 key: DecapsulationKeyInner::<P>::from_bytes(enc),
@@ -290,7 +290,7 @@ where
         self.ek.clone()
     }
 
-    #[cfg(not(not(feature = "decap_key")))]
+    #[cfg(feature = "decap_key")]
     pub(crate) fn generate(rng: &mut impl CryptoRngCore) -> Self {
         let d: B32 = rand(rng);
         let z: B32 = rand(rng);
@@ -359,7 +359,7 @@ where
                 key: DecapsulationSeed::<P>::generate(rng),
             }
         }
-        #[cfg(not(not(feature = "decap_key")))]
+        #[cfg(feature = "decap_key")]
         {
             DecapsulationKey {
                 key: DecapsulationKeyInner::<P>::generate(rng),
@@ -377,7 +377,7 @@ where
                 key: DecapsulationSeed::<P>::generate_deterministic(d, z),
             }
         }
-        #[cfg(not(not(feature = "decap_key")))]
+        #[cfg(feature = "decap_key")]
         {
             DecapsulationKey {
                 key: DecapsulationKeyInner::<P>::generate_deterministic(d, z),
@@ -506,10 +506,6 @@ mod test {
     {
         let mut rng = rand::thread_rng();
 
-        // #[cfg(not(not(feature = "decap_key")))]
-        // let dk = DecapsulationKey::<P>::generate(&mut rng);
-        // #[cfg(not(feature = "decap_key"))]
-        // let dk = DecapsulationSeed::<P>::generate(&mut rng);
         let dk = DecapsulationKey::<P>::generate(&mut rng);
         let ek = dk.encapsulation_key();
 
@@ -530,18 +526,10 @@ mod test {
         P: KemParams,
     {
         let mut rng = rand::thread_rng();
-        // #[cfg(not(not(feature = "decap_key")))]
-        // let dk_original = DecapsulationKeyInner::<P>::generate(&mut rng);
-        // #[cfg(not(feature = "decap_key"))]
-        // let dk_original = DecapsulationSeed::<P>::generate(&mut rng);
         let dk_original = DecapsulationKey::<P>::generate(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
         let dk_encoded = dk_original.as_bytes();
-        // #[cfg(not(not(feature = "decap_key")))]
-        // let dk_decoded = DecapsulationKeyInner::from_bytes(&dk_encoded);
-        // #[cfg(not(feature = "decap_key"))]
-        // let dk_decoded = DecapsulationSeed::from_bytes(&dk_encoded);
         let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded);
         assert_eq!(dk_original, dk_decoded);
 
