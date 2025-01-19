@@ -3,7 +3,6 @@
 [![Crate][crate-image]][crate-link]
 [![Docs][docs-image]][docs-link]
 ![Apache2/MIT licensed][license-image]
-[![Downloads][downloads-image]][crate-link]
 ![build](https://github.com/RustCrypto/KEMs/actions/workflows/frodo-kem.yml/badge.svg)
 ![MSRV][msrv-image]
 
@@ -60,7 +59,7 @@ When in doubt use the FrodoKEM algorithm variants.
 To speed up AES, there are a few options available:
 
 - `RUSTFLAGS="--cfg aes_armv8" cargo build --release` ensures that the ARMv8 AES instructions are used if available.
-- `frodo-kem-rs = { version = "0.3", features = ["openssl"] }` uses the `openssl` crate for AES.
+- `frodo-kem = { version = "0.3", features = ["openssl"] }` uses the `openssl` crate for AES.
 
 By default, the `aes` feature auto-detects the best AES implementation for your platform
 for x86 and x86_64,
@@ -107,10 +106,9 @@ conditions.
 [//]: # (badges)
 
 [RustCrypto]: https://github.com/rustcrypto
-[crate-image]: https://img.shields.io/crates/v/frodo-kem-rs.svg
-[crate-link]: https://crates.io/crates/frodo-kem-rs
-[docs-image]: https://docs.rs/frodo-kem-rs/badge.svg
-[docs-link]: https://docs.rs/frodo-kem-rs/
+[crate-image]: https://img.shields.io/crates/v/frodo-kem.svg?logo=rust
+[crate-link]: https://crates.io/crates/frodo-kem
+[docs-image]: https://docs.rs/frodo-kem/badge.svg
+[docs-link]: https://docs.rs/frodo-kem/
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[downloads-image]: https://img.shields.io/crates/d/frodo-kem-rs.svg
 [msrv-image]: https://img.shields.io/badge/rustc-1.82+-blue.svg
