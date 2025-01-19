@@ -8,10 +8,6 @@ on:
       - "Cargo.*"
   push:
     branches: master
-    paths:
-      - ".github/workflows/frodo-kem.yml"
-      - "frodo-kem/**"
-      - "Cargo.*"
 
 env:
   CARGO_INCREMENTAL: 0
