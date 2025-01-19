@@ -1,17 +1,17 @@
 [package]
-authors = ["The RustCrypto Team"]
-categories = ["cryptography"]
-description = "A pure rust implementation of FrodoKEM and eFrodoKEM"
-documentation = "https://docs.rs/frodo-kem"
-edition = "2021"
-exclude = ["tests/**", "bench/**", "examples/**", ".github/**"]
-homepage = "https://github.com/RustCrypto/KEMs"
-keywords = ["quantum", "post", "zero", "knowledge", "encryption"]
-license = "Apache-2.0 OR MIT"
 name = "frodo-kem"
+version = "0.0.0"
+description = "Pure Rust implementation of FrodoKEM and eFrodoKEM"
+authors = ["The RustCrypto Team"]
+documentation = "https://docs.rs/frodo-kem"
+homepage = "https://github.com/RustCrypto/KEMs/tree/master/frodo-kem"
+repository = "https://github.com/RustCrypto/KEMs"
+categories = ["cryptography"]
+keywords = ["quantum", "post", "zero", "knowledge", "encryption"]
+exclude = ["tests/**", "bench/**", "examples/**", ".github/**"]
+license = "Apache-2.0 OR MIT"
 readme = "README.md"
-repository = "https://github.com/RustCrypto/KEMs/frodo-kem"
-version = "0.4.0"
+edition = "2021"
 
 [features]
 default = [
