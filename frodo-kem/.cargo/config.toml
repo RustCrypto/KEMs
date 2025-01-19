@@ -1,0 +1,5 @@
+[net]
+git-fetch-with-cli = true
+
+[target.'cfg(target_arch = "aarch64")']
+rustflags = ["--cfg", "aes_armv8"]
