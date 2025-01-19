@@ -2,8 +2,8 @@
 
 [![Crate][crate-image]][crate-link]
 [![Docs][docs-image]][docs-link]
+![Build](https://github.com/RustCrypto/KEMs/actions/workflows/frodo-kem.yml/badge.svg)
 ![Apache2/MIT licensed][license-image]
-![build](https://github.com/RustCrypto/KEMs/actions/workflows/frodo-kem.yml/badge.svg)
 ![MSRV][msrv-image]
 
 A pure rust implementation of 
