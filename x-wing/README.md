@@ -11,7 +11,7 @@ Pure Rust implementation of X-Wing, a general-purpose post-quantum/traditional
 hybrid key encapsulation mechanism (PQ/T KEM) built on X25519 and ML-KEM-768.
 Built on the [ml-kem] and [x25519-dalek] crates.
 
-Current implementation matches the [draft RFC][RFC-DRAFT] version 04.
+Current implementation matches the [draft RFC][RFC-DRAFT] version 06.
 
 The original paper: [X-Wing The Hybrid KEM You’ve Been Looking For][X-WING-PAPER]
 
