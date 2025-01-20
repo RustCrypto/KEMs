@@ -83,7 +83,7 @@ criterion = "0.5"
 hex = "0.4"
 hybrid-array = "0.2"
 rand_chacha = "0.3"
-rstest = "0.23"
+rstest = "0.24"
 safe-oqs = { version = "0.10", default-features = false, features = ["frodokem"] }
 postcard = { version = "1.0", features = ["use-std"] }
 serde_bare = "0.5"
