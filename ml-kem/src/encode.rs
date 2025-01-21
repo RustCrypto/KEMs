@@ -172,20 +172,20 @@ pub(crate) mod test {
     }
 
     #[allow(clippy::integer_division_remainder_used)]
-    fn byte_codec_test<D>(decoded: DecodedValue, encoded: EncodedPolynomial<D>)
+    fn byte_codec_test<D>(decoded: &DecodedValue, encoded: &EncodedPolynomial<D>)
     where
         D: EncodingSize,
     {
         // Test known answer
-        let actual_encoded = byte_encode::<D>(&decoded);
-        assert_eq!(actual_encoded, encoded);
+        let actual_encoded = byte_encode::<D>(decoded);
+        assert_eq!(&actual_encoded, encoded);
 
-        let actual_decoded = byte_decode::<D>(&encoded);
-        assert_eq!(actual_decoded, decoded);
+        let actual_decoded = byte_decode::<D>(encoded);
+        assert_eq!(&actual_decoded, decoded);
 
         // Test random decode/encode and encode/decode round trips
         let mut rng = rand::thread_rng();
-        let mut decoded: Array<Integer, U256> = Default::default();
+        let mut decoded: Array<Integer, U256> = Array::default();
         rng.fill(decoded.as_mut_slice());
         let m = match D::USIZE {
             12 => FieldElement::Q,
@@ -206,7 +206,7 @@ pub(crate) mod test {
         // The 1-bit can only represent decoded values equal to 0 or 1.
         let decoded: DecodedValue = Array::<_, U2>([FieldElement(0), FieldElement(1)]).repeat();
         let encoded: EncodedPolynomial<U1> = Array([0xaa; 32]);
-        byte_codec_test::<U1>(decoded, encoded);
+        byte_codec_test::<U1>(&decoded, &encoded);
 
         // For other codec widths, we use a standard sequence
         let decoded: DecodedValue = Array::<_, U8>([
@@ -222,31 +222,31 @@ pub(crate) mod test {
         .repeat();
 
         let encoded: EncodedPolynomial<U4> = Array::<_, U4>([0x10, 0x32, 0x54, 0x76]).repeat();
-        byte_codec_test::<U4>(decoded, encoded);
+        byte_codec_test::<U4>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U5> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        byte_codec_test::<U5>(decoded, encoded);
+        byte_codec_test::<U5>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U6> =
             Array::<_, U6>([0x40, 0x20, 0x0c, 0x44, 0x61, 0x1c]).repeat();
-        byte_codec_test::<U6>(decoded, encoded);
+        byte_codec_test::<U6>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U10> =
             Array::<_, U10>([0x00, 0x04, 0x20, 0xc0, 0x00, 0x04, 0x14, 0x60, 0xc0, 0x01]).repeat();
-        byte_codec_test::<U10>(decoded, encoded);
+        byte_codec_test::<U10>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U11> = Array::<_, U11>([
             0x00, 0x08, 0x80, 0x00, 0x06, 0x40, 0x80, 0x02, 0x18, 0xe0, 0x00,
         ])
         .repeat();
-        byte_codec_test::<U11>(decoded, encoded);
+        byte_codec_test::<U11>(&decoded, &encoded);
 
         let encoded: EncodedPolynomial<U12> = Array::<_, U12>([
             0x00, 0x10, 0x00, 0x02, 0x30, 0x00, 0x04, 0x50, 0x00, 0x06, 0x70, 0x00,
         ])
         .repeat();
-        byte_codec_test::<U12>(decoded, encoded);
+        byte_codec_test::<U12>(&decoded, &encoded);
     }
 
     #[allow(clippy::integer_division_remainder_used)]
@@ -260,16 +260,16 @@ pub(crate) mod test {
         assert_eq!(actual_decoded, decoded);
     }
 
-    fn vector_codec_known_answer_test<D, T>(decoded: T, encoded: Array<u8, T::EncodedSize>)
+    fn vector_codec_known_answer_test<D, T>(decoded: &T, encoded: &Array<u8, T::EncodedSize>)
     where
         D: EncodingSize,
         T: Encode<D> + PartialEq + Debug,
     {
         let actual_encoded = decoded.encode();
-        assert_eq!(actual_encoded, encoded);
+        assert_eq!(&actual_encoded, encoded);
 
-        let actual_decoded: T = Encode::decode(&encoded);
-        assert_eq!(actual_decoded, decoded);
+        let actual_decoded: T = Encode::decode(encoded);
+        assert_eq!(&actual_decoded, decoded);
     }
 
     #[test]
@@ -292,16 +292,16 @@ pub(crate) mod test {
         let decoded: PolynomialVector<U2> = PolynomialVector(Array([poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U2> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        vector_codec_known_answer_test::<U5, PolynomialVector<U2>>(decoded, encoded);
+        vector_codec_known_answer_test::<U5, PolynomialVector<U2>>(&decoded, &encoded);
 
         let decoded: PolynomialVector<U3> = PolynomialVector(Array([poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U3> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        vector_codec_known_answer_test::<U5, PolynomialVector<U3>>(decoded, encoded);
+        vector_codec_known_answer_test::<U5, PolynomialVector<U3>>(&decoded, &encoded);
 
         let decoded: PolynomialVector<U4> = PolynomialVector(Array([poly, poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U4> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        vector_codec_known_answer_test::<U5, PolynomialVector<U4>>(decoded, encoded);
+        vector_codec_known_answer_test::<U5, PolynomialVector<U4>>(&decoded, &encoded);
     }
 }

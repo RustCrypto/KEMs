@@ -11,7 +11,7 @@ use sha2::Sha256;
 /// Constant RNG for testing purposes only.
 struct ConstantRng<'a>(pub &'a [u8]);
 
-impl<'a> RngCore for ConstantRng<'a> {
+impl RngCore for ConstantRng<'_> {
     fn next_u32(&mut self) -> u32 {
         let (head, tail) = self.0.split_at(4);
         self.0 = tail;
@@ -58,8 +58,7 @@ fn labeled_expand(prk: &[u8], label: &[u8], info: &[u8], l: u16) -> Vec<u8> {
         info,
     ]
     .concat();
-    let mut out = Vec::with_capacity(l as usize);
-    out.resize(l as usize, 0);
+    let mut out = vec![0; l as usize];
     Hkdf::<Sha256>::from_prk(prk)
         .unwrap()
         .expand(&labeled_info, &mut out)

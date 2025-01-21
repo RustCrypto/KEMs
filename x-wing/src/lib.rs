@@ -346,7 +346,7 @@ mod tests {
 
     impl CryptoRng for SeedRng {}
 
-    /// Test with test vectors from: https://github.com/dconnolly/draft-connolly-cfrg-xwing-kem/blob/main/spec/test-vectors.json
+    /// Test with test vectors from: <https://github.com/dconnolly/draft-connolly-cfrg-xwing-kem/blob/main/spec/test-vectors.json>
     #[test]
     fn rfc_test_vectors() {
         let test_vectors =
@@ -398,7 +398,7 @@ mod tests {
         let sk_bytes = sk.as_bytes();
         let pk_bytes = pk.as_bytes();
 
-        let sk_b = DecapsulationKey::from(sk_bytes.clone());
+        let sk_b = DecapsulationKey::from(*sk_bytes);
         let pk_b = EncapsulationKey::from(&pk_bytes.clone());
 
         assert!(sk == sk_b);
