@@ -1624,6 +1624,7 @@ fn ct_eq_bytes(lhs: &[u8], rhs: &[u8]) -> Choice {
 }
 
 #[cfg(test)]
+#[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
     use rand_core::{RngCore, SeedableRng};
@@ -1655,18 +1656,18 @@ mod tests {
 
         let mut mu = vec![0u8; alg.params().message_length];
         rng.fill_bytes(&mut mu);
-        let (our_ct, our_ess) = alg.encapsulate(&our_pk, &mu, &[]).unwrap();
+        let (our_ct, our_ess) = alg.encapsulate(&our_pk, &mu, []).unwrap();
         let (our_dss, mu_prime) = alg.decapsulate(&our_sk, &our_ct).unwrap();
         assert_eq!(our_ess.value, our_dss.value);
         assert_eq!(mu, mu_prime);
 
         let their_ct = kem.ciphertext_from_bytes(&our_ct.value).unwrap();
-        let their_ss = kem.decapsulate(&their_sk, &their_ct).unwrap();
+        let their_ss = kem.decapsulate(their_sk, their_ct).unwrap();
         assert_eq!(our_dss.value, their_ss.as_ref());
 
-        let (their_ct, their_ess) = kem.encapsulate(&their_pk).unwrap();
+        let (their_ct, their_ess) = kem.encapsulate(their_pk).unwrap();
 
-        let our_ct = alg.ciphertext_from_bytes(&their_ct.as_ref()).unwrap();
+        let our_ct = alg.ciphertext_from_bytes(their_ct.as_ref()).unwrap();
 
         let (their_dss, _) = alg.decapsulate(&our_sk, &our_ct).unwrap();
         assert_eq!(their_ess.as_ref(), their_dss.value);

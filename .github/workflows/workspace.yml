@@ -24,8 +24,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.84
         with:
           components: clippy
-      - run: cargo clippy --all-features -- -D warnings
-      # TODO: - run: cargo clippy --all-features --all-targets -- -D warnings
+      - run: cargo clippy --all-features --all-targets -- -D warnings
 
   doc:
     runs-on: ubuntu-latest

@@ -541,6 +541,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::cast_possible_truncation)]
     fn polynomial_ops() {
         let f = Polynomial(Array::from_fn(|i| FieldElement(i as Integer)));
         let g = Polynomial(Array::from_fn(|i| FieldElement(2 * i as Integer)));
@@ -551,6 +552,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::cast_possible_truncation, clippy::similar_names)]
     fn ntt() {
         let f = Polynomial(Array::from_fn(|i| FieldElement(i as Integer)));
         let g = Polynomial(Array::from_fn(|i| FieldElement(2 * i as Integer)));
@@ -643,7 +645,7 @@ mod test {
     // for k in $-\eta, \ldots, \eta$.  The cases of interest here are \eta = 2, 3.
     type Distribution = [f64; Q_SIZE];
     const Q_SIZE: usize = FieldElement::Q as usize;
-    const CBD2: Distribution = {
+    static CBD2: Distribution = {
         let mut dist = [0.0; Q_SIZE];
         dist[Q_SIZE - 2] = 1.0 / 16.0;
         dist[Q_SIZE - 1] = 4.0 / 16.0;
@@ -652,7 +654,7 @@ mod test {
         dist[2] = 1.0 / 16.0;
         dist
     };
-    const CBD3: Distribution = {
+    static CBD3: Distribution = {
         let mut dist = [0.0; Q_SIZE];
         dist[Q_SIZE - 3] = 1.0 / 64.0;
         dist[Q_SIZE - 2] = 6.0 / 64.0;
@@ -663,7 +665,7 @@ mod test {
         dist[3] = 1.0 / 64.0;
         dist
     };
-    const UNIFORM: Distribution = [1.0 / (FieldElement::Q as f64); Q_SIZE];
+    static UNIFORM: Distribution = [1.0 / (FieldElement::Q as f64); Q_SIZE];
 
     fn kl_divergence(p: &Distribution, q: &Distribution) -> f64 {
         p.iter()
@@ -672,6 +674,7 @@ mod test {
             .sum()
     }
 
+    #[allow(clippy::cast_precision_loss, clippy::large_stack_arrays)]
     fn test_sample(sample: &[FieldElement], ref_dist: &Distribution) {
         // Verify data and compute the empirical distribution
         let mut sample_dist: Distribution = [0.0; Q_SIZE];
@@ -688,6 +691,7 @@ mod test {
     }
 
     #[test]
+    #[allow(clippy::cast_possible_truncation)]
     fn sample_uniform() {
         // We require roughly Q/2 samples to verify the uniform distribution.  This is because for
         // M < N, the uniform distribution over a subset of M elements has KL distance:

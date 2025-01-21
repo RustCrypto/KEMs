@@ -92,11 +92,13 @@ pub(crate) mod test {
     use hybrid_array::typenum::{U1, U10, U11, U12, U4, U5, U6};
     use num_rational::Ratio;
 
+    #[allow(clippy::cast_possible_truncation)]
     fn rational_compress<D: CompressionFactor>(input: u16) -> u16 {
         let fraction = Ratio::new(u32::from(input) * (1 << D::USIZE), FieldElement::Q32);
         (fraction.round().to_integer() as u16) & D::MASK
     }
 
+    #[allow(clippy::cast_possible_truncation)]
     fn rational_decompress<D: CompressionFactor>(input: u16) -> u16 {
         let fraction = Ratio::new(u32::from(input) * FieldElement::Q32, 1 << D::USIZE);
         fraction.round().to_integer() as u16
@@ -106,7 +108,7 @@ pub(crate) mod test {
     #[allow(clippy::integer_division_remainder_used)]
     fn compression_decompression_inequality<D: CompressionFactor>() {
         const QI32: i32 = FieldElement::Q as i32;
-        let error_threshold = Ratio::new(FieldElement::Q, 1 << D::USIZE).to_integer() as i32;
+        let error_threshold = i32::from(Ratio::new(FieldElement::Q, 1 << D::USIZE).to_integer());
 
         for x in 0..FieldElement::Q {
             let mut y = FieldElement(x);
