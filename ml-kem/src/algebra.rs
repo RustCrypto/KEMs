@@ -187,8 +187,8 @@ pub struct NttPolynomial(pub Array<FieldElement, U256>);
 #[cfg(feature = "zeroize")]
 impl Zeroize for NttPolynomial {
     fn zeroize(&mut self) {
-        for fe in self.0.iter_mut() {
-            fe.zeroize()
+        for fe in &mut self.0 {
+            fe.zeroize();
         }
     }
 }
@@ -435,7 +435,7 @@ where
     K: ArraySize,
 {
     fn zeroize(&mut self) {
-        for poly in self.0.iter_mut() {
+        for poly in &mut self.0 {
             poly.zeroize();
         }
     }
