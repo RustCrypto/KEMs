@@ -22,25 +22,42 @@ defaults:
     shell: bash
 
 jobs:
+  set-msrv:
+    uses: RustCrypto/actions/.github/workflows/set-msrv.yml@master
+    with:
+      msrv: 1.82.0
+
   build:
+    needs: set-msrv
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - ${{ needs.set-msrv.outputs.msrv }}
+          - stable
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
       - run: cargo build --no-default-features --features=frodo
       - run: cargo build --no-default-features --features=efrodo
       - run: cargo build --no-default-features || [ $? -eq 101 ]
       - run: cargo build --all-features
 
   test:
+    needs: set-msrv
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust:
+          - ${{ needs.set-msrv.outputs.msrv }}
+          - stable
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: stable
+          toolchain: ${{ matrix.rust }}
       - run: cargo build --all-features --benches --release --keep-going
       - run: cargo test --all-features --release
       - run: cargo test --no-default-features --features=frodo,efrodo,serde --release
