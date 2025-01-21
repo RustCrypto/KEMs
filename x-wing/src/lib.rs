@@ -14,16 +14,12 @@
 //! decapsulation key. X-Wing-KEM is a general-purpose hybrid post-quantum KEM, combining x25519 and ML-KEM-768.
 //!
 //! ```
-//! # use rand;
-//! # use kem::{Decapsulate, Encapsulate};
-//! let mut rng = rand::thread_rng();
+//! use kem::{Decapsulate, Encapsulate};
 //!
-//! let (sk, pk) = x_wing::generate_key_pair(&mut rng);
-//!
-//! let (ct, ss_sender) = pk.encapsulate(&mut rng).unwrap();
-//!
+//! let mut rng = &mut rand::rngs::OsRng;
+//! let (sk, pk) = x_wing::generate_key_pair(rng);
+//! let (ct, ss_sender) = pk.encapsulate(rng).unwrap();
 //! let ss_receiver = sk.decapsulate(&ct).unwrap();
-//!
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
