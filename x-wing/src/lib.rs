@@ -313,7 +313,7 @@ mod tests {
         }
 
         fn fill_bytes(&mut self, dest: &mut [u8]) {
-            self.try_fill_bytes(dest).unwrap()
+            self.try_fill_bytes(dest).unwrap();
         }
 
         fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
