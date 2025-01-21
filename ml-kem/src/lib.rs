@@ -5,11 +5,11 @@
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
 )]
-#![warn(clippy::pedantic)] // Be pedantic by default
-#![warn(clippy::integer_division_remainder_used)] // Be judicious about using `/` and `%`
 #![allow(non_snake_case)] // Allow notation matching the spec
 #![allow(clippy::clone_on_copy)] // Be explicit about moving data
 #![deny(missing_docs)] // Require all public interfaces to be documented
+#![warn(clippy::pedantic)] // Be pedantic by default
+#![warn(clippy::integer_division_remainder_used)] // Be judicious about using `/` and `%`
 
 //! # Usage
 //!

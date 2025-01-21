@@ -18,13 +18,6 @@ exclude = ["src/test-vectors.json"]
 getrandom = ["rand_core/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 
-[lints.clippy]
-pedantic = "warn"                                 # Be pedantic by default
-similar_names = { level = "allow", priority = 1 } # So we can use the names as in the RFC
-
-[lints.rust]
-missing_docs = "deny" # Require all public interfaces to be documented
-
 [dependencies]
 rand_core = { version = "0.6", default-features = false }
 x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }

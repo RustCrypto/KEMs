@@ -5,6 +5,8 @@
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
 )]
+#![deny(missing_docs)]
+#![warn(clippy::pedantic)]
 
 //! # Usage
 //!
@@ -133,6 +135,7 @@ pub struct DecapsulationKey {
 impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
     type Error = Infallible;
 
+    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
     fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
         let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
         let ss_m = sk_m.decapsulate(&ct.ct_m)?;
