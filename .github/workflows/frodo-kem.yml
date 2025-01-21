@@ -71,22 +71,21 @@ jobs:
       - run: cargo careful test tests
       - run: cargo careful test test_vector --release
 
-# TODO(tarcieri): needs `set-msrv`
-#  cross:
-#    needs: set-msrv
-#    strategy:
-#      matrix:
-#        include:
-#          - target: powerpc-unknown-linux-gnu
-#            rust: ${{needs.set-msrv.outputs.msrv}}
-#          - target: powerpc-unknown-linux-gnu
-#            rust: stable
-#    runs-on: ubuntu-latest
-#    steps:
-#      - uses: actions/checkout@v4
-#      - uses: dtolnay/rust-toolchain@master
-#        with:
-#          toolchain: ${{ matrix.rust }}
-#          targets: ${{ matrix.target }}
-#      - uses: RustCrypto/actions/cross-install@master
-#      - run: cross test --release --target ${{ matrix.target }} --all-features
+  cross:
+    needs: set-msrv
+    strategy:
+      matrix:
+        include:
+          - target: powerpc-unknown-linux-gnu
+            rust: ${{ needs.set-msrv.outputs.msrv }}
+          - target: powerpc-unknown-linux-gnu
+            rust: stable
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: ${{ matrix.rust }}
+          targets: ${{ matrix.target }}
+      - uses: RustCrypto/actions/cross-install@master
+      - run: cross test --release --target ${{ matrix.target }} --all-features
