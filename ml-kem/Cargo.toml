@@ -33,7 +33,7 @@ criterion = "0.5.1"
 hex = { version = "0.4.3", features = ["serde"] }
 hex-literal = "0.4.1"
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
-rand = "0.8.5"
+rand = "0.9.0"
 crypto-common = { version = "0.1.6", features = ["rand_core"] }
 serde = { version = "1.0.208", features = ["derive"] }
 serde_json = "1.0.125"
