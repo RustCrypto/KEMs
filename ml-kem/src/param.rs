@@ -251,12 +251,15 @@ pub trait KemParams: PkeParams {
         &B32,
         &B32,
     );
+
+    fn split_seed(enc: &EncodedDecapsulationSeed) -> (&B32, &B32);
 }
 
 pub type DecapsulationKeySize<P> = <P as KemParams>::DecapsulationKeySize;
 pub type EncapsulationKeySize<P> = <P as PkeParams>::EncryptionKeySize;
 
 pub type EncodedDecapsulationKey<P> = Array<u8, <P as KemParams>::DecapsulationKeySize>;
+pub type EncodedDecapsulationSeed = Array<u8, U64>;
 
 impl<P> KemParams for P
 where
@@ -294,5 +297,10 @@ where
         let (enc, h) = enc.split_ref();
         let (dk_pke, ek_pke) = enc.split_ref();
         (dk_pke, ek_pke, h, z)
+    }
+
+    fn split_seed(enc: &EncodedDecapsulationSeed) -> (&B32, &B32) {
+        let (d, z) = enc.split_ref();
+        (d, z)
     }
 }

@@ -20,6 +20,7 @@ default = ["std"]
 std = ["sha3/std"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
+decap_key = [] # Use seed for decapsulation key (default behaviour) or not. If set, will use standard decapsulation key.
 
 [dependencies]
 kem = "0.3.0-pre.0"

@@ -1,4 +1,5 @@
 #![cfg(feature = "deterministic")]
+#![cfg(feature = "decap_key")]
 
 use ml_kem::*;
 
