@@ -82,7 +82,7 @@ aes = "0.8"
 bincode = "1.3"
 criterion = "0.5"
 hex = "0.4"
-hybrid-array = "0.2"
+hybrid-array = "0.3"
 rand_chacha = "0.3"
 rstest = "0.24"
 safe-oqs = { version = "0.10", default-features = false, features = ["frodokem"] }
