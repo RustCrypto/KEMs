@@ -2,11 +2,11 @@ use core::mem::ManuallyDrop;
 use core::ops::{Div, Mul, Rem};
 use core::ptr;
 use hybrid_array::{
-    typenum::{
-        operator_aliases::{Prod, Quot},
-        Unsigned, U0, U32,
-    },
     Array, ArraySize,
+    typenum::{
+        U0, U32, Unsigned,
+        operator_aliases::{Prod, Quot},
+    },
 };
 
 /// A 32-byte array, defined here for brevity because it is used several times

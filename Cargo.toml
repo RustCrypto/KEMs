@@ -1,6 +1,36 @@
 [workspace]
 resolver = "2"
-members = ["dhkem", "frodo-kem", "ml-kem", "x-wing"]
+members = [
+    "dhkem",
+    "frodo-kem",
+    "ml-kem",
+    "x-wing"
+]
 
 [profile.bench]
 debug = true
+
+[patch.crates-io]
+# https://github.com/RustCrypto/traits/pull/1777
+kem            = { git = "https://github.com/baloo/traits.git", branch = "baloo/relax-sized-rng" }
+elliptic-curve = { git = "https://github.com/baloo/traits.git", branch = "baloo/relax-sized-rng" }
+digest         = { git = "https://github.com/baloo/traits.git", branch = "baloo/relax-sized-rng" }
+
+# https://github.com/RustCrypto/elliptic-curves/pull/1131
+k256 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
+p256 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
+p384 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
+p521 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
+
+sha2 = { git = "https://github.com/RustCrypto/hashes.git" }
+
+# https://github.com/zkcrypto/group/pull/57
+# https://github.com/zkcrypto/group/pull/58
+# https://github.com/zkcrypto/group/pull/59
+group = { git = "https://github.com/baloo/group.git", branch = "baloo/try_from_rng" }
+
+ff = { git = "https://github.com/zkcrypto/ff.git", branch = "release-0.14.0" }
+
+crypto-bigint = { git = "https://github.com/RustCrypto/crypto-bigint.git" }
+
+x25519-dalek = { git = "https://github.com/pinkforest/curve25519-dalek.git", branch = "bump-rand-0.9" }

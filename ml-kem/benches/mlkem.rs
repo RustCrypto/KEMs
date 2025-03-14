@@ -1,9 +1,9 @@
 use ::kem::{Decapsulate, Encapsulate};
-use criterion::{criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, criterion_group, criterion_main};
 use ml_kem::*;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
 
     // Key generation
     c.bench_function("keygen", |b| {

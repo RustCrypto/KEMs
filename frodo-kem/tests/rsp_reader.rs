@@ -1,6 +1,6 @@
 //! Reader for Frodo KAT files and test vectors
 use frodo_kem::*;
-use hybrid_array::{typenum::U48, Array};
+use hybrid_array::{Array, typenum::U48};
 use std::path::Path;
 use std::{
     fs::File,

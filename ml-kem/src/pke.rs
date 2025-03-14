@@ -1,4 +1,4 @@
-use hybrid_array::typenum::{Unsigned, U1};
+use hybrid_array::typenum::{U1, Unsigned};
 
 use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
@@ -149,13 +149,13 @@ where
 mod test {
     use super::*;
     use crate::crypto::rand;
-    use crate::{MlKem1024Params, MlKem512Params, MlKem768Params};
+    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
 
     fn round_trip_test<P>()
     where
         P: PkeParams,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let d: B32 = rand(&mut rng);
         let original = B32::default();
         let randomness = B32::default();
@@ -177,7 +177,7 @@ mod test {
     where
         P: PkeParams,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let d: B32 = rand(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 

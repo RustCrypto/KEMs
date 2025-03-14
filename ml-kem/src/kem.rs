@@ -1,9 +1,9 @@
 use core::convert::Infallible;
 use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 
-use crate::crypto::{rand, G, H, J};
+use crate::crypto::{G, H, J, rand};
 use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
 use crate::pke::{DecryptionKey, EncryptionKey};
 use crate::util::B32;
@@ -126,7 +126,7 @@ where
         &self.ek
     }
 
-    pub(crate) fn generate(rng: &mut impl CryptoRngCore) -> Self {
+    pub(crate) fn generate<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
         let d: B32 = rand(rng);
         let z: B32 = rand(rng);
         Self::generate_deterministic(&d, &z)
@@ -190,9 +190,9 @@ where
 {
     type Error = Infallible;
 
-    fn encapsulate(
+    fn encapsulate<R: CryptoRng + ?Sized>(
         &self,
-        rng: &mut impl CryptoRngCore,
+        rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
         let m: B32 = rand(rng);
         Ok(self.encapsulate_deterministic_inner(&m))
@@ -234,7 +234,9 @@ where
     type EncapsulationKey = EncapsulationKey<P>;
 
     /// Generate a new (decapsulation, encapsulation) key pair
-    fn generate(rng: &mut impl CryptoRngCore) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
+    fn generate<R: CryptoRng + ?Sized>(
+        rng: &mut R,
+    ) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
         let dk = Self::DecapsulationKey::generate(rng);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
@@ -254,14 +256,14 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{MlKem1024Params, MlKem512Params, MlKem768Params};
+    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
     use ::kem::{Decapsulate, Encapsulate};
 
     fn round_trip_test<P>()
     where
         P: KemParams,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let dk = DecapsulationKey::<P>::generate(&mut rng);
         let ek = dk.encapsulation_key();
@@ -282,7 +284,7 @@ mod test {
     where
         P: KemParams,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let dk_original = DecapsulationKey::<P>::generate(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 

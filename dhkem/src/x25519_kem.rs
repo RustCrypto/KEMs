@@ -1,7 +1,7 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use core::convert::Infallible;
 use kem::{Decapsulate, Encapsulate};
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
 
 /// X22519 Diffie-Hellman KEM adapter.
@@ -12,9 +12,9 @@ pub struct X25519Kem;
 impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
     type Error = Infallible;
 
-    fn encapsulate(
+    fn encapsulate<R: CryptoRng + ?Sized>(
         &self,
-        rng: &mut impl CryptoRngCore,
+        rng: &mut R,
     ) -> Result<(PublicKey, SharedSecret), Self::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
         let sk = ReusableSecret::random_from_rng(rng);
@@ -41,8 +41,8 @@ impl DhKem for X25519Kem {
     type EncapsulatedKey = PublicKey;
     type SharedSecret = SharedSecret;
 
-    fn random_keypair(
-        rng: &mut impl CryptoRngCore,
+    fn random_keypair<R: CryptoRng + ?Sized>(
+        rng: &mut R,
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey) {
         let sk = ReusableSecret::random_from_rng(rng);
         let pk = PublicKey::from(&sk);

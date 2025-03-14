@@ -41,12 +41,12 @@ pub use ecdh_kem::EcdhKem;
 pub use x25519_kem::X25519Kem;
 
 use kem::{Decapsulate, Encapsulate};
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 
 #[cfg(feature = "ecdh")]
 use elliptic_curve::{
-    sec1::{self, ToEncodedPoint},
     CurveArithmetic, PublicKey,
+    sec1::{self, ToEncodedPoint},
 };
 
 #[cfg(feature = "zeroize")]
@@ -148,8 +148,8 @@ pub trait DhKem {
 
     /// Generates a new (decapsulating key, encapsulating key) keypair for the KEM
     /// model
-    fn random_keypair(
-        rng: &mut impl CryptoRngCore,
+    fn random_keypair<R: CryptoRng + ?Sized>(
+        rng: &mut R,
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey);
 }
 

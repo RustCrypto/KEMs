@@ -846,8 +846,8 @@ impl<P: Params> Expanded for FrodoAes<P> {
 
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
         use aes::{
-            cipher::{BlockEncrypt, KeyInit, KeySizeUser},
             Aes128Enc, Block,
+            cipher::{BlockEncrypt, KeyInit, KeySizeUser},
         };
 
         debug_assert_eq!(a.len(), P::N_X_N);
@@ -1002,8 +1002,8 @@ impl<P: Params> Expanded for FrodoShake<P> {
 
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
         use sha3::{
-            digest::{ExtendableOutputReset, Update},
             Shake128,
+            digest::{ExtendableOutputReset, Update},
         };
 
         debug_assert_eq!(a.len(), P::N_X_N);
