@@ -1,6 +1,6 @@
 use dhkem::DhKem;
 use kem::{Decapsulate, Encapsulate};
-use rand::thread_rng;
+use rand::rng;
 
 trait SecretBytes {
     fn as_slice(&self) -> &[u8];
@@ -30,7 +30,7 @@ fn test_kem<K: DhKem>()
 where
     <K as DhKem>::SharedSecret: SecretBytes,
 {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let (sk, pk) = K::random_keypair(&mut rng);
     let (ek, ss1) = pk.encapsulate(&mut rng).expect("never fails");
     let ss2 = sk.decapsulate(&ek).expect("never fails");

@@ -1,6 +1,6 @@
 use hybrid_array::{
-    typenum::{Unsigned, U256},
     Array,
+    typenum::{U256, Unsigned},
 };
 
 use crate::algebra::{
@@ -147,7 +147,7 @@ pub(crate) mod test {
     use core::fmt::Debug;
     use core::ops::Rem;
     use hybrid_array::typenum::{
-        marker_traits::Zero, operator_aliases::Mod, U1, U10, U11, U12, U2, U3, U4, U5, U6, U8,
+        U1, U2, U3, U4, U5, U6, U8, U10, U11, U12, marker_traits::Zero, operator_aliases::Mod,
     };
     use rand::Rng;
 
@@ -184,7 +184,7 @@ pub(crate) mod test {
         assert_eq!(&actual_decoded, decoded);
 
         // Test random decode/encode and encode/decode round trips
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut decoded: Array<Integer, U256> = Array::default();
         rng.fill(decoded.as_mut_slice());
         let m = match D::USIZE {

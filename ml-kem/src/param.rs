@@ -14,17 +14,17 @@ use core::fmt::Debug;
 use core::ops::{Add, Div, Mul, Rem, Sub};
 
 use hybrid_array::{
+    Array,
     typenum::{
+        Const, ToUInt, U0, U2, U3, U4, U6, U8, U12, U16, U32, U64, U384,
         operator_aliases::{Gcf, Prod, Quot, Sum},
         type_operators::Gcd,
-        Const, ToUInt, U0, U12, U16, U2, U3, U32, U384, U4, U6, U64, U8,
     },
-    Array,
 };
 
 use crate::algebra::{FieldElement, NttVector};
 use crate::encode::Encode;
-use crate::util::{Flatten, Unflatten, B32};
+use crate::util::{B32, Flatten, Unflatten};
 
 /// An array length with other useful properties
 pub trait ArraySize: hybrid_array::ArraySize + PartialEq + Debug {}

@@ -1,10 +1,10 @@
 //! Random number generator for testing
 //! AES-CTR DRBG
 use aes::{
-    cipher::{BlockEncrypt, KeyInit},
     Aes256Enc, Block,
+    cipher::{BlockEncrypt, KeyInit},
 };
-use hybrid_array::{typenum::U48, Array};
+use hybrid_array::{Array, typenum::U48};
 use rand_core::{CryptoRng, Error, RngCore, SeedableRng};
 
 /// Seed type for the AES-CTR DRBG

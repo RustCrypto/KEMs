@@ -11,8 +11,8 @@ keywords = ["quantum", "post", "zero", "knowledge", "encryption"]
 exclude = ["tests/**", "bench/**", "examples/**", ".github/**"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
-edition = "2021"
-rust-version = "1.82"
+edition = "2024"
+rust-version = "1.85"
 
 [features]
 default = [

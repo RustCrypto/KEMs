@@ -29,16 +29,6 @@ impl RngCore for ConstantRng<'_> {
         dest.copy_from_slice(hd);
         self.0 = tl;
     }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
-        if dest.len() > self.0.len() {
-            return Err(rand_core::Error::new("not enough bytes"));
-        }
-        let (hd, tl) = self.0.split_at(dest.len());
-        dest.copy_from_slice(hd);
-        self.0 = tl;
-        Ok(())
-    }
 }
 
 // this is only ever ok for testing

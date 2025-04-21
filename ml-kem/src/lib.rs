@@ -23,7 +23,7 @@
 //! ```
 //! # use ml_kem::*;
 //! # use ::kem::{Decapsulate, Encapsulate};
-//! let mut rng = rand::thread_rng();
+//! let mut rng = rand::rng();
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair
 //! let (dk, ek) = MlKem768::generate(&mut rng);
@@ -68,10 +68,10 @@ mod param;
 use ::kem::{Decapsulate, Encapsulate};
 use core::fmt::Debug;
 use hybrid_array::{
-    typenum::{U10, U11, U2, U3, U4, U5},
     Array,
+    typenum::{U2, U3, U4, U5, U10, U11},
 };
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 
 pub use hybrid_array as array;
 
@@ -142,12 +142,14 @@ pub trait KemCore: Clone {
         + PartialEq;
 
     /// Generate a new (decapsulation, encapsulation) key pair
-    fn generate(rng: &mut impl CryptoRngCore) -> (Self::DecapsulationKey, Self::EncapsulationKey);
+    fn generate<R: CryptoRng + ?Sized>(
+        rng: &mut R,
+    ) -> (Self::DecapsulationKey, Self::EncapsulationKey);
 
     /// Generate a new (decapsulation, encapsulation) key pair deterministically
     #[cfg(feature = "deterministic")]
     fn generate_deterministic(d: &B32, z: &B32)
-        -> (Self::DecapsulationKey, Self::EncapsulationKey);
+    -> (Self::DecapsulationKey, Self::EncapsulationKey);
 }
 
 /// `MlKem512` is the parameter set for security category 1, corresponding to key search on a block
@@ -215,7 +217,7 @@ mod test {
     where
         K: KemCore,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         let (dk, ek) = K::generate(&mut rng);
 

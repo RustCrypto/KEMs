@@ -1,11 +1,11 @@
 use core::ops::{Add, Mul, Sub};
-use hybrid_array::{typenum::U256, Array};
+use hybrid_array::{Array, typenum::U256};
 use sha3::digest::XofReader;
 
-use crate::crypto::{PrfOutput, PRF, XOF};
+use crate::crypto::{PRF, PrfOutput, XOF};
 use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
-use crate::util::{Truncate, B32};
+use crate::util::{B32, Truncate};
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -34,11 +34,7 @@ impl FieldElement {
 
     // A fast modular reduction for small numbers `x < 2*q`
     fn small_reduce(x: u16) -> u16 {
-        if x < Self::Q {
-            x
-        } else {
-            x - Self::Q
-        }
+        if x < Self::Q { x } else { x - Self::Q }
     }
 
     fn barrett_reduce(x: u32) -> u16 {
