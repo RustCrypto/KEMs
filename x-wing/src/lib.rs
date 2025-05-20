@@ -34,9 +34,8 @@ use ml_kem::{B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params, kem};
 use rand_core::CryptoRng;
 #[cfg(feature = "os_rng")]
 use rand_core::{OsRng, TryRngCore};
-use sha3::digest::core_api::XofReaderCoreWrapper;
 use sha3::digest::{ExtendableOutput, XofReader};
-use sha3::{Sha3_256, Shake256, Shake256ReaderCore};
+use sha3::{Sha3_256, Shake256, Shake256Reader};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -177,7 +176,7 @@ impl DecapsulationKey {
         use sha3::digest::Update;
         let mut shaker = Shake256::default();
         shaker.update(&self.sk);
-        let mut expanded = shaker.finalize_xof();
+        let mut expanded: Shake256Reader = shaker.finalize_xof();
 
         let d = read_from(&mut expanded).into();
         let z = read_from(&mut expanded).into();
@@ -270,7 +269,7 @@ fn combiner(
     hasher.finalize().into()
 }
 
-fn read_from<const N: usize>(reader: &mut XofReaderCoreWrapper<Shake256ReaderCore>) -> [u8; N] {
+fn read_from<const N: usize>(reader: &mut Shake256Reader) -> [u8; N] {
     let mut data = [0; N];
     reader.read(&mut data);
     data
