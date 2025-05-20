@@ -847,7 +847,7 @@ impl<P: Params> Expanded for FrodoAes<P> {
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
         use aes::{
             Aes128Enc, Block,
-            cipher::{BlockEncrypt, KeyInit, KeySizeUser},
+            cipher::{BlockCipherEncrypt, KeyInit, KeySizeUser},
         };
 
         debug_assert_eq!(a.len(), P::N_X_N);

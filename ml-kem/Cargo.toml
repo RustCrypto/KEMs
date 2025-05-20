@@ -16,8 +16,6 @@ keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-default = ["std"]
-std = ["sha3/std"]
 deterministic = [] # Expose deterministic generation and encapsulation functions
 zeroize = ["dep:zeroize"]
 
@@ -25,7 +23,7 @@ zeroize = ["dep:zeroize"]
 kem = "0.3.0-pre.0"
 hybrid-array = { version = "0.3", features = ["extra-sizes"] }
 rand_core = "0.9"
-sha3 = { version = "0.11.0-pre.4", default-features = false }
+sha3 = { version = "0.11.0-pre.5", default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]

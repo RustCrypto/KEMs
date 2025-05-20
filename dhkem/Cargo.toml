@@ -37,7 +37,7 @@ x25519 = ["dep:x25519", "x25519/reusable_secrets"]
 zeroize = ["dep:zeroize"]
 
 [dev-dependencies]
-hex-literal = "0.4.1"
+hex-literal = "1"
 hkdf = "0.13.0-pre.5"
 rand = "0.9.0"
 sha2 = "0.11.0-pre.5"

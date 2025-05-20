@@ -96,7 +96,7 @@ mod hazmat;
 
 use hazmat::*;
 
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 use std::marker::PhantomData;
 use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -308,9 +308,9 @@ impl EncryptionKey {
     }
 
     /// Encapsulate a random value to generate a [`SharedSecret`] and a [`Ciphertext`].
-    pub fn encapsulate_with_rng(
+    pub fn encapsulate_with_rng<R: CryptoRng + ?Sized>(
         &self,
-        rng: impl CryptoRngCore,
+        rng: &mut R,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
         self.algorithm.encapsulate_with_rng(self, rng)
     }
@@ -1275,50 +1275,53 @@ impl Algorithm {
     }
 
     /// Generate a new keypair consisting of a [`EncryptionKey`] and a [`DecryptionKey`]
-    pub fn generate_keypair(&self, rng: impl CryptoRngCore) -> (EncryptionKey, DecryptionKey) {
+    pub fn generate_keypair<R: CryptoRng + ?Sized>(
+        &self,
+        rng: &mut R,
+    ) -> (EncryptionKey, DecryptionKey) {
         match self {
             #[cfg(feature = "frodo640aes")]
-            Self::FrodoKem640Aes => self.inner_generate_keypair::<FrodoKem640Aes>(rng),
+            Self::FrodoKem640Aes => self.inner_generate_keypair::<FrodoKem640Aes, R>(rng),
             #[cfg(feature = "frodo976aes")]
-            Self::FrodoKem976Aes => self.inner_generate_keypair::<FrodoKem976Aes>(rng),
+            Self::FrodoKem976Aes => self.inner_generate_keypair::<FrodoKem976Aes, R>(rng),
             #[cfg(feature = "frodo1344aes")]
-            Self::FrodoKem1344Aes => self.inner_generate_keypair::<FrodoKem1344Aes>(rng),
+            Self::FrodoKem1344Aes => self.inner_generate_keypair::<FrodoKem1344Aes, R>(rng),
             #[cfg(feature = "frodo640shake")]
-            Self::FrodoKem640Shake => self.inner_generate_keypair::<FrodoKem640Shake>(rng),
+            Self::FrodoKem640Shake => self.inner_generate_keypair::<FrodoKem640Shake, R>(rng),
             #[cfg(feature = "frodo976shake")]
-            Self::FrodoKem976Shake => self.inner_generate_keypair::<FrodoKem976Shake>(rng),
+            Self::FrodoKem976Shake => self.inner_generate_keypair::<FrodoKem976Shake, R>(rng),
             #[cfg(feature = "frodo1344shake")]
-            Self::FrodoKem1344Shake => self.inner_generate_keypair::<FrodoKem1344Shake>(rng),
+            Self::FrodoKem1344Shake => self.inner_generate_keypair::<FrodoKem1344Shake, R>(rng),
             #[cfg(feature = "efrodo640aes")]
             Self::EphemeralFrodoKem640Aes => {
-                self.inner_generate_keypair::<EphemeralFrodoKem640Aes>(rng)
+                self.inner_generate_keypair::<EphemeralFrodoKem640Aes, R>(rng)
             }
             #[cfg(feature = "efrodo976aes")]
             Self::EphemeralFrodoKem976Aes => {
-                self.inner_generate_keypair::<EphemeralFrodoKem976Aes>(rng)
+                self.inner_generate_keypair::<EphemeralFrodoKem976Aes, R>(rng)
             }
             #[cfg(feature = "efrodo1344aes")]
             Self::EphemeralFrodoKem1344Aes => {
-                self.inner_generate_keypair::<EphemeralFrodoKem1344Aes>(rng)
+                self.inner_generate_keypair::<EphemeralFrodoKem1344Aes, R>(rng)
             }
             #[cfg(feature = "efrodo640shake")]
             Self::EphemeralFrodoKem640Shake => {
-                self.inner_generate_keypair::<EphemeralFrodoKem640Shake>(rng)
+                self.inner_generate_keypair::<EphemeralFrodoKem640Shake, R>(rng)
             }
             #[cfg(feature = "efrodo976shake")]
             Self::EphemeralFrodoKem976Shake => {
-                self.inner_generate_keypair::<EphemeralFrodoKem976Shake>(rng)
+                self.inner_generate_keypair::<EphemeralFrodoKem976Shake, R>(rng)
             }
             #[cfg(feature = "efrodo1344shake")]
             Self::EphemeralFrodoKem1344Shake => {
-                self.inner_generate_keypair::<EphemeralFrodoKem1344Shake>(rng)
+                self.inner_generate_keypair::<EphemeralFrodoKem1344Shake, R>(rng)
             }
         }
     }
 
-    fn inner_generate_keypair<K: Kem>(
+    fn inner_generate_keypair<K: Kem, R: CryptoRng + ?Sized>(
         &self,
-        rng: impl CryptoRngCore,
+        rng: &mut R,
     ) -> (EncryptionKey, DecryptionKey) {
         let (pk, sk) = K::default().generate_keypair(rng);
         (
@@ -1418,67 +1421,67 @@ impl Algorithm {
     }
 
     /// Encapsulate a random value to generate a [`SharedSecret`] and a [`Ciphertext`].
-    pub fn encapsulate_with_rng(
+    pub fn encapsulate_with_rng<R: CryptoRng + ?Sized>(
         &self,
         public_key: &EncryptionKey,
-        rng: impl CryptoRngCore,
+        rng: &mut R,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
-                self.inner_encapsulate_with_rng::<FrodoKem640Aes>(public_key, rng)
+                self.inner_encapsulate_with_rng::<FrodoKem640Aes, R>(public_key, rng)
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
-                self.inner_encapsulate_with_rng::<FrodoKem976Aes>(public_key, rng)
+                self.inner_encapsulate_with_rng::<FrodoKem976Aes, R>(public_key, rng)
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
-                self.inner_encapsulate_with_rng::<FrodoKem1344Aes>(public_key, rng)
+                self.inner_encapsulate_with_rng::<FrodoKem1344Aes, R>(public_key, rng)
             }
             #[cfg(feature = "frodo640shake")]
             Self::FrodoKem640Shake => {
-                self.inner_encapsulate_with_rng::<FrodoKem640Shake>(public_key, rng)
+                self.inner_encapsulate_with_rng::<FrodoKem640Shake, R>(public_key, rng)
             }
             #[cfg(feature = "frodo976shake")]
             Self::FrodoKem976Shake => {
-                self.inner_encapsulate_with_rng::<FrodoKem976Shake>(public_key, rng)
+                self.inner_encapsulate_with_rng::<FrodoKem976Shake, R>(public_key, rng)
             }
             #[cfg(feature = "frodo1344shake")]
             Self::FrodoKem1344Shake => {
-                self.inner_encapsulate_with_rng::<FrodoKem1344Shake>(public_key, rng)
+                self.inner_encapsulate_with_rng::<FrodoKem1344Shake, R>(public_key, rng)
             }
             #[cfg(feature = "efrodo640aes")]
             Self::EphemeralFrodoKem640Aes => {
-                self.inner_encapsulate_with_rng::<EphemeralFrodoKem640Aes>(public_key, rng)
+                self.inner_encapsulate_with_rng::<EphemeralFrodoKem640Aes, R>(public_key, rng)
             }
             #[cfg(feature = "efrodo976aes")]
             Self::EphemeralFrodoKem976Aes => {
-                self.inner_encapsulate_with_rng::<EphemeralFrodoKem976Aes>(public_key, rng)
+                self.inner_encapsulate_with_rng::<EphemeralFrodoKem976Aes, R>(public_key, rng)
             }
             #[cfg(feature = "efrodo1344aes")]
             Self::EphemeralFrodoKem1344Aes => {
-                self.inner_encapsulate_with_rng::<EphemeralFrodoKem1344Aes>(public_key, rng)
+                self.inner_encapsulate_with_rng::<EphemeralFrodoKem1344Aes, R>(public_key, rng)
             }
             #[cfg(feature = "efrodo640shake")]
             Self::EphemeralFrodoKem640Shake => {
-                self.inner_encapsulate_with_rng::<EphemeralFrodoKem640Shake>(public_key, rng)
+                self.inner_encapsulate_with_rng::<EphemeralFrodoKem640Shake, R>(public_key, rng)
             }
             #[cfg(feature = "efrodo976shake")]
             Self::EphemeralFrodoKem976Shake => {
-                self.inner_encapsulate_with_rng::<EphemeralFrodoKem976Shake>(public_key, rng)
+                self.inner_encapsulate_with_rng::<EphemeralFrodoKem976Shake, R>(public_key, rng)
             }
             #[cfg(feature = "efrodo1344shake")]
             Self::EphemeralFrodoKem1344Shake => {
-                self.inner_encapsulate_with_rng::<EphemeralFrodoKem1344Shake>(public_key, rng)
+                self.inner_encapsulate_with_rng::<EphemeralFrodoKem1344Shake, R>(public_key, rng)
             }
         }
     }
 
-    fn inner_encapsulate_with_rng<K: Kem>(
+    fn inner_encapsulate_with_rng<K: Kem, R: CryptoRng + ?Sized>(
         &self,
         encryption_key: &EncryptionKey,
-        rng: impl CryptoRngCore,
+        rng: &mut R,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
         let pk = EncryptionKeyRef::from_slice(encryption_key.value.as_slice())?;
         let (ct, ss) = K::default().encapsulate_with_rng(pk, rng);

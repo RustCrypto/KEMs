@@ -11,26 +11,22 @@ members = [
 debug = true
 
 [patch.crates-io]
-# https://github.com/RustCrypto/traits/pull/1777
-kem            = { git = "https://github.com/baloo/traits.git", branch = "baloo/relax-sized-rng" }
-elliptic-curve = { git = "https://github.com/baloo/traits.git", branch = "baloo/relax-sized-rng" }
-digest         = { git = "https://github.com/baloo/traits.git", branch = "baloo/relax-sized-rng" }
+crypto-common  = { git = "https://github.com/RustCrypto/traits.git" }
+digest         = { git = "https://github.com/RustCrypto/traits.git" }
+elliptic-curve = { git = "https://github.com/RustCrypto/traits.git" }
+kem            = { git = "https://github.com/RustCrypto/traits.git" }
 
-# https://github.com/RustCrypto/elliptic-curves/pull/1131
-k256 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
-p256 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
-p384 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
-p521 = { git = "https://github.com/baloo/elliptic-curves.git", branch = "baloo/group/try-from-rng" }
+k256 = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
+p256 = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
+p384 = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
+p521 = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
 
 sha2 = { git = "https://github.com/RustCrypto/hashes.git" }
+sha3 = { git = "https://github.com/RustCrypto/hashes.git" }
 
-# https://github.com/zkcrypto/group/pull/57
-# https://github.com/zkcrypto/group/pull/58
-# https://github.com/zkcrypto/group/pull/59
-group = { git = "https://github.com/baloo/group.git", branch = "baloo/try_from_rng" }
+hmac = { git = "https://github.com/RustCrypto/MACs.git" }
 
-ff = { git = "https://github.com/zkcrypto/ff.git", branch = "release-0.14.0" }
+hkdf = { git = "https://github.com/RustCrypto/KDFs.git" }
 
-crypto-bigint = { git = "https://github.com/RustCrypto/crypto-bigint.git" }
-
-x25519-dalek = { git = "https://github.com/pinkforest/curve25519-dalek.git", branch = "bump-rand-0.9" }
+curve25519-dalek = { git = "https://github.com/baloo/curve25519-dalek.git", branch = "baloo/rand-0.9" }
+x25519-dalek     = { git = "https://github.com/baloo/curve25519-dalek.git", branch = "baloo/rand-0.9" }

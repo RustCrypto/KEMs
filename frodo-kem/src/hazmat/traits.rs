@@ -2,7 +2,7 @@ use crate::hazmat::{
     Ciphertext, CiphertextRef, DecryptionKey, DecryptionKeyRef, EncryptionKey, EncryptionKeyRef,
     SharedSecret,
 };
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 use sha3::digest::{ExtendableOutput, ExtendableOutputReset, Update};
 use subtle::{Choice, ConditionallySelectable};
 use zeroize::Zeroize;
@@ -111,9 +111,9 @@ pub trait Kem: Params + Expanded + Sample {
     /// See Algorithm 12 in [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
     /// Algorithm 8.1 in [iso](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf).
     /// Algorithm 1 in [annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
-    fn generate_keypair(
+    fn generate_keypair<R: CryptoRng + ?Sized>(
         &self,
-        mut rng: impl CryptoRngCore,
+        rng: &mut R,
     ) -> (EncryptionKey<Self>, DecryptionKey<Self>) {
         let mut sk = DecryptionKey::default();
         let mut pk = EncryptionKey::default();
@@ -187,10 +187,10 @@ pub trait Kem: Params + Expanded + Sample {
     /// See Algorithm 13 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
     /// Algorithm 8.2 in [iso](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf).
     /// Algorithm 2 in [annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
-    fn encapsulate_with_rng<'a, P: Into<EncryptionKeyRef<'a, Self>>>(
+    fn encapsulate_with_rng<'a, P: Into<EncryptionKeyRef<'a, Self>>, R: CryptoRng + ?Sized>(
         &self,
         public_key: P,
-        mut rng: impl CryptoRngCore,
+        rng: &mut R,
     ) -> (Ciphertext<Self>, SharedSecret<Self>) {
         let mut mu = vec![0u8; Self::BYTES_MU + Self::BYTES_SALT];
         rng.fill_bytes(&mut mu);
