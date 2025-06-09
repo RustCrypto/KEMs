@@ -227,8 +227,8 @@ mod tests {
         #[case] kem: F,
         #[case] alg: safe_oqs::kem::Algorithm,
     ) {
-        let rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
-        let (our_pk, our_sk) = kem.generate_keypair(rng);
+        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let (our_pk, our_sk) = kem.generate_keypair(&mut rng);
         let kem = safe_oqs::kem::Kem::new(alg).unwrap();
         let opt_pk = kem.public_key_from_bytes(&our_pk.0);
         assert!(opt_pk.is_some());

@@ -18,11 +18,11 @@ kem = "0.3.0-pre.0"
 rand_core = "0.9.0"
 
 # optional dependencies
-elliptic-curve = { version = "0.14.0-rc.1", optional = true, default-features = false }
-k256 = { version = "0.14.0-pre.2", optional = true, default-features = false, features = ["arithmetic"] }
-p256 = { version = "0.14.0-pre.2", optional = true, default-features = false, features = ["arithmetic"] }
-p384 = { version = "0.14.0-pre.2", optional = true, default-features = false, features = ["arithmetic"] }
-p521 = { version = "0.14.0-pre.2", optional = true, default-features = false, features = ["arithmetic"] }
+elliptic-curve = { version = "0.14.0-rc.5", optional = true, default-features = false }
+k256 = { version = "0.14.0-pre.5", optional = true, default-features = false, features = ["arithmetic"] }
+p256 = { version = "0.14.0-pre.5", optional = true, default-features = false, features = ["arithmetic"] }
+p384 = { version = "0.14.0-pre.5", optional = true, default-features = false, features = ["arithmetic"] }
+p521 = { version = "0.14.0-pre.5", optional = true, default-features = false, features = ["arithmetic"] }
 x25519 = { version = "2.0.1", package = "x25519-dalek", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
@@ -37,10 +37,10 @@ x25519 = ["dep:x25519", "x25519/reusable_secrets"]
 zeroize = ["dep:zeroize"]
 
 [dev-dependencies]
-hex-literal = "0.4.1"
-hkdf = "0.13.0-pre.5"
+hex-literal = "1"
+hkdf = "0.13.0-rc.0"
 rand = "0.9.0"
-sha2 = "0.11.0-pre.5"
+sha2 = "0.11.0-rc.0"
 
 [package.metadata.docs.rs]
 all-features = true

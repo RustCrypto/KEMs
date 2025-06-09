@@ -20,7 +20,7 @@ zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 rand_core = { version = "0.9.3", default-features = false }
 x25519-dalek = { version = "2.0", default-features = false, features = ["static_secrets"] }
 ml-kem = { version = "=0.3.0-pre", default-features = false, features = ["deterministic"], path = "../ml-kem" }
-sha3 = { version = "0.11.0-pre.5", default-features = false }
+sha3 = { version = "0.11.0-rc.0", default-features = false }
 kem = "0.3.0-pre.0"
 zeroize = { version = "1.8.1", optional = true, default-features = true, features = ["zeroize_derive"] }
 
