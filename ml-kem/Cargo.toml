@@ -17,7 +17,9 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 
 [features]
 deterministic = [] # Expose deterministic generation and encapsulation functions
+alloc = ["pkcs8?/alloc"]
 zeroize = ["dep:zeroize"]
+pkcs8 = ["dep:pkcs8"]
 
 [dependencies]
 kem = "0.3.0-pre.0"
@@ -25,6 +27,7 @@ hybrid-array = { version = "0.3", features = ["extra-sizes"] }
 rand_core = "0.9"
 sha3 = { version = "0.11.0-rc.0", default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
+pkcs8 = { version = "0.10.2", optional = true, default-features = false }
 
 [dev-dependencies]
 criterion = "0.5.1"

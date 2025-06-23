@@ -80,6 +80,12 @@ pub use util::B32;
 
 pub use param::{ArraySize, ParameterSet};
 
+#[cfg(feature = "pkcs8")]
+pub use pkcs8;
+
+#[cfg(feature = "pkcs8")]
+use pkcs8::AssociatedOid;
+
 /// An object that knows what size it is
 pub trait EncodedSizeUser {
     /// The size of an encoded object
@@ -165,6 +171,23 @@ impl ParameterSet for MlKem512Params {
     type Dv = U4;
 }
 
+#[cfg(feature = "pkcs8")]
+impl AssociatedOid for MlKem512Params {
+    const OID: pkcs8::ObjectIdentifier =
+        pkcs8::ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.4.1");
+}
+
+#[cfg(feature = "pkcs8")]
+impl pkcs8::spki::AssociatedAlgorithmIdentifier for MlKem512Params {
+    type Params = pkcs8::der::AnyRef<'static>;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        pkcs8::spki::AlgorithmIdentifier {
+            oid: Self::OID,
+            parameters: None,
+        };
+}
+
 /// `MlKem768` is the parameter set for security category 3, corresponding to key search on a block
 /// cipher with a 192-bit key.
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -178,6 +201,23 @@ impl ParameterSet for MlKem768Params {
     type Dv = U4;
 }
 
+#[cfg(feature = "pkcs8")]
+impl AssociatedOid for MlKem768Params {
+    const OID: pkcs8::ObjectIdentifier =
+        pkcs8::ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.4.2");
+}
+
+#[cfg(feature = "pkcs8")]
+impl pkcs8::spki::AssociatedAlgorithmIdentifier for MlKem768Params {
+    type Params = pkcs8::der::AnyRef<'static>;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        pkcs8::spki::AlgorithmIdentifier {
+            oid: Self::OID,
+            parameters: None,
+        };
+}
+
 /// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a block
 /// cipher with a 256-bit key.
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -189,6 +229,23 @@ impl ParameterSet for MlKem1024Params {
     type Eta2 = U2;
     type Du = U11;
     type Dv = U5;
+}
+
+#[cfg(feature = "pkcs8")]
+impl AssociatedOid for MlKem1024Params {
+    const OID: pkcs8::ObjectIdentifier =
+        pkcs8::ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.4.3");
+}
+
+#[cfg(feature = "pkcs8")]
+impl pkcs8::spki::AssociatedAlgorithmIdentifier for MlKem1024Params {
+    type Params = pkcs8::der::AnyRef<'static>;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        pkcs8::spki::AlgorithmIdentifier {
+            oid: Self::OID,
+            parameters: None,
+        };
 }
 
 /// A shared key produced by the KEM `K`
@@ -231,5 +288,64 @@ mod test {
         round_trip_test::<MlKem512>();
         round_trip_test::<MlKem768>();
         round_trip_test::<MlKem1024>();
+    }
+
+    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
+    use pkcs8::{EncodePrivateKey, EncodePublicKey};
+
+    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
+    fn der_serialization_and_deserialization<K>(expected_encaps_len: u16, expected_decaps_len: u16)
+    where
+        K: KemCore,
+        K::EncapsulationKey: EncodePublicKey,
+        K::DecapsulationKey: EncodePrivateKey,
+    {
+        use super::pkcs8::{EncodePrivateKey, PrivateKeyInfo};
+        use super::pkcs8::{EncodePublicKey, SubjectPublicKeyInfoRef};
+        use pkcs8::der::{self, Decode};
+
+        let mut rng = rand::rng();
+        let (decaps_key, encaps_key) = K::generate(&mut rng);
+
+        // TEST: serialize encapsulation key into DER document
+        {
+            let der_document = encaps_key.to_public_key_der().unwrap();
+            let serialized_document = der_document.as_bytes();
+
+            // deserialize encapsulation key from DER document
+            let parsed = der::Document::from_der(&serialized_document).unwrap();
+            assert_eq!(parsed.len(), der::Length::new(expected_encaps_len));
+
+            // verify that original encapsulation key corresponds to deserialized encapsulation key
+            let pub_key = parsed.decode_msg::<SubjectPublicKeyInfoRef>().unwrap();
+            assert_eq!(encaps_key.as_bytes().as_slice(), pub_key.subject_public_key.as_bytes().unwrap());
+        }
+
+        // TEST: serialize decapsulation key into DER document
+        {
+            use pkcs8::DecodePrivateKey;
+            let der_document = decaps_key.to_pkcs8_der().unwrap();
+            let serialized_document = der_document.as_bytes();
+
+            // deserialize decapsulation key from DER document
+            let parsed = der::SecretDocument::from_pkcs8_der(&serialized_document).unwrap();
+            assert_eq!(parsed.len(), der::Length::new(expected_decaps_len));
+
+            // verify that original decapsulation key corresponds to deserialized decapsulation key
+            let priv_key = parsed.decode_msg::<PrivateKeyInfo>().unwrap();
+            assert_eq!(decaps_key.as_bytes().as_slice(), priv_key.private_key);
+        }
+    }
+
+    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
+    #[test]
+    fn pkcs8_round_trip() {
+        // NOTE: standardized encapsulation key sizes for MlKem{512,768,1024} are {800,1184,1568} bytes respectively.
+        //       DER serialization adds 22 bytes. Thus we expect a length of {822,1206,1590} respectively.
+        // NOTE: standardized decapsulation key sizes for MlKem{512,768,1024} are {1632,2400,3168} bytes respectively.
+        //       DER serialization adds 24 bytes. Thus we expect a length of {1656,2424,3192} respectively.
+        der_serialization_and_deserialization::<MlKem512>(822, 1656);
+        der_serialization_and_deserialization::<MlKem768>(1206, 2424);
+        der_serialization_and_deserialization::<MlKem1024>(1590, 3192);
     }
 }
