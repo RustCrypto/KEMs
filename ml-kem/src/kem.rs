@@ -18,6 +18,12 @@ pub use ::kem::{Decapsulate, Encapsulate};
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
 
+#[cfg(feature = "pkcs8")]
+use pkcs8::{der::AnyRef, spki::AssociatedAlgorithmIdentifier};
+
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+use pkcs8::der::asn1::{BitStringRef, OctetStringRef};
+
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
 #[derive(Clone, Debug, PartialEq)]
@@ -250,6 +256,117 @@ where
         let dk = Self::DecapsulationKey::generate_deterministic(d, z);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> AssociatedAlgorithmIdentifier for EncapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Params = P::Params;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        P::ALGORITHM_IDENTIFIER;
+}
+
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+impl<P> pkcs8::EncodePublicKey for EncapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    /// Serialize the given `EncapsulationKey` into DER format.
+    /// Returns a `Document` which wraps the DER document in case of success.
+    fn to_public_key_der(&self) -> pkcs8::spki::Result<pkcs8::Document> {
+        let public_key = self.as_bytes();
+        let subject_public_key = BitStringRef::new(0, &public_key)?;
+
+        pkcs8::SubjectPublicKeyInfo {
+            algorithm: P::ALGORITHM_IDENTIFIER,
+            subject_public_key,
+        }
+        .try_into()
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> TryFrom<pkcs8::SubjectPublicKeyInfoRef<'_>> for EncapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Error = pkcs8::spki::Error;
+
+    /// Deserialize the encapsulation key from DER format found in `spki.subject_public_key`.
+    /// Returns an `EncapsulationKey` containing `ek_{pke}` and `h` in case of success.
+    fn try_from(spki: pkcs8::SubjectPublicKeyInfoRef<'_>) -> Result<Self, Self::Error> {
+        if spki.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
+            return Err(pkcs8::spki::Error::OidUnknown {
+                oid: P::ALGORITHM_IDENTIFIER.oid,
+            });
+        }
+
+        let bitstring_of_encapsulation_key = spki.subject_public_key;
+        let enc_key = match bitstring_of_encapsulation_key.as_bytes() {
+            Some(bytes) => {
+                let arr: hybrid_array::Array<u8, EncapsulationKeySize<P>> = match bytes.try_into() {
+                    Ok(array) => array,
+                    Err(_) => return Err(pkcs8::spki::Error::KeyMalformed),
+                };
+                EncryptionKey::from_bytes(&arr)
+            }
+            None => return Err(pkcs8::spki::Error::KeyMalformed),
+        };
+
+        Ok(Self::new(enc_key))
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> AssociatedAlgorithmIdentifier for DecapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Params = P::Params;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        P::ALGORITHM_IDENTIFIER;
+}
+
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+impl<P> pkcs8::EncodePrivateKey for DecapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    /// Serialize the given `DecapsulationKey` into DER format.
+    /// Returns a `SecretDocument` which wraps the DER document in case of success.
+    fn to_pkcs8_der(&self) -> pkcs8::Result<pkcs8::SecretDocument> {
+        let decap_bytes = self.as_bytes();
+        let decap_octets_ref = OctetStringRef::new(&decap_bytes)?;
+        let private_key = pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, decap_octets_ref);
+        pkcs8::SecretDocument::encode_msg(&private_key).map_err(pkcs8::Error::Asn1)
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> TryFrom<pkcs8::PrivateKeyInfoRef<'_>> for DecapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Error = pkcs8::spki::Error;
+
+    /// Deserialize the decapsulation key from DER format found in `spki.private_key`.
+    /// Returns a `DecapsulationKey` containing `dk_{pke}`, `ek`, and `z` in case of success.
+    fn try_from(private_key_info_ref: pkcs8::PrivateKeyInfoRef<'_>) -> Result<Self, Self::Error> {
+        if private_key_info_ref.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
+            return Err(pkcs8::spki::Error::OidUnknown {
+                oid: P::ALGORITHM_IDENTIFIER.oid,
+            });
+        }
+
+        let arr = Encoded::<Self>::try_from(private_key_info_ref.private_key.as_bytes())
+            .map_err(|_| pkcs8::Error::KeyMalformed)?;
+
+        Ok(Self::from_bytes(&arr))
     }
 }
 
