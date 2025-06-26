@@ -257,6 +257,15 @@ pub fn generate_key_pair<R: CryptoRng + ?Sized>(
     (sk, pk)
 }
 
+/// Generate a X-Wing key pair deterministically.
+pub fn generate_key_pair_derand(
+    sk: [u8; DECAPSULATION_KEY_SIZE],
+) -> (DecapsulationKey, EncapsulationKey) {
+    let sk = DecapsulationKey::generate_derand(sk);
+    let pk = sk.encapsulation_key();
+    (sk, pk)
+}
+
 fn combiner(
     ss_m: &B32,
     ss_x: &x25519_dalek::SharedSecret,
@@ -353,8 +362,7 @@ mod tests {
     }
 
     fn run_test(test_vector: TestVector) {
-        let mut seed = SeedRng::new(test_vector.seed);
-        let (sk, pk) = generate_key_pair(&mut seed);
+        let (sk, pk) = generate_key_pair_derand(test_vector.seed.try_into().unwrap());
 
         assert_eq!(sk.as_bytes(), &test_vector.sk);
         assert_eq!(&pk.to_bytes(), test_vector.pk.as_slice());
