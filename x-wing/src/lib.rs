@@ -158,6 +158,11 @@ impl DecapsulationKey {
         DecapsulationKey { sk }
     }
 
+    /// Deterministically generate a new `DecapsulationKey`
+    pub fn generate_derand(sk: [u8; DECAPSULATION_KEY_SIZE]) -> DecapsulationKey {
+        DecapsulationKey { sk }
+    }
+
     /// Provide the matching `EncapsulationKey`.
     #[must_use]
     pub fn encapsulation_key(&self) -> EncapsulationKey {
