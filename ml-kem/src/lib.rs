@@ -310,7 +310,7 @@ mod test {
             let serialized_document = der_document.as_bytes();
 
             // deserialize encapsulation key from DER document
-            let parsed = der::Document::from_der(&serialized_document).unwrap();
+            let parsed = der::Document::from_der(serialized_document).unwrap();
             assert_eq!(parsed.len(), der::Length::new(expected_encaps_len));
 
             // verify that original encapsulation key corresponds to deserialized encapsulation key
@@ -328,7 +328,7 @@ mod test {
             let serialized_document = der_document.as_bytes();
 
             // deserialize decapsulation key from DER document
-            let parsed = der::SecretDocument::from_pkcs8_der(&serialized_document).unwrap();
+            let parsed = der::SecretDocument::from_pkcs8_der(serialized_document).unwrap();
             assert_eq!(parsed.len(), der::Length::new(expected_decaps_len));
 
             // verify that original decapsulation key corresponds to deserialized decapsulation key
