@@ -288,14 +288,14 @@ mod test {
     }
 
     #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-    use pkcs8::{EncodePrivateKey, EncodePublicKey};
+    use pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
 
     #[cfg(all(feature = "pkcs8", feature = "alloc"))]
     fn der_serialization_and_deserialization<K>(expected_encaps_len: u16, expected_decaps_len: u16)
     where
         K: KemCore,
-        K::EncapsulationKey: EncodePublicKey,
-        K::DecapsulationKey: EncodePrivateKey,
+        K::EncapsulationKey: EncodePublicKey + DecodePublicKey,
+        K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey,
     {
         use super::pkcs8::{EncodePrivateKey, PrivateKeyInfoOwned};
         use super::pkcs8::{EncodePublicKey, SubjectPublicKeyInfoRef};
@@ -304,7 +304,7 @@ mod test {
         let mut rng = rand::rng();
         let (decaps_key, encaps_key) = K::generate(&mut rng);
 
-        // TEST: serialize encapsulation key into DER document
+        // TEST: (de)serialize encapsulation key into DER document
         {
             let der_document = encaps_key.to_public_key_der().unwrap();
             let serialized_document = der_document.as_bytes();
@@ -321,9 +321,20 @@ mod test {
             );
         }
 
-        // TEST: serialize decapsulation key into DER document
+        // TEST: (de)serialize encapsulation key into DER document with the blanket implementation for DecodePublicKey
         {
-            use pkcs8::DecodePrivateKey;
+            let der_document = encaps_key.to_public_key_der().unwrap();
+            let serialized_document = der_document.as_bytes();
+
+            // deserialize encapsulation key from DER document
+            let parsed = K::EncapsulationKey::from_public_key_der(serialized_document).unwrap();
+
+            // verify that original encapsulation key corresponds to deserialized encapsulation key
+            assert_eq!(parsed, encaps_key);
+        }
+
+        // TEST: (de)serialize decapsulation key into DER document
+        {
             let der_document = decaps_key.to_pkcs8_der().unwrap();
             let serialized_document = der_document.as_bytes();
 
@@ -337,6 +348,18 @@ mod test {
                 decaps_key.as_bytes().as_slice(),
                 priv_key.private_key.as_bytes()
             );
+        }
+
+        // TEST: (de)serialize decapsulation key into DER document with the blanket implementation for DecodePrivateKey
+        {
+            let der_document = decaps_key.to_pkcs8_der().unwrap();
+            let serialized_document = der_document.as_bytes();
+
+            // deserialize decapsulation key from DER document
+            let parsed = K::DecapsulationKey::from_pkcs8_der(serialized_document).unwrap();
+
+            // verify that original decapsulation key corresponds to deserialized decapsulation key
+            assert_eq!(parsed, decaps_key);
         }
     }
 
