@@ -352,15 +352,15 @@ impl<P> TryFrom<pkcs8::PrivateKeyInfoRef<'_>> for DecapsulationKey<P>
 where
     P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
 {
-    type Error = pkcs8::spki::Error;
+    type Error = pkcs8::Error;
 
     /// Deserialize the decapsulation key from DER format found in `spki.private_key`.
     /// Returns a `DecapsulationKey` containing `dk_{pke}`, `ek`, and `z` in case of success.
     fn try_from(private_key_info_ref: pkcs8::PrivateKeyInfoRef<'_>) -> Result<Self, Self::Error> {
         if private_key_info_ref.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
-            return Err(pkcs8::spki::Error::OidUnknown {
+            return Err(pkcs8::Error::PublicKey(pkcs8::spki::Error::OidUnknown {
                 oid: P::ALGORITHM_IDENTIFIER.oid,
-            });
+            }));
         }
 
         let arr = Encoded::<Self>::try_from(private_key_info_ref.private_key.as_bytes())
