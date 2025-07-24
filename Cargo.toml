@@ -11,7 +11,4 @@ members = [
 debug = true
 
 [patch.crates-io]
-curve25519-dalek = { git = "https://github.com/baloo/curve25519-dalek.git", branch = "baloo/rand-0.9" }
-x25519-dalek     = { git = "https://github.com/baloo/curve25519-dalek.git", branch = "baloo/rand-0.9" }
-
 kem = { git = "https://github.com/RustCrypto/traits.git" }
