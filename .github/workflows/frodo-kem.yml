@@ -41,7 +41,7 @@ jobs:
           - ${{ needs.set-msrv.outputs.msrv }}
           - stable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -59,7 +59,7 @@ jobs:
           - ${{ needs.set-msrv.outputs.msrv }}
           - stable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -70,7 +70,7 @@ jobs:
   careful:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-careful
       - run: cargo careful test tests
@@ -88,7 +88,7 @@ jobs:
 #            rust: stable
 #    runs-on: ubuntu-latest
 #    steps:
-#      - uses: actions/checkout@v4
+#      - uses: actions/checkout@v5
 #      - uses: dtolnay/rust-toolchain@master
 #        with:
 #          toolchain: ${{ matrix.rust }}
