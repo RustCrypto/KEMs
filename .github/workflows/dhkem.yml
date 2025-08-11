@@ -47,7 +47,7 @@ jobs:
           - thumbv7em-none-eabi
           - wasm32-unknown-unknown
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: RustCrypto/actions/cargo-cache@master
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -64,7 +64,7 @@ jobs:
           - ${{needs.set-msrv.outputs.msrv}}
           - stable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: RustCrypto/actions/cargo-cache@master
       - uses: dtolnay/rust-toolchain@master
         with:
@@ -84,7 +84,7 @@ jobs:
             rust: stable
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
