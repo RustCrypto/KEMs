@@ -266,6 +266,17 @@ pub type MlKem1024 = kem::Kem<MlKem1024Params>;
 #[cfg(test)]
 mod test {
     use super::*;
+    #[cfg(all(feature = "pkcs8", feature = "alloc", feature = "pem"))]
+    use crate::kem::PrivateKeyBothChoice;
+    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
+    use crate::kem::PrivateKeyChoice;
+    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
+    use pkcs8::der::{self, Decode};
+    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
+    use pkcs8::{
+        DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, PrivateKeyInfoRef,
+        SubjectPublicKeyInfoRef,
+    };
 
     fn round_trip_test<K>()
     where
@@ -288,19 +299,12 @@ mod test {
     }
 
     #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-    use pkcs8::{DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey};
-
-    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-    fn der_serialization_and_deserialization<K>(expected_encaps_len: u16, expected_decaps_len: u16)
+    fn der_serialization_and_deserialization<K>(expected_encaps_len: u32, expected_decaps_len: u32)
     where
         K: KemCore,
         K::EncapsulationKey: EncodePublicKey + DecodePublicKey,
         K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey,
     {
-        use super::pkcs8::{EncodePrivateKey, PrivateKeyInfoOwned};
-        use super::pkcs8::{EncodePublicKey, SubjectPublicKeyInfoRef};
-        use pkcs8::der::{self, Decode};
-
         let mut rng = rand::rng();
         let (decaps_key, encaps_key) = K::generate(&mut rng);
 
@@ -339,15 +343,18 @@ mod test {
             let serialized_document = der_document.as_bytes();
 
             // deserialize decapsulation key from DER document
-            let parsed = der::SecretDocument::from_pkcs8_der(serialized_document).unwrap();
-            assert_eq!(parsed.len(), der::Length::new(expected_decaps_len));
+            let secret_document = der::SecretDocument::from_pkcs8_der(serialized_document).unwrap();
+            assert_eq!(secret_document.len(), der::Length::new(expected_decaps_len));
+            assert_eq!(secret_document.as_bytes(), der_document.as_bytes());
 
             // verify that original decapsulation key corresponds to deserialized decapsulation key
-            let priv_key = parsed.decode_msg::<PrivateKeyInfoOwned>().unwrap();
-            assert_eq!(
-                decaps_key.as_bytes().as_slice(),
-                priv_key.private_key.as_bytes()
-            );
+            let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
+
+            if let Ok(PrivateKeyChoice::Expanded(expanded)) = priv_key.private_key.decode_into() {
+                assert_eq!(decaps_key.as_bytes().as_slice(), expanded.as_bytes());
+            } else {
+                panic!("unexpected PrivateKey serialization");
+            }
         }
 
         // TEST: (de)serialize decapsulation key into DER document with the blanket implementation for DecodePrivateKey
@@ -365,13 +372,179 @@ mod test {
 
     #[cfg(all(feature = "pkcs8", feature = "alloc"))]
     #[test]
-    fn pkcs8_round_trip() {
+    fn pkcs8_serialize_and_deserialize_round_trip() {
         // NOTE: standardized encapsulation key sizes for MlKem{512,768,1024} are {800,1184,1568} bytes respectively.
         //       DER serialization adds 22 bytes. Thus we expect a length of {822,1206,1590} respectively.
         // NOTE: standardized decapsulation key sizes for MlKem{512,768,1024} are {1632,2400,3168} bytes respectively.
-        //       DER serialization adds 24 bytes. Thus we expect a length of {1656,2424,3192} respectively.
-        der_serialization_and_deserialization::<MlKem512>(822, 1656);
-        der_serialization_and_deserialization::<MlKem768>(1206, 2424);
-        der_serialization_and_deserialization::<MlKem1024>(1590, 3192);
+        //       DER serialization adds 28 bytes. Thus we expect a length of {1660,2428,3196} respectively.
+        der_serialization_and_deserialization::<MlKem512>(822, 1660);
+        der_serialization_and_deserialization::<MlKem768>(1206, 2428);
+        der_serialization_and_deserialization::<MlKem1024>(1590, 3196);
+    }
+
+    #[cfg(all(feature = "pkcs8", feature = "alloc", feature = "pem"))]
+    fn compare_with_reference_keys<K>(variant: usize, ref_pub_key_pem: &str, ref_priv_key_pem: &str)
+    where
+        K: KemCore,
+        K::EncapsulationKey: EncodePublicKey,
+        K::DecapsulationKey: EncodePrivateKey,
+    {
+        // auxiliary RNG implementation for a static seed
+        struct SeedBasedRng {
+            index: usize,
+            seed: [u8; SEED_LEN],
+        }
+
+        impl rand_core::RngCore for SeedBasedRng {
+            fn next_u32(&mut self) -> u32 {
+                let mut buf = [0u8; 4];
+                self.fill_bytes(&mut buf);
+                u32::from_be_bytes(buf)
+            }
+
+            fn next_u64(&mut self) -> u64 {
+                let mut buf = [0u8; 8];
+                self.fill_bytes(&mut buf);
+                u64::from_be_bytes(buf)
+            }
+
+            fn fill_bytes(&mut self, dst: &mut [u8]) {
+                for item in dst {
+                    *item = self.seed[self.index];
+                    self.index = self.index.wrapping_add(1) & ((1 << SEED_LEN.ilog2()) - 1);
+                }
+            }
+        }
+
+        impl CryptoRng for SeedBasedRng {}
+
+        const SEED_LEN: usize = 64;
+        assert_eq!(SEED_LEN & (SEED_LEN - 1), 0);
+
+        let seed: [u8; SEED_LEN] = core::array::from_fn(|i| u8::try_from(i).unwrap());
+        let mut rng = SeedBasedRng { seed, index: 0 };
+        let (decaps_key, encaps_key) = K::generate(&mut rng);
+
+        let gen_pub_key_pem = encaps_key
+            .to_public_key_pem(pkcs8::LineEnding::LF)
+            .expect("serialization works");
+        let gen_priv_key_pem = decaps_key
+            .to_pkcs8_pem(pkcs8::LineEnding::LF)
+            .expect("serialization works");
+
+        {
+            // TEST: DER document of public key must match
+            let gen_pub_key_der = encaps_key.to_public_key_der().expect("serialization works");
+            let ref_pub_key_der = der::Document::from_pem(ref_pub_key_pem)
+                .expect("can read pubkey PEM document")
+                .1;
+            assert_eq!(gen_pub_key_der, ref_pub_key_der);
+        }
+
+        // TEST: PEM document of public key must match
+        assert_eq!(
+            gen_pub_key_pem, ref_pub_key_pem,
+            "key generated from static seed and reference public key for ML-KEM-{variant} do not match"
+        );
+        // TEST: PEM document of private key must match
+        assert_eq!(
+            gen_priv_key_pem.as_str(),
+            ref_priv_key_pem,
+            "key generated from static seed and reference private key for ML-KEM-{variant} do not match"
+        );
+    }
+
+    #[cfg(all(feature = "pkcs8", feature = "alloc", feature = "pem"))]
+    #[test]
+    fn pkcs8_generate_same_keys_like_golang_for_static_seed() {
+        // NOTE: test vector files come from https://github.com/lamps-wg/kyber-certificates/tree/624bcaa4bd9ea9e72de5b51d81ce2d90cbd7e54a
+        const PEM_512_PUB: &str = include_str!("../tests/examples/ML-KEM-512.pub");
+        const PEM_768_PUB: &str = include_str!("../tests/examples/ML-KEM-768.pub");
+        const PEM_1024_PUB: &str = include_str!("../tests/examples/ML-KEM-1024.pub");
+        const PEM_512_PRIV: &str = include_str!("../tests/examples/ML-KEM-512-expanded.priv");
+        const PEM_768_PRIV: &str = include_str!("../tests/examples/ML-KEM-768-expanded.priv");
+        const PEM_1024_PRIV: &str = include_str!("../tests/examples/ML-KEM-1024-expanded.priv");
+
+        compare_with_reference_keys::<MlKem512>(512, PEM_512_PUB, PEM_512_PRIV);
+        compare_with_reference_keys::<MlKem768>(768, PEM_768_PUB, PEM_768_PRIV);
+        compare_with_reference_keys::<MlKem1024>(1024, PEM_1024_PUB, PEM_1024_PRIV);
+    }
+
+    #[cfg(all(feature = "pkcs8", feature = "alloc", feature = "pem"))]
+    #[test]
+    fn pkcs8_can_read_reference_private_keys() {
+        // NOTE: test vector files come from https://github.com/lamps-wg/kyber-certificates/tree/624bcaa4bd9ea9e72de5b51d81ce2d90cbd7e54a
+        const PEM_512_SEED: &str = include_str!("../tests/examples/ML-KEM-512-seed.priv");
+        const PEM_512_EXPANDED: &str = include_str!("../tests/examples/ML-KEM-512-expanded.priv");
+        const PEM_512_BOTH: &str = include_str!("../tests/examples/ML-KEM-512-both.priv");
+        const PEM_768_SEED: &str = include_str!("../tests/examples/ML-KEM-768-seed.priv");
+        const PEM_768_EXPANDED: &str = include_str!("../tests/examples/ML-KEM-768-expanded.priv");
+        const PEM_768_BOTH: &str = include_str!("../tests/examples/ML-KEM-768-both.priv");
+        const PEM_1024_SEED: &str = include_str!("../tests/examples/ML-KEM-1024-seed.priv");
+        const PEM_1024_EXPANDED: &str = include_str!("../tests/examples/ML-KEM-1024-expanded.priv");
+        const PEM_1024_BOTH: &str = include_str!("../tests/examples/ML-KEM-1024-both.priv");
+
+        fn expect_seed_bytes(ref_pem: &str, expected_seed_prefix: &[u8]) {
+            let length = expected_seed_prefix.len();
+            let secret_document = der::SecretDocument::from_pkcs8_pem(ref_pem)
+                .expect("can read reference PEM private key file");
+            let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
+
+            let given_prefix = match priv_key
+                .private_key
+                .decode_into()
+                .expect("could not read internal structure of PEM private key")
+            {
+                PrivateKeyChoice::Seed(seed)
+                | PrivateKeyChoice::Both(PrivateKeyBothChoice { seed, .. }) => {
+                    &seed.as_bytes()[0..length]
+                }
+                PrivateKeyChoice::Expanded(_) => return,
+            };
+
+            assert_eq!(given_prefix, expected_seed_prefix);
+        }
+
+        fn expect_expanded_bytes(ref_pem: &str, expected_expanded_prefix: &[u8]) {
+            let length = expected_expanded_prefix.len();
+            let secret_document = der::SecretDocument::from_pkcs8_pem(ref_pem)
+                .expect("can read reference PEM private key file");
+            let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
+
+            let given_prefix = match priv_key
+                .private_key
+                .decode_into()
+                .expect("could not read internal expanded structure of PEM private key")
+            {
+                PrivateKeyChoice::Seed(_) => return,
+                PrivateKeyChoice::Expanded(expanded)
+                | PrivateKeyChoice::Both(PrivateKeyBothChoice { expanded, .. }) => {
+                    &expanded.as_bytes()[0..length]
+                }
+            };
+
+            assert_eq!(given_prefix, expected_expanded_prefix);
+        }
+
+        const STATIC_SEED_PREFIX: &[u8] =
+            &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
+        const EXPANDED_512_KEY_PREFIX: &[u8] = &[0x70, 0x55, 0x4f, 0xd4, 0x36, 0x34, 0x4f, 0x27];
+        const EXPANDED_768_KEY_PREFIX: &[u8] = &[0x27, 0xd2, 0xa7, 0x7f, 0x33, 0x75, 0x6f, 0x61];
+        const EXPANDED_1024_KEY_PREFIX: &[u8] = &[0xf7, 0x7b, 0x7f, 0x6b, 0x15, 0xc7, 0x3f, 0xe2];
+
+        expect_seed_bytes(PEM_512_SEED, STATIC_SEED_PREFIX);
+        expect_expanded_bytes(PEM_512_EXPANDED, EXPANDED_512_KEY_PREFIX);
+        expect_seed_bytes(PEM_512_BOTH, STATIC_SEED_PREFIX);
+        expect_expanded_bytes(PEM_512_BOTH, EXPANDED_512_KEY_PREFIX);
+
+        expect_seed_bytes(PEM_768_SEED, STATIC_SEED_PREFIX);
+        expect_expanded_bytes(PEM_768_EXPANDED, EXPANDED_768_KEY_PREFIX);
+        expect_seed_bytes(PEM_768_BOTH, STATIC_SEED_PREFIX);
+        expect_expanded_bytes(PEM_768_BOTH, EXPANDED_768_KEY_PREFIX);
+
+        expect_seed_bytes(PEM_1024_SEED, STATIC_SEED_PREFIX);
+        expect_expanded_bytes(PEM_1024_EXPANDED, EXPANDED_1024_KEY_PREFIX);
+        expect_seed_bytes(PEM_1024_BOTH, STATIC_SEED_PREFIX);
+        expect_expanded_bytes(PEM_1024_BOTH, EXPANDED_1024_KEY_PREFIX);
     }
 }
