@@ -20,6 +20,7 @@ deterministic = [] # Expose deterministic generation and encapsulation functions
 alloc = ["pkcs8?/alloc"]
 zeroize = ["dep:zeroize"]
 pkcs8 = ["dep:const-oid", "dep:pkcs8"]
+pem = ["pkcs8?/pem"]
 
 [dependencies]
 kem = "0.3.0-pre.0"
@@ -29,6 +30,7 @@ sha3 = { version = "0.11.0-rc.0", default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 pkcs8 = { version = "0.11.0-rc.4", optional = true, default-features = false }
 const-oid = { version = "0.10.1", optional = true, features = ["db"], default-features = false }
+der = { version = "0.8.0-rc.0", features = ["derive"] }
 
 [dev-dependencies]
 criterion = "0.5.1"

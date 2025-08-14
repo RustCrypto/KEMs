@@ -401,7 +401,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7050e8041c28720851f7db83183195b6acf375bb7bb28e3b86f0fe6cbd69459d"
 dependencies = [
  "const-oid",
+ "der_derive",
+ "pem-rfc7468",
  "zeroize",
+]
+
+[[package]]
+name = "der_derive"
+version = "0.8.0-rc.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "14bfffadecb79dfde429f5dcd7553780c2cea5f7d0e72ad7c37a74f1ef79230a"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -856,6 +869,7 @@ version = "0.3.0-pre"
 dependencies = [
  "criterion",
  "crypto-common",
+ "der",
  "hex",
  "hex-literal",
  "hybrid-array",
@@ -971,6 +985,15 @@ dependencies = [
  "elliptic-curve",
  "primefield",
  "primeorder",
+]
+
+[[package]]
+name = "pem-rfc7468"
+version = "1.0.0-rc.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8e58fab693c712c0d4e88f8eb3087b6521d060bcaf76aeb20cb192d809115ba"
+dependencies = [
+ "base64ct",
 ]
 
 [[package]]
