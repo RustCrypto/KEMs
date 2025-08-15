@@ -18,12 +18,17 @@ pub use ::kem::{Decapsulate, Encapsulate};
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
 
+/// Derived parameters relevant to ML-KEM
+pub trait Params: KemParams {}
+
+impl<K: KemParams> Params for K {}
+
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DecapsulationKey<P>
 where
-    P: KemParams,
+    P: Params,
 {
     dk_pke: DecryptionKey<P>,
     ek: EncapsulationKey<P>,
@@ -147,7 +152,7 @@ where
 #[derive(Clone, Debug, PartialEq)]
 pub struct EncapsulationKey<P>
 where
-    P: KemParams,
+    P: Params,
 {
     ek_pke: EncryptionKey<P>,
     h: B32,
@@ -219,7 +224,7 @@ where
 #[derive(Clone)]
 pub struct Kem<P>
 where
-    P: KemParams,
+    P: Params,
 {
     _phantom: PhantomData<P>,
 }
@@ -261,7 +266,7 @@ mod test {
 
     fn round_trip_test<P>()
     where
-        P: KemParams,
+        P: Params,
     {
         let mut rng = rand::rng();
 
@@ -282,7 +287,7 @@ mod test {
 
     fn codec_test<P>()
     where
-        P: KemParams,
+        P: Params,
     {
         let mut rng = rand::rng();
         let dk_original = DecapsulationKey::<P>::generate(&mut rng);
