@@ -18,6 +18,19 @@ pub use ::kem::{Decapsulate, Encapsulate};
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
 
+#[cfg(feature = "pkcs8")]
+use hybrid_array::Array;
+#[cfg(feature = "pkcs8")]
+use pkcs8::der::AnyRef;
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+use pkcs8::der::Encode;
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+use pkcs8::der::asn1::BitStringRef;
+#[cfg(feature = "pkcs8")]
+use pkcs8::der::asn1::OctetStringRef;
+#[cfg(feature = "pkcs8")]
+use pkcs8::spki::AssociatedAlgorithmIdentifier;
+
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
 #[derive(Clone, Debug, PartialEq)]
@@ -250,6 +263,190 @@ where
         let dk = Self::DecapsulationKey::generate_deterministic(d, z);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
+    }
+}
+
+/// The serialization of the private key is a choice between three different formats
+/// [according to PKCS#8](https://lamps-wg.github.io/kyber-certificates/draft-ietf-lamps-kyber-certificates.html#name-private-key-format).
+///
+/// “For ML-KEM private keys, the privateKey field in `OneAsymmetricKey`
+/// contains one of the following DER-encoded `CHOICE` structures.
+/// The seed format is a fixed 64-byte `OCTET STRING` (66 bytes total
+/// with the 0x8040 tag and length) for all security levels,
+/// while the expandedKey and both formats vary in size by security level”
+#[cfg(feature = "pkcs8")]
+#[derive(Clone, Debug, pkcs8::der::Choice)]
+pub enum PrivateKeyChoice<'o> {
+    /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
+    #[asn1(tag_mode = "IMPLICIT", context_specific = "0")]
+    Seed(OctetStringRef<'o>),
+    /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
+    Expanded(OctetStringRef<'o>),
+    /// In this setting both key formats are provided in a `PrivateKeyBothChoice` `struct`
+    Both(PrivateKeyBothChoice<'o>),
+}
+
+/// The private key's `Both` variant contains the seed as well as the expanded key.
+#[cfg(feature = "pkcs8")]
+#[derive(Clone, Debug, pkcs8::der::Sequence)]
+pub struct PrivateKeyBothChoice<'o> {
+    /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
+    pub seed: OctetStringRef<'o>,
+    /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
+    pub expanded: OctetStringRef<'o>,
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> AssociatedAlgorithmIdentifier for EncapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Params = P::Params;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        P::ALGORITHM_IDENTIFIER;
+}
+
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+impl<P> pkcs8::EncodePublicKey for EncapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    /// Serialize the given `EncapsulationKey` into DER format.
+    /// Returns a `Document` which wraps the DER document in case of success.
+    fn to_public_key_der(&self) -> pkcs8::spki::Result<pkcs8::Document> {
+        let public_key = self.as_bytes();
+        let subject_public_key = BitStringRef::new(0, &public_key)?;
+
+        pkcs8::SubjectPublicKeyInfo {
+            algorithm: P::ALGORITHM_IDENTIFIER,
+            subject_public_key,
+        }
+        .try_into()
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> TryFrom<pkcs8::SubjectPublicKeyInfoRef<'_>> for EncapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Error = pkcs8::spki::Error;
+
+    /// Deserialize the encapsulation key from DER format found in `spki.subject_public_key`.
+    /// Returns an `EncapsulationKey` containing `ek_{pke}` and `h` in case of success.
+    fn try_from(spki: pkcs8::SubjectPublicKeyInfoRef<'_>) -> Result<Self, Self::Error> {
+        if spki.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
+            return Err(pkcs8::spki::Error::OidUnknown {
+                oid: P::ALGORITHM_IDENTIFIER.oid,
+            });
+        }
+
+        let bitstring_of_encapsulation_key = spki.subject_public_key;
+        let enc_key = match bitstring_of_encapsulation_key.as_bytes() {
+            Some(bytes) => {
+                let arr: Array<u8, EncapsulationKeySize<P>> = match bytes.try_into() {
+                    Ok(array) => array,
+                    Err(_) => return Err(pkcs8::spki::Error::KeyMalformed),
+                };
+                EncryptionKey::from_bytes(&arr)
+            }
+            None => return Err(pkcs8::spki::Error::KeyMalformed),
+        };
+
+        Ok(Self::new(enc_key))
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> AssociatedAlgorithmIdentifier for DecapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Params = P::Params;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        P::ALGORITHM_IDENTIFIER;
+}
+
+#[cfg(all(feature = "pkcs8", feature = "alloc"))]
+impl<P> pkcs8::EncodePrivateKey for DecapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    /// Serialize the given `DecapsulationKey` into DER format.
+    /// Returns a `SecretDocument` which wraps the DER document in case of success.
+    fn to_pkcs8_der(&self) -> pkcs8::Result<pkcs8::SecretDocument> {
+        let decaps_key_bytes: Array<u8, <P as KemParams>::DecapsulationKeySize> = self.as_bytes();
+
+        // NOTE: “The seed format is RECOMMENDED as it efficiently stores both the private and public key”,
+        //       but this is impossible with the definition of the type `DecapsulationKey`; see issue 53.
+        let pk_key_der =
+            PrivateKeyChoice::Expanded(OctetStringRef::new(decaps_key_bytes.as_slice())?)
+                .to_der()?;
+        let pk_key_octetstr: OctetStringRef<'_> = OctetStringRef::new(&pk_key_der)?;
+
+        let private_key_info =
+            pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, pk_key_octetstr);
+        pkcs8::SecretDocument::encode_msg(&private_key_info).map_err(pkcs8::Error::Asn1)
+    }
+}
+
+#[cfg(feature = "pkcs8")]
+impl<P> TryFrom<pkcs8::PrivateKeyInfoRef<'_>> for DecapsulationKey<P>
+where
+    P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
+{
+    type Error = pkcs8::Error;
+
+    /// Deserialize the decapsulation key from DER format found in `spki.private_key`.
+    /// Returns a `DecapsulationKey` containing `dk_{pke}`, `ek`, and `z` in case of success.
+    fn try_from(private_key_info_ref: pkcs8::PrivateKeyInfoRef<'_>) -> Result<Self, Self::Error> {
+        if private_key_info_ref.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
+            return Err(pkcs8::Error::PublicKey(pkcs8::spki::Error::OidUnknown {
+                oid: P::ALGORITHM_IDENTIFIER.oid,
+            }));
+        }
+
+        let seed_to_key = |seed: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
+            let (head, tail) = seed.as_bytes().split_at(32);
+            let d: &B32 = &B32::try_from_iter(head.iter().copied()).unwrap();
+            let z: &B32 = &B32::try_from_iter(tail.iter().copied()).unwrap();
+            Ok(DecapsulationKey::generate_deterministic(d, z))
+        };
+
+        let expanded_to_key =
+            |expanded: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
+                let bytes = expanded.as_bytes();
+                let buffer = Array::<u8, P::DecapsulationKeySize>::from_fn(|idx| bytes[idx]);
+                let array =
+                    Encoded::<Self>::try_from(buffer).map_err(|_| pkcs8::Error::KeyMalformed)?;
+                Ok(Self::from_bytes(&array))
+            };
+
+        let decaps_key = match private_key_info_ref
+            .private_key
+            .decode_into::<PrivateKeyChoice>()
+        {
+            Ok(PrivateKeyChoice::Seed(seed)) => seed_to_key(seed)?,
+            Ok(PrivateKeyChoice::Expanded(expanded)) => expanded_to_key(expanded)?,
+            Ok(PrivateKeyChoice::Both(PrivateKeyBothChoice { seed, expanded })) => {
+                let computed_decaps_key = seed_to_key(seed)?;
+                let given_decaps_key = expanded_to_key(expanded)?;
+
+                // “When receiving a private key that contains both the seed and the expandedKey,
+                // the recipient SHOULD perform a seed consistency check to ensure
+                // that the sender properly generated the private key”
+                if computed_decaps_key != given_decaps_key {
+                    return Err(pkcs8::Error::KeyMalformed);
+                }
+
+                computed_decaps_key
+            }
+            Err(_) => return Err(pkcs8::Error::KeyMalformed),
+        };
+
+        Ok(decaps_key)
     }
 }
 
