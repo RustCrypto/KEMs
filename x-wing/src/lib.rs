@@ -28,9 +28,9 @@
 
 use core::convert::Infallible;
 
-use kem::{Decapsulate, Encapsulate};
+pub use kem::{self, Decapsulate, Encapsulate};
 use ml_kem::array::ArrayN;
-use ml_kem::{B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params, kem};
+use ml_kem::{B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params};
 use rand_core::CryptoRng;
 #[cfg(feature = "os_rng")]
 use rand_core::{OsRng, TryRngCore};
@@ -40,8 +40,8 @@ use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-type MlKem768DecapsulationKey = kem::DecapsulationKey<MlKem768Params>;
-type MlKem768EncapsulationKey = kem::EncapsulationKey<MlKem768Params>;
+type MlKem768DecapsulationKey = ml_kem::kem::DecapsulationKey<MlKem768Params>;
+type MlKem768EncapsulationKey = ml_kem::kem::EncapsulationKey<MlKem768Params>;
 
 const X_WING_LABEL: &[u8; 6] = br"\.//^\";
 
