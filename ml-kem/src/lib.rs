@@ -81,10 +81,7 @@ pub use util::B32;
 pub use param::{ArraySize, ParameterSet};
 
 #[cfg(feature = "pkcs8")]
-pub use pkcs8;
-
-#[cfg(feature = "pkcs8")]
-use pkcs8::AssociatedOid;
+pub use pkcs8::{self, AssociatedOid};
 
 /// An object that knows what size it is
 pub trait EncodedSizeUser {
@@ -269,13 +266,15 @@ mod test {
     #[cfg(all(feature = "pkcs8", feature = "alloc", feature = "pem"))]
     use crate::kem::PrivateKeyBothChoice;
     #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-    use crate::kem::PrivateKeyChoice;
-    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-    use pkcs8::der::{self, Decode};
-    #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-    use pkcs8::{
-        DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, PrivateKeyInfoRef,
-        SubjectPublicKeyInfoRef,
+    use {
+        crate::kem::PrivateKeyChoice,
+        pkcs8::{
+            der::{self, Decode},
+            {
+                DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey,
+                PrivateKeyInfoRef, SubjectPublicKeyInfoRef,
+            },
+        },
     };
 
     fn round_trip_test<K>()

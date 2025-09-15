@@ -18,18 +18,16 @@ pub use ::kem::{Decapsulate, Encapsulate};
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
 
-#[cfg(feature = "pkcs8")]
-use hybrid_array::Array;
-#[cfg(feature = "pkcs8")]
-use pkcs8::der::AnyRef;
 #[cfg(all(feature = "pkcs8", feature = "alloc"))]
-use pkcs8::der::Encode;
-#[cfg(all(feature = "pkcs8", feature = "alloc"))]
-use pkcs8::der::asn1::BitStringRef;
+use pkcs8::der::{Encode, asn1::BitStringRef};
 #[cfg(feature = "pkcs8")]
-use pkcs8::der::asn1::OctetStringRef;
-#[cfg(feature = "pkcs8")]
-use pkcs8::spki::AssociatedAlgorithmIdentifier;
+use {
+    hybrid_array::Array,
+    pkcs8::{
+        der::{AnyRef, asn1::OctetStringRef},
+        spki::AssociatedAlgorithmIdentifier,
+    },
+};
 
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
