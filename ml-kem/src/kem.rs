@@ -408,17 +408,16 @@ where
 
         let seed_to_key = |seed: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
             let (head, tail) = seed.as_bytes().split_at(32);
-            let d: &B32 = &B32::try_from_iter(head.iter().copied()).unwrap();
-            let z: &B32 = &B32::try_from_iter(tail.iter().copied()).unwrap();
-            Ok(DecapsulationKey::generate_deterministic(d, z))
+            let d: &B32 = head.try_into().map_err(|_| pkcs8::Error::KeyMalformed)?;
+            let z: &B32 = tail.try_into().map_err(|_| pkcs8::Error::KeyMalformed)?;
+            Ok(Self::generate_deterministic(d, z))
         };
 
         let expanded_to_key =
             |expanded: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
                 let bytes = expanded.as_bytes();
-                let buffer = Array::<u8, P::DecapsulationKeySize>::from_fn(|idx| bytes[idx]);
                 let array =
-                    Encoded::<Self>::try_from(buffer).map_err(|_| pkcs8::Error::KeyMalformed)?;
+                    Encoded::<Self>::try_from(bytes).map_err(|_| pkcs8::Error::KeyMalformed)?;
                 Ok(Self::from_bytes(&array))
             };
 
