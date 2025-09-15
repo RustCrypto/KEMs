@@ -276,7 +276,7 @@ where
 /// while the expandedKey and both formats vary in size by security level”
 #[cfg(feature = "pkcs8")]
 #[derive(Clone, Debug, pkcs8::der::Choice)]
-pub enum PrivateKeyChoice<'o> {
+pub(crate) enum PrivateKeyChoice<'o> {
     /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
     #[asn1(tag_mode = "IMPLICIT", context_specific = "0")]
     Seed(OctetStringRef<'o>),
@@ -289,7 +289,7 @@ pub enum PrivateKeyChoice<'o> {
 /// The private key's `Both` variant contains the seed as well as the expanded key.
 #[cfg(feature = "pkcs8")]
 #[derive(Clone, Debug, pkcs8::der::Sequence)]
-pub struct PrivateKeyBothChoice<'o> {
+pub(crate) struct PrivateKeyBothChoice<'o> {
     /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
     pub seed: OctetStringRef<'o>,
     /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
