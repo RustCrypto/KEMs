@@ -31,13 +31,23 @@ where
 }
 
 #[cfg(feature = "zeroize")]
+impl<P> Zeroize for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn zeroize(&mut self) {
+        self.dk_pke.zeroize();
+        self.z.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
 impl<P> Drop for DecapsulationKey<P>
 where
     P: KemParams,
 {
     fn drop(&mut self) {
-        self.dk_pke.zeroize();
-        self.z.zeroize();
+        self.zeroize();
     }
 }
 
