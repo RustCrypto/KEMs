@@ -2,6 +2,7 @@ use core::convert::Infallible;
 use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
 use rand_core::CryptoRng;
+use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 use crate::crypto::{G, H, J, rand};
 use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
@@ -75,13 +76,6 @@ where
     }
 }
 
-// 0xff if x == y, 0x00 otherwise
-fn constant_time_eq(x: u8, y: u8) -> u8 {
-    let diff = x ^ y;
-    let is_zero = !diff & diff.wrapping_sub(1);
-    0u8.wrapping_sub(is_zero >> 7)
-}
-
 impl<P> ::kem::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
 where
     P: KemParams,
@@ -96,24 +90,11 @@ where
         let (Kp, rp) = G(&[&mp, &self.ek.h]);
         let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
         let cp = self.ek.ek_pke.encrypt(&mp, &rp);
-
-        // Constant-time version of:
-        //
-        // if cp == *ct {
-        //     Kp
-        // } else {
-        //     Kbar
-        // }
-        let equal = cp
-            .iter()
-            .zip(encapsulated_key.iter())
-            .map(|(&x, &y)| constant_time_eq(x, y))
-            .fold(0xff, |x, y| x & y);
-        Ok(Kp
-            .iter()
-            .zip(Kbar.iter())
-            .map(|(x, y)| (equal & x) | (!equal & y))
-            .collect())
+        Ok(B32::conditional_select(
+            &Kbar,
+            &Kp,
+            cp.ct_eq(encapsulated_key),
+        ))
     }
 }
 

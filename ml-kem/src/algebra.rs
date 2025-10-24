@@ -1,6 +1,7 @@
 use core::ops::{Add, Mul, Sub};
 use hybrid_array::{Array, typenum::U256};
 use sha3::digest::XofReader;
+use subtle::{Choice, ConstantTimeEq};
 
 use crate::crypto::{PRF, PrfOutput, XOF};
 use crate::encode::Encode;
@@ -16,6 +17,12 @@ pub type Integer = u16;
 /// can defer modular reductions.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct FieldElement(pub Integer);
+
+impl ConstantTimeEq for FieldElement {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
 
 #[cfg(feature = "zeroize")]
 impl Zeroize for FieldElement {
@@ -179,6 +186,12 @@ impl<K: ArraySize> PolynomialVector<K> {
 /// An element of the ring `T_q`, i.e., a tuple of 128 elements of the direct sum components of `T_q`.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NttPolynomial(pub Array<FieldElement, U256>);
+
+impl ConstantTimeEq for NttPolynomial {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
 
 #[cfg(feature = "zeroize")]
 impl Zeroize for NttPolynomial {
@@ -422,6 +435,12 @@ impl<K: ArraySize> NttVector<K> {
             let mut xof = XOF(rho, j.truncate(), i.truncate());
             NttPolynomial::sample_uniform(&mut xof)
         }))
+    }
+}
+
+impl<K: ArraySize> ConstantTimeEq for NttVector<K> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
     }
 }
 
