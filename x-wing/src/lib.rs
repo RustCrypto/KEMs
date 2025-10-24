@@ -180,7 +180,7 @@ impl DecapsulationKey {
 
         let d = read_from(&mut expanded).into();
         let z = read_from(&mut expanded).into();
-        let (sk_m, pk_m) = MlKem768::generate_deterministic(&d, &z);
+        let (sk_m, pk_m) = MlKem768::generate_deterministic(d, z);
 
         let sk_x = read_from(&mut expanded);
         let sk_x = StaticSecret::from(sk_x);
