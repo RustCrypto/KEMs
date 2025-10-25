@@ -406,20 +406,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7050e8041c28720851f7db83183195b6acf375bb7bb28e3b86f0fe6cbd69459d"
 dependencies = [
  "const-oid",
- "der_derive",
  "pem-rfc7468",
  "zeroize",
-]
-
-[[package]]
-name = "der_derive"
-version = "0.8.0-rc.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "be645fee2afe89d293b96c19e4456e6ac69520fc9c6b8a58298550138e361ffe"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
 ]
 
 [[package]]
@@ -875,7 +863,6 @@ version = "0.3.0-pre"
 dependencies = [
  "const-oid",
  "criterion",
- "der",
  "hex",
  "hex-literal",
  "hybrid-array",

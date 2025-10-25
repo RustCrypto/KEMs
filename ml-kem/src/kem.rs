@@ -140,8 +140,7 @@ where
     /// This value is key material. Please treat it with care.
     ///
     /// # Returns
-    /// - `Some` if the [`DecapsulationKey`] was initialized using `from_seed`, `generate`, or
-    ///   `generate_deterministic`
+    /// - `Some` if the [`DecapsulationKey`] was initialized using `from_seed` or `generate`.
     /// - `None` if the [`DecapsulationKey`] was initialized from the expanded form.
     #[inline]
     pub fn to_seed(&self) -> Option<Seed> {

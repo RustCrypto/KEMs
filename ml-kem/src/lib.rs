@@ -65,7 +65,6 @@ pub mod kem;
 /// Section 7. Parameter Sets
 mod param;
 
-/// PKCS#8 encoding support
 pub mod pkcs8;
 
 /// Trait definitions

@@ -2,19 +2,19 @@
 
 #![cfg(all(feature = "pkcs8", feature = "alloc"))]
 
-use {
-    ml_kem::{
-        EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed, pkcs8::PrivateKeyChoice,
+use ml_kem::{EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed};
+use pkcs8::{
+    DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, PrivateKeyInfoRef,
+    SubjectPublicKeyInfoRef,
+    der::{
+        self, Decode, SliceReader,
+        asn1::{ContextSpecific, OctetStringRef},
     },
-    pkcs8::{
-        der::{self, Decode},
-        {
-            DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey,
-            PrivateKeyInfoRef, SubjectPublicKeyInfoRef,
-        },
-    },
-    rand_core::CryptoRng,
 };
+use rand_core::CryptoRng;
+
+/// ML-KEM seed serialized as ASN.1.
+type SeedString<'o> = ContextSpecific<OctetStringRef<'o>>;
 
 fn der_serialization_and_deserialization<K>(expected_encaps_len: u32)
 where
@@ -66,14 +66,14 @@ where
         assert_eq!(secret_document.as_bytes(), der_document.as_bytes());
 
         // verify that original decapsulation key corresponds to deserialized decapsulation key
-        let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
+        let private_key_info = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
 
-        if let Ok(PrivateKeyChoice::Seed(seed)) = priv_key.private_key.decode_into() {
-            let seed = Seed::try_from(seed.as_bytes()).unwrap();
-            assert_eq!(decaps_key, K::DecapsulationKey::from(seed));
-        } else {
-            core::panic!("unexpected PrivateKey serialization");
-        }
+        let mut reader = SliceReader::new(private_key_info.private_key.as_bytes()).unwrap();
+        let seed_string = SeedString::decode_implicit(&mut reader, 0.into())
+            .unwrap()
+            .unwrap();
+        let seed = Seed::try_from(seed_string.value.as_bytes()).unwrap();
+        assert_eq!(decaps_key, K::DecapsulationKey::from(seed));
     }
 
     // TEST: (de)serialize decapsulation key into DER document with the blanket implementation for DecodePrivateKey
@@ -198,16 +198,14 @@ fn pkcs8_can_read_reference_private_keys() {
         let length = expected_seed_prefix.len();
         let secret_document = der::SecretDocument::from_pkcs8_pem(ref_pem)
             .expect("can read reference PEM private key file");
-        let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
+        let private_key_info = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
+        let mut reader = SliceReader::new(private_key_info.private_key.as_bytes()).unwrap();
+        let seed_string = SeedString::decode_implicit(&mut reader, 0.into())
+            .unwrap()
+            .unwrap();
+        let seed = Seed::try_from(seed_string.value.as_bytes()).unwrap();
 
-        let given_prefix = match priv_key
-            .private_key
-            .decode_into()
-            .expect("could not read internal structure of PEM private key")
-        {
-            PrivateKeyChoice::Seed(seed) => &seed.as_bytes()[0..length],
-        };
-
+        let given_prefix = &seed[..length];
         assert_eq!(given_prefix, expected_seed_prefix);
     }
 
