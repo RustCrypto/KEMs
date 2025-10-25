@@ -11,14 +11,16 @@ use crate::{
     param::{EncapsulationKeySize, KemParams},
     pke::EncryptionKey,
 };
-use ::pkcs8::spki;
-use der::{AnyRef, asn1::OctetStringRef};
+use ::pkcs8::{
+    der::{AnyRef, asn1::OctetStringRef},
+    spki,
+};
 use hybrid_array::Array;
 
 #[cfg(feature = "alloc")]
 use {
     crate::EncodedSizeUser,
-    der::{Encode, asn1::BitStringRef},
+    ::pkcs8::der::{Encode, asn1::BitStringRef},
 };
 
 impl AssociatedOid for MlKem512Params {
