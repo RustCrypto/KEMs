@@ -14,7 +14,7 @@ keywords = ["crypto", "ecdh", "ecc"]
 readme = "README.md"
 
 [dependencies]
-kem = "0.3.0-pre.0"
+kem = "=0.3.0-pre.1"
 rand_core = "0.9.0"
 
 # optional dependencies
