@@ -68,6 +68,15 @@ where
 #[cfg(feature = "zeroize")]
 impl<P> ZeroizeOnDrop for DecapsulationKey<P> where P: KemParams {}
 
+impl<P> From<Seed> for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn from(seed: Seed) -> Self {
+        Self::from_seed(seed)
+    }
+}
+
 impl<P> EncodedSizeUser for DecapsulationKey<P>
 where
     P: KemParams,
@@ -295,8 +304,6 @@ pub enum PrivateKeyChoice<'o> {
     /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
     #[asn1(tag_mode = "IMPLICIT", context_specific = "0")]
     Seed(OctetStringRef<'o>),
-    /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
-    Expanded(OctetStringRef<'o>),
 }
 
 #[cfg(feature = "pkcs8")]
@@ -380,13 +387,9 @@ where
     /// Serialize the given `DecapsulationKey` into DER format.
     /// Returns a `SecretDocument` which wraps the DER document in case of success.
     fn to_pkcs8_der(&self) -> pkcs8::Result<pkcs8::SecretDocument> {
-        let decaps_key_bytes: Array<u8, <P as KemParams>::DecapsulationKeySize> = self.as_bytes();
-
-        // NOTE: “The seed format is RECOMMENDED as it efficiently stores both the private and public key”,
-        //       but this is impossible with the definition of the type `DecapsulationKey`; see issue 53.
+        let decaps_key_bytes = self.to_seed().ok_or(pkcs8::Error::KeyMalformed)?;
         let pk_key_der =
-            PrivateKeyChoice::Expanded(OctetStringRef::new(decaps_key_bytes.as_slice())?)
-                .to_der()?;
+            PrivateKeyChoice::Seed(OctetStringRef::new(decaps_key_bytes.as_slice())?).to_der()?;
         let pk_key_octetstr: OctetStringRef<'_> = OctetStringRef::new(&pk_key_der)?;
 
         let private_key_info =
@@ -405,19 +408,9 @@ where
     /// Deserialize the decapsulation key from DER format found in `spki.private_key`.
     /// Returns a `DecapsulationKey` containing `dk_{pke}`, `ek`, and `z` in case of success.
     fn try_from(private_key_info_ref: pkcs8::PrivateKeyInfoRef<'_>) -> Result<Self, Self::Error> {
-        if private_key_info_ref.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
-            return Err(pkcs8::Error::PublicKey(pkcs8::spki::Error::OidUnknown {
-                oid: P::ALGORITHM_IDENTIFIER.oid,
-            }));
-        }
-
-        let expanded_to_key =
-            |expanded: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
-                let bytes = expanded.as_bytes();
-                let array =
-                    Encoded::<Self>::try_from(bytes).map_err(|_| pkcs8::Error::KeyMalformed)?;
-                Ok(Self::from_bytes(&array))
-            };
+        private_key_info_ref
+            .algorithm
+            .assert_algorithm_oid(P::ALGORITHM_IDENTIFIER.oid)?;
 
         let decaps_key = match private_key_info_ref
             .private_key
@@ -428,7 +421,6 @@ where
                     .try_into()
                     .map_err(|_| pkcs8::Error::KeyMalformed)?,
             ),
-            Ok(PrivateKeyChoice::Expanded(expanded)) => expanded_to_key(expanded)?,
             Err(_) => return Err(pkcs8::Error::KeyMalformed),
         };
 

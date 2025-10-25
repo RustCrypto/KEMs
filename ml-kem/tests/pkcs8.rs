@@ -3,7 +3,9 @@
 #![cfg(all(feature = "pkcs8", feature = "alloc"))]
 
 use {
-    ml_kem::{EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, kem::PrivateKeyChoice},
+    ml_kem::{
+        EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed, kem::PrivateKeyChoice,
+    },
     pkcs8::{
         der::{self, Decode},
         {
@@ -14,11 +16,11 @@ use {
     rand_core::CryptoRng,
 };
 
-fn der_serialization_and_deserialization<K>(expected_encaps_len: u32, expected_decaps_len: u32)
+fn der_serialization_and_deserialization<K>(expected_encaps_len: u32)
 where
     K: KemCore,
     K::EncapsulationKey: EncodePublicKey + DecodePublicKey,
-    K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey,
+    K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey + From<Seed> + PartialEq,
 {
     let mut rng = rand::rng();
     let (decaps_key, encaps_key) = K::generate(&mut rng);
@@ -59,14 +61,16 @@ where
 
         // deserialize decapsulation key from DER document
         let secret_document = der::SecretDocument::from_pkcs8_der(serialized_document).unwrap();
+        let expected_decaps_len = 64 + 22; // 22-byte PKCS#8 header
         assert_eq!(secret_document.len(), der::Length::new(expected_decaps_len));
         assert_eq!(secret_document.as_bytes(), der_document.as_bytes());
 
         // verify that original decapsulation key corresponds to deserialized decapsulation key
         let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
 
-        if let Ok(PrivateKeyChoice::Expanded(expanded)) = priv_key.private_key.decode_into() {
-            assert_eq!(decaps_key.as_bytes().as_slice(), expanded.as_bytes());
+        if let Ok(PrivateKeyChoice::Seed(seed)) = priv_key.private_key.decode_into() {
+            let seed = Seed::try_from(seed.as_bytes()).unwrap();
+            assert_eq!(decaps_key, K::DecapsulationKey::from(seed));
         } else {
             core::panic!("unexpected PrivateKey serialization");
         }
@@ -89,11 +93,9 @@ where
 fn pkcs8_serialize_and_deserialize_round_trip() {
     // NOTE: standardized encapsulation key sizes for MlKem{512,768,1024} are {800,1184,1568} bytes respectively.
     //       DER serialization adds 22 bytes. Thus we expect a length of {822,1206,1590} respectively.
-    // NOTE: standardized decapsulation key sizes for MlKem{512,768,1024} are {1632,2400,3168} bytes respectively.
-    //       DER serialization adds 28 bytes. Thus we expect a length of {1660,2428,3196} respectively.
-    der_serialization_and_deserialization::<MlKem512>(822, 1660);
-    der_serialization_and_deserialization::<MlKem768>(1206, 2428);
-    der_serialization_and_deserialization::<MlKem1024>(1590, 3196);
+    der_serialization_and_deserialization::<MlKem512>(822);
+    der_serialization_and_deserialization::<MlKem768>(1206);
+    der_serialization_and_deserialization::<MlKem1024>(1590);
 }
 
 #[cfg(feature = "pem")]
@@ -175,9 +177,9 @@ fn pkcs8_generate_same_keys_like_golang_for_static_seed() {
     const PEM_512_PUB: &str = include_str!("examples/ML-KEM-512.pub");
     const PEM_768_PUB: &str = include_str!("examples/ML-KEM-768.pub");
     const PEM_1024_PUB: &str = include_str!("examples/ML-KEM-1024.pub");
-    const PEM_512_PRIV: &str = include_str!("examples/ML-KEM-512-expanded.priv");
-    const PEM_768_PRIV: &str = include_str!("examples/ML-KEM-768-expanded.priv");
-    const PEM_1024_PRIV: &str = include_str!("examples/ML-KEM-1024-expanded.priv");
+    const PEM_512_PRIV: &str = include_str!("examples/ML-KEM-512-seed.priv");
+    const PEM_768_PRIV: &str = include_str!("examples/ML-KEM-768-seed.priv");
+    const PEM_1024_PRIV: &str = include_str!("examples/ML-KEM-1024-seed.priv");
 
     compare_with_reference_keys::<MlKem512>(512, PEM_512_PUB, PEM_512_PRIV);
     compare_with_reference_keys::<MlKem768>(768, PEM_768_PUB, PEM_768_PRIV);
@@ -189,11 +191,8 @@ fn pkcs8_generate_same_keys_like_golang_for_static_seed() {
 fn pkcs8_can_read_reference_private_keys() {
     // NOTE: test vector files come from https://github.com/lamps-wg/kyber-certificates/tree/624bcaa4bd9ea9e72de5b51d81ce2d90cbd7e54a
     const PEM_512_SEED: &str = include_str!("examples/ML-KEM-512-seed.priv");
-    const PEM_512_EXPANDED: &str = include_str!("examples/ML-KEM-512-expanded.priv");
     const PEM_768_SEED: &str = include_str!("examples/ML-KEM-768-seed.priv");
-    const PEM_768_EXPANDED: &str = include_str!("examples/ML-KEM-768-expanded.priv");
     const PEM_1024_SEED: &str = include_str!("examples/ML-KEM-1024-seed.priv");
-    const PEM_1024_EXPANDED: &str = include_str!("examples/ML-KEM-1024-expanded.priv");
 
     fn expect_seed_bytes(ref_pem: &str, expected_seed_prefix: &[u8]) {
         let length = expected_seed_prefix.len();
@@ -207,42 +206,15 @@ fn pkcs8_can_read_reference_private_keys() {
             .expect("could not read internal structure of PEM private key")
         {
             PrivateKeyChoice::Seed(seed) => &seed.as_bytes()[0..length],
-            PrivateKeyChoice::Expanded(_) => return,
         };
 
         assert_eq!(given_prefix, expected_seed_prefix);
     }
 
-    fn expect_expanded_bytes(ref_pem: &str, expected_expanded_prefix: &[u8]) {
-        let length = expected_expanded_prefix.len();
-        let secret_document = der::SecretDocument::from_pkcs8_pem(ref_pem)
-            .expect("can read reference PEM private key file");
-        let priv_key = secret_document.decode_msg::<PrivateKeyInfoRef>().unwrap();
-
-        let given_prefix = match priv_key
-            .private_key
-            .decode_into()
-            .expect("could not read internal expanded structure of PEM private key")
-        {
-            PrivateKeyChoice::Seed(_) => return,
-            PrivateKeyChoice::Expanded(expanded) => &expanded.as_bytes()[0..length],
-        };
-
-        assert_eq!(given_prefix, expected_expanded_prefix);
-    }
-
     const STATIC_SEED_PREFIX: &[u8] =
         &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17];
-    const EXPANDED_512_KEY_PREFIX: &[u8] = &[0x70, 0x55, 0x4f, 0xd4, 0x36, 0x34, 0x4f, 0x27];
-    const EXPANDED_768_KEY_PREFIX: &[u8] = &[0x27, 0xd2, 0xa7, 0x7f, 0x33, 0x75, 0x6f, 0x61];
-    const EXPANDED_1024_KEY_PREFIX: &[u8] = &[0xf7, 0x7b, 0x7f, 0x6b, 0x15, 0xc7, 0x3f, 0xe2];
 
     expect_seed_bytes(PEM_512_SEED, STATIC_SEED_PREFIX);
-    expect_expanded_bytes(PEM_512_EXPANDED, EXPANDED_512_KEY_PREFIX);
-
     expect_seed_bytes(PEM_768_SEED, STATIC_SEED_PREFIX);
-    expect_expanded_bytes(PEM_768_EXPANDED, EXPANDED_768_KEY_PREFIX);
-
     expect_seed_bytes(PEM_1024_SEED, STATIC_SEED_PREFIX);
-    expect_expanded_bytes(PEM_1024_EXPANDED, EXPANDED_1024_KEY_PREFIX);
 }
