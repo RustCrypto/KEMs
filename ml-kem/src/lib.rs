@@ -80,6 +80,9 @@ pub use util::B32;
 
 pub use param::{ArraySize, ParameterSet};
 
+#[cfg(feature = "pkcs8")]
+pub use pkcs8::{self, AssociatedOid};
+
 /// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
 /// security levels, and are the preferred serialization for representing such keys.
 pub type Seed = Array<u8, U64>;
@@ -168,6 +171,22 @@ impl ParameterSet for MlKem512Params {
     type Dv = U4;
 }
 
+#[cfg(feature = "pkcs8")]
+impl AssociatedOid for MlKem512Params {
+    const OID: pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_512;
+}
+
+#[cfg(feature = "pkcs8")]
+impl pkcs8::spki::AssociatedAlgorithmIdentifier for MlKem512Params {
+    type Params = pkcs8::der::AnyRef<'static>;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        pkcs8::spki::AlgorithmIdentifier {
+            oid: Self::OID,
+            parameters: None,
+        };
+}
+
 /// `MlKem768` is the parameter set for security category 3, corresponding to key search on a block
 /// cipher with a 192-bit key.
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -181,6 +200,22 @@ impl ParameterSet for MlKem768Params {
     type Dv = U4;
 }
 
+#[cfg(feature = "pkcs8")]
+impl AssociatedOid for MlKem768Params {
+    const OID: pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_768;
+}
+
+#[cfg(feature = "pkcs8")]
+impl pkcs8::spki::AssociatedAlgorithmIdentifier for MlKem768Params {
+    type Params = pkcs8::der::AnyRef<'static>;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        pkcs8::spki::AlgorithmIdentifier {
+            oid: Self::OID,
+            parameters: None,
+        };
+}
+
 /// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a block
 /// cipher with a 256-bit key.
 #[derive(Default, Clone, Debug, PartialEq)]
@@ -192,6 +227,22 @@ impl ParameterSet for MlKem1024Params {
     type Eta2 = U2;
     type Du = U11;
     type Dv = U5;
+}
+
+#[cfg(feature = "pkcs8")]
+impl AssociatedOid for MlKem1024Params {
+    const OID: pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_1024;
+}
+
+#[cfg(feature = "pkcs8")]
+impl pkcs8::spki::AssociatedAlgorithmIdentifier for MlKem1024Params {
+    type Params = pkcs8::der::AnyRef<'static>;
+
+    const ALGORITHM_IDENTIFIER: pkcs8::spki::AlgorithmIdentifier<Self::Params> =
+        pkcs8::spki::AlgorithmIdentifier {
+            oid: Self::OID,
+            parameters: None,
+        };
 }
 
 /// A shared key produced by the KEM `K`
