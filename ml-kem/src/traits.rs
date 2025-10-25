@@ -1,11 +1,13 @@
-use crate::{ArraySize, Ciphertext, SharedKey};
+//! Trait definitions
+
+use crate::{ArraySize, Ciphertext, Seed, SharedKey};
 use core::fmt::Debug;
 use hybrid_array::Array;
 use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRng;
 
 #[cfg(feature = "deterministic")]
-use crate::util::B32;
+use crate::B32;
 
 /// An object that knows what size it is
 pub trait EncodedSizeUser {
@@ -52,28 +54,18 @@ pub trait KemCore: Clone {
         + PartialEq;
 
     /// An encapsulation key for this KEM
-    #[cfg(not(feature = "deterministic"))]
     type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
         + EncodedSizeUser
         + Clone
         + Debug
         + PartialEq;
 
-    /// An encapsulation key for this KEM
-    #[cfg(feature = "deterministic")]
-    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
-        + EncapsulateDeterministic<Ciphertext<Self>, SharedKey<Self>>
-        + EncodedSizeUser
-        + Clone
-        + Debug
-        + PartialEq;
-
-    /// Generate a new (decapsulation, encapsulation) key pair
+    /// Generate a new (decapsulation, encapsulation) key pair.
     fn generate<R: CryptoRng + ?Sized>(
         rng: &mut R,
     ) -> (Self::DecapsulationKey, Self::EncapsulationKey);
 
-    /// Generate a new (decapsulation, encapsulation) key pair deterministically
-    #[cfg(feature = "deterministic")]
-    fn generate_deterministic(d: B32, z: B32) -> (Self::DecapsulationKey, Self::EncapsulationKey);
+    /// Generate a new (decapsulation, encapsulation) key pair deterministically from the given
+    /// uniformly random seed value.
+    fn from_seed(seed: Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey);
 }

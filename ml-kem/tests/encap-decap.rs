@@ -35,7 +35,11 @@ fn verify_encap_group(tg: &acvp::EncapTestGroup) {
     }
 }
 
-fn verify_encap<K: KemCore>(tc: &acvp::EncapTestCase) {
+fn verify_encap<K>(tc: &acvp::EncapTestCase)
+where
+    K: KemCore,
+    K::EncapsulationKey: EncapsulateDeterministic<Ciphertext<K>, SharedKey<K>>,
+{
     let m = Array::try_from(tc.m.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
     let ek = K::EncapsulationKey::from_bytes(&ek_bytes);

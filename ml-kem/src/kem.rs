@@ -271,9 +271,8 @@ where
         (dk, ek)
     }
 
-    #[cfg(feature = "deterministic")]
-    fn generate_deterministic(d: B32, z: B32) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
-        let dk = Self::DecapsulationKey::generate_deterministic(d, z);
+    fn from_seed(seed: Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
+        let dk = Self::DecapsulationKey::from_seed(seed);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
     }

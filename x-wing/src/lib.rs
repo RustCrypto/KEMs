@@ -178,9 +178,8 @@ impl DecapsulationKey {
         shaker.update(&self.sk);
         let mut expanded: Shake256Reader = shaker.finalize_xof();
 
-        let d = read_from(&mut expanded).into();
-        let z = read_from(&mut expanded).into();
-        let (sk_m, pk_m) = MlKem768::generate_deterministic(d, z);
+        let seed = read_from(&mut expanded).into();
+        let (sk_m, pk_m) = MlKem768::from_seed(seed);
 
         let sk_x = read_from(&mut expanded);
         let sk_x = StaticSecret::from(sk_x);
