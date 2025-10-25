@@ -69,7 +69,7 @@ use ::kem::{Decapsulate, Encapsulate};
 use core::fmt::Debug;
 use hybrid_array::{
     Array,
-    typenum::{U2, U3, U4, U5, U10, U11},
+    typenum::{U2, U3, U4, U5, U10, U11, U64},
 };
 use rand_core::CryptoRng;
 
@@ -79,6 +79,10 @@ pub use hybrid_array as array;
 pub use util::B32;
 
 pub use param::{ArraySize, ParameterSet};
+
+/// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
+/// security levels, and are the preferred serialization for representing such keys.
+pub type Seed = Array<u8, U64>;
 
 /// An object that knows what size it is
 pub trait EncodedSizeUser {
@@ -148,8 +152,7 @@ pub trait KemCore: Clone {
 
     /// Generate a new (decapsulation, encapsulation) key pair deterministically
     #[cfg(feature = "deterministic")]
-    fn generate_deterministic(d: &B32, z: &B32)
-    -> (Self::DecapsulationKey, Self::EncapsulationKey);
+    fn generate_deterministic(d: B32, z: B32) -> (Self::DecapsulationKey, Self::EncapsulationKey);
 }
 
 /// `MlKem512` is the parameter set for security category 1, corresponding to key search on a block

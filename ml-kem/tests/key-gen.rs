@@ -34,7 +34,7 @@ fn verify<K: KemCore>(tc: &acvp::TestCase) {
     let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(tc.dk.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
 
-    let (dk, ek) = K::generate_deterministic(&d, &z);
+    let (dk, ek) = K::generate_deterministic(d, z);
 
     // Verify correctness via serialization
     assert_eq!(dk.as_bytes().as_slice(), tc.dk.as_slice());
