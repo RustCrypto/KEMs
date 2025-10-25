@@ -297,18 +297,6 @@ pub enum PrivateKeyChoice<'o> {
     Seed(OctetStringRef<'o>),
     /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
     Expanded(OctetStringRef<'o>),
-    /// In this setting both key formats are provided in a `PrivateKeyBothChoice` `struct`
-    Both(PrivateKeyBothChoice<'o>),
-}
-
-/// The private key's `Both` variant contains the seed as well as the expanded key.
-#[cfg(feature = "pkcs8")]
-#[derive(Clone, Debug, pkcs8::der::Sequence)]
-pub struct PrivateKeyBothChoice<'o> {
-    /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
-    pub seed: OctetStringRef<'o>,
-    /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
-    pub expanded: OctetStringRef<'o>,
 }
 
 #[cfg(feature = "pkcs8")]
@@ -441,24 +429,6 @@ where
                     .map_err(|_| pkcs8::Error::KeyMalformed)?,
             ),
             Ok(PrivateKeyChoice::Expanded(expanded)) => expanded_to_key(expanded)?,
-            Ok(PrivateKeyChoice::Both(PrivateKeyBothChoice { seed, expanded })) => {
-                let computed_decaps_key = Self::from_seed(
-                    seed.as_bytes()
-                        .try_into()
-                        .map_err(|_| pkcs8::Error::KeyMalformed)?,
-                );
-
-                let given_decaps_key = expanded_to_key(expanded)?;
-
-                // “When receiving a private key that contains both the seed and the expandedKey,
-                // the recipient SHOULD perform a seed consistency check to ensure
-                // that the sender properly generated the private key”
-                if computed_decaps_key != given_decaps_key {
-                    return Err(pkcs8::Error::KeyMalformed);
-                }
-
-                computed_decaps_key
-            }
             Err(_) => return Err(pkcs8::Error::KeyMalformed),
         };
 

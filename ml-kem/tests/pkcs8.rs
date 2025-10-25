@@ -14,9 +14,6 @@ use {
     rand_core::CryptoRng,
 };
 
-#[cfg(feature = "pem")]
-use ml_kem::kem::PrivateKeyBothChoice;
-
 fn der_serialization_and_deserialization<K>(expected_encaps_len: u32, expected_decaps_len: u32)
 where
     K: KemCore,
@@ -193,13 +190,10 @@ fn pkcs8_can_read_reference_private_keys() {
     // NOTE: test vector files come from https://github.com/lamps-wg/kyber-certificates/tree/624bcaa4bd9ea9e72de5b51d81ce2d90cbd7e54a
     const PEM_512_SEED: &str = include_str!("examples/ML-KEM-512-seed.priv");
     const PEM_512_EXPANDED: &str = include_str!("examples/ML-KEM-512-expanded.priv");
-    const PEM_512_BOTH: &str = include_str!("examples/ML-KEM-512-both.priv");
     const PEM_768_SEED: &str = include_str!("examples/ML-KEM-768-seed.priv");
     const PEM_768_EXPANDED: &str = include_str!("examples/ML-KEM-768-expanded.priv");
-    const PEM_768_BOTH: &str = include_str!("examples/ML-KEM-768-both.priv");
     const PEM_1024_SEED: &str = include_str!("examples/ML-KEM-1024-seed.priv");
     const PEM_1024_EXPANDED: &str = include_str!("examples/ML-KEM-1024-expanded.priv");
-    const PEM_1024_BOTH: &str = include_str!("examples/ML-KEM-1024-both.priv");
 
     fn expect_seed_bytes(ref_pem: &str, expected_seed_prefix: &[u8]) {
         let length = expected_seed_prefix.len();
@@ -212,10 +206,7 @@ fn pkcs8_can_read_reference_private_keys() {
             .decode_into()
             .expect("could not read internal structure of PEM private key")
         {
-            PrivateKeyChoice::Seed(seed)
-            | PrivateKeyChoice::Both(PrivateKeyBothChoice { seed, .. }) => {
-                &seed.as_bytes()[0..length]
-            }
+            PrivateKeyChoice::Seed(seed) => &seed.as_bytes()[0..length],
             PrivateKeyChoice::Expanded(_) => return,
         };
 
@@ -234,10 +225,7 @@ fn pkcs8_can_read_reference_private_keys() {
             .expect("could not read internal expanded structure of PEM private key")
         {
             PrivateKeyChoice::Seed(_) => return,
-            PrivateKeyChoice::Expanded(expanded)
-            | PrivateKeyChoice::Both(PrivateKeyBothChoice { expanded, .. }) => {
-                &expanded.as_bytes()[0..length]
-            }
+            PrivateKeyChoice::Expanded(expanded) => &expanded.as_bytes()[0..length],
         };
 
         assert_eq!(given_prefix, expected_expanded_prefix);
@@ -251,16 +239,10 @@ fn pkcs8_can_read_reference_private_keys() {
 
     expect_seed_bytes(PEM_512_SEED, STATIC_SEED_PREFIX);
     expect_expanded_bytes(PEM_512_EXPANDED, EXPANDED_512_KEY_PREFIX);
-    expect_seed_bytes(PEM_512_BOTH, STATIC_SEED_PREFIX);
-    expect_expanded_bytes(PEM_512_BOTH, EXPANDED_512_KEY_PREFIX);
 
     expect_seed_bytes(PEM_768_SEED, STATIC_SEED_PREFIX);
     expect_expanded_bytes(PEM_768_EXPANDED, EXPANDED_768_KEY_PREFIX);
-    expect_seed_bytes(PEM_768_BOTH, STATIC_SEED_PREFIX);
-    expect_expanded_bytes(PEM_768_BOTH, EXPANDED_768_KEY_PREFIX);
 
     expect_seed_bytes(PEM_1024_SEED, STATIC_SEED_PREFIX);
     expect_expanded_bytes(PEM_1024_EXPANDED, EXPANDED_1024_KEY_PREFIX);
-    expect_seed_bytes(PEM_1024_BOTH, STATIC_SEED_PREFIX);
-    expect_expanded_bytes(PEM_1024_BOTH, EXPANDED_1024_KEY_PREFIX);
 }
