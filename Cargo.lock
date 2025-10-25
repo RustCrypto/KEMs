@@ -1798,7 +1798,7 @@ dependencies = [
 
 [[package]]
 name = "x-wing"
-version = "0.0.1-pre.1"
+version = "0.1.0-pre.0"
 dependencies = [
  "hex",
  "kem",
