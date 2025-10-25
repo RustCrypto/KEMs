@@ -2,12 +2,13 @@ use core::convert::Infallible;
 use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
 use rand_core::CryptoRng;
+use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 use crate::crypto::{G, H, J, rand};
 use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
 use crate::pke::{DecryptionKey, EncryptionKey};
 use crate::util::B32;
-use crate::{Encoded, EncodedSizeUser};
+use crate::{Encoded, EncodedSizeUser, Seed};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -31,14 +32,26 @@ use {
 
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DecapsulationKey<P>
 where
     P: KemParams,
 {
     dk_pke: DecryptionKey<P>,
     ek: EncapsulationKey<P>,
+    d: Option<B32>,
     z: B32,
+}
+
+// Handwritten to omit `d` in the comparisons, so keys initialized from seeds compare equally to
+// keys initialized from the expanded form
+impl<P> PartialEq for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.dk_pke.ct_eq(&other.dk_pke).into() && self.ek.eq(&other.ek) && self.z.eq(&other.z)
+    }
 }
 
 #[cfg(feature = "zeroize")]
@@ -75,6 +88,7 @@ where
                 ek_pke,
                 h: h.clone(),
             },
+            d: None,
             z: z.clone(),
         }
     }
@@ -84,13 +98,6 @@ where
         let ek = self.ek.as_bytes();
         P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
     }
-}
-
-// 0xff if x == y, 0x00 otherwise
-fn constant_time_eq(x: u8, y: u8) -> u8 {
-    let diff = x ^ y;
-    let is_zero = !diff & diff.wrapping_sub(1);
-    0u8.wrapping_sub(is_zero >> 7)
 }
 
 impl<P> ::kem::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
@@ -107,24 +114,11 @@ where
         let (Kp, rp) = G(&[&mp, &self.ek.h]);
         let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
         let cp = self.ek.ek_pke.encrypt(&mp, &rp);
-
-        // Constant-time version of:
-        //
-        // if cp == *ct {
-        //     Kp
-        // } else {
-        //     Kbar
-        // }
-        let equal = cp
-            .iter()
-            .zip(encapsulated_key.iter())
-            .map(|(&x, &y)| constant_time_eq(x, y))
-            .fold(0xff, |x, y| x & y);
-        Ok(Kp
-            .iter()
-            .zip(Kbar.iter())
-            .map(|(x, y)| (equal & x) | (!equal & y))
-            .collect())
+        Ok(B32::conditional_select(
+            &Kbar,
+            &Kp,
+            cp.ct_eq(encapsulated_key),
+        ))
     }
 }
 
@@ -132,24 +126,50 @@ impl<P> DecapsulationKey<P>
 where
     P: KemParams,
 {
+    /// Create a [`DecapsulationKey`] instance from a 64-byte random seed value.
+    #[inline]
+    #[must_use]
+    pub fn from_seed(seed: Seed) -> Self {
+        let (d, z) = seed.split();
+        Self::generate_deterministic(d, z)
+    }
+
+    /// Serialize the [`Seed`] value: 64-bytes which can be used to reconstruct the
+    /// [`DecapsulationKey`].
+    ///
+    /// # ⚠️Warning!
+    ///
+    /// This value is key material. Please treat it with care.
+    ///
+    /// # Returns
+    /// - `Some` if the [`DecapsulationKey`] was initialized using `from_seed`, `generate`, or
+    ///   `generate_deterministic`
+    /// - `None` if the [`DecapsulationKey`] was initialized from the expanded form.
+    #[inline]
+    pub fn to_seed(&self) -> Option<Seed> {
+        self.d.map(|d| d.concat(self.z))
+    }
+
     /// Get the [`EncapsulationKey`] which corresponds to this [`DecapsulationKey`].
     pub fn encapsulation_key(&self) -> &EncapsulationKey<P> {
         &self.ek
     }
 
+    #[inline]
     pub(crate) fn generate<R: CryptoRng + ?Sized>(rng: &mut R) -> Self {
         let d: B32 = rand(rng);
         let z: B32 = rand(rng);
-        Self::generate_deterministic(&d, &z)
+        Self::generate_deterministic(d, z)
     }
 
+    #[inline]
     #[must_use]
     #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
-    pub(crate) fn generate_deterministic(d: &B32, z: &B32) -> Self {
-        let (dk_pke, ek_pke) = DecryptionKey::generate(d);
+    pub(crate) fn generate_deterministic(d: B32, z: B32) -> Self {
+        let (dk_pke, ek_pke) = DecryptionKey::generate(&d);
         let ek = EncapsulationKey::new(ek_pke);
-        let z = z.clone();
-        Self { dk_pke, ek, z }
+        let d = Some(d);
+        Self { dk_pke, ek, d, z }
     }
 }
 
@@ -254,10 +274,7 @@ where
     }
 
     #[cfg(feature = "deterministic")]
-    fn generate_deterministic(
-        d: &B32,
-        z: &B32,
-    ) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
+    fn generate_deterministic(d: B32, z: B32) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
         let dk = Self::DecapsulationKey::generate_deterministic(d, z);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
@@ -274,7 +291,7 @@ where
 /// while the expandedKey and both formats vary in size by security level”
 #[cfg(feature = "pkcs8")]
 #[derive(Clone, Debug, pkcs8::der::Choice)]
-pub(crate) enum PrivateKeyChoice<'o> {
+pub enum PrivateKeyChoice<'o> {
     /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
     #[asn1(tag_mode = "IMPLICIT", context_specific = "0")]
     Seed(OctetStringRef<'o>),
@@ -287,7 +304,7 @@ pub(crate) enum PrivateKeyChoice<'o> {
 /// The private key's `Both` variant contains the seed as well as the expanded key.
 #[cfg(feature = "pkcs8")]
 #[derive(Clone, Debug, pkcs8::der::Sequence)]
-pub(crate) struct PrivateKeyBothChoice<'o> {
+pub struct PrivateKeyBothChoice<'o> {
     /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
     pub seed: OctetStringRef<'o>,
     /// FIPS 203 format for an ML-KEM private key: the decapsulation key resulting from PKE's `KeyGen` operation
@@ -406,13 +423,6 @@ where
             }));
         }
 
-        let seed_to_key = |seed: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
-            let (head, tail) = seed.as_bytes().split_at(32);
-            let d: &B32 = head.try_into().map_err(|_| pkcs8::Error::KeyMalformed)?;
-            let z: &B32 = tail.try_into().map_err(|_| pkcs8::Error::KeyMalformed)?;
-            Ok(Self::generate_deterministic(d, z))
-        };
-
         let expanded_to_key =
             |expanded: OctetStringRef<'_>| -> Result<DecapsulationKey<P>, Self::Error> {
                 let bytes = expanded.as_bytes();
@@ -425,10 +435,19 @@ where
             .private_key
             .decode_into::<PrivateKeyChoice>()
         {
-            Ok(PrivateKeyChoice::Seed(seed)) => seed_to_key(seed)?,
+            Ok(PrivateKeyChoice::Seed(seed)) => Self::from_seed(
+                seed.as_bytes()
+                    .try_into()
+                    .map_err(|_| pkcs8::Error::KeyMalformed)?,
+            ),
             Ok(PrivateKeyChoice::Expanded(expanded)) => expanded_to_key(expanded)?,
             Ok(PrivateKeyChoice::Both(PrivateKeyBothChoice { seed, expanded })) => {
-                let computed_decaps_key = seed_to_key(seed)?;
+                let computed_decaps_key = Self::from_seed(
+                    seed.as_bytes()
+                        .try_into()
+                        .map_err(|_| pkcs8::Error::KeyMalformed)?,
+                );
+
                 let given_decaps_key = expanded_to_key(expanded)?;
 
                 // “When receiving a private key that contains both the seed and the expandedKey,
@@ -452,6 +471,7 @@ mod test {
     use super::*;
     use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
     use ::kem::{Decapsulate, Encapsulate};
+    use rand_core::TryRngCore;
 
     fn round_trip_test<P>()
     where
@@ -474,7 +494,7 @@ mod test {
         round_trip_test::<MlKem1024Params>();
     }
 
-    fn codec_test<P>()
+    fn expanded_key_test<P>()
     where
         P: KemParams,
     {
@@ -492,9 +512,29 @@ mod test {
     }
 
     #[test]
-    fn codec() {
-        codec_test::<MlKem512Params>();
-        codec_test::<MlKem768Params>();
-        codec_test::<MlKem1024Params>();
+    fn expanded_key() {
+        expanded_key_test::<MlKem512Params>();
+        expanded_key_test::<MlKem768Params>();
+        expanded_key_test::<MlKem1024Params>();
+    }
+
+    fn seed_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = rand::rng();
+        let mut seed = Seed::default();
+        rng.try_fill_bytes(&mut seed).unwrap();
+
+        let dk = DecapsulationKey::<P>::from_seed(seed.clone());
+        let seed_encoded = dk.to_seed().unwrap();
+        assert_eq!(seed, seed_encoded);
+    }
+
+    #[test]
+    fn seed() {
+        seed_test::<MlKem512Params>();
+        seed_test::<MlKem768Params>();
+        seed_test::<MlKem1024Params>();
     }
 }

@@ -1,4 +1,5 @@
 use hybrid_array::typenum::{U1, Unsigned};
+use subtle::{Choice, ConstantTimeEq};
 
 use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
@@ -12,12 +13,31 @@ use zeroize::Zeroize;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub struct DecryptionKey<P>
 where
     P: PkeParams,
 {
     s_hat: NttVector<P::K>,
+}
+
+impl<P> ConstantTimeEq for DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.s_hat.ct_eq(&other.s_hat)
+    }
+}
+
+// Handwritten to ensure a constant time comparison is performed
+impl<P> PartialEq for DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 #[cfg(feature = "zeroize")]

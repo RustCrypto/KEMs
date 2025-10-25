@@ -1,5 +1,5 @@
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
@@ -180,7 +180,7 @@ impl DecapsulationKey {
 
         let d = read_from(&mut expanded).into();
         let z = read_from(&mut expanded).into();
-        let (sk_m, pk_m) = MlKem768::generate_deterministic(&d, &z);
+        let (sk_m, pk_m) = MlKem768::generate_deterministic(d, z);
 
         let sk_x = read_from(&mut expanded);
         let sk_x = StaticSecret::from(sk_x);
