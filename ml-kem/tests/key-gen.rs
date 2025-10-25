@@ -29,12 +29,12 @@ fn acvp_key_gen() {
 
 fn verify<K: KemCore>(tc: &acvp::TestCase) {
     // Import test data into the relevant array structures
-    let d = Array::try_from(tc.d.as_slice()).unwrap();
-    let z = Array::try_from(tc.z.as_slice()).unwrap();
+    let d: B32 = Array::try_from(tc.d.as_slice()).unwrap();
+    let z: B32 = Array::try_from(tc.z.as_slice()).unwrap();
     let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(tc.dk.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
 
-    let (dk, ek) = K::generate_deterministic(d, z);
+    let (dk, ek) = K::from_seed(d.concat(z));
 
     // Verify correctness via serialization
     assert_eq!(dk.as_bytes().as_slice(), tc.dk.as_slice());
