@@ -14,8 +14,6 @@ debug = true
 ml-kem = { path = "./ml-kem" }
 
 elliptic-curve = { git = "https://github.com/RustCrypto/traits.git" }
-kem = { git = "https://github.com/RustCrypto/traits.git" }
-
 primefield = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
 k256 = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
 p256 = { git = "https://github.com/RustCrypto/elliptic-curves.git" }
