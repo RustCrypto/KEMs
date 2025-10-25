@@ -4,7 +4,7 @@
 
 use {
     ml_kem::{
-        EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed, kem::PrivateKeyChoice,
+        EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed, pkcs8::PrivateKeyChoice,
     },
     pkcs8::{
         der::{self, Decode},

@@ -54,6 +54,9 @@ jobs:
           toolchain: ${{ matrix.rust }}
           targets: ${{ matrix.target }}
       - run: cargo build --no-default-features --target ${{ matrix.target }}
+      - run: cargo build --no-default-features --target ${{ matrix.target }} --features alloc
+      - run: cargo build --no-default-features --target ${{ matrix.target }} --features pkcs8
+      - run: cargo build --no-default-features --target ${{ matrix.target }} --features alloc,pkcs8
 
   test:
     needs: set-msrv
