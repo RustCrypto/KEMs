@@ -1,9 +1,19 @@
 //! PKCS#8 encoding support.
+//!
+//! When the `pkcs8` feature of this crate is enabled, the [`DecodePrivateKey`] trait is impl'd for
+//! [`DecapsulationKey`], and the [`DecodePublicKey`] trait is impl'd for [`EncapsulationKey`].
+//!
+//! When both the `pkcs8` and `alloc` features are enabled, the [`EncodePrivateKey`] trait is
+//! impl'd for [`DecapsulationKey`], and the [`EncodePublicKey`] trait is impl'd for
+//! [`EncapsulationKey`].
 
 #![cfg(feature = "pkcs8")]
 
-pub use ::pkcs8::spki::AssociatedAlgorithmIdentifier;
+pub use ::pkcs8::{DecodePrivateKey, DecodePublicKey, spki::AssociatedAlgorithmIdentifier};
 pub use const_oid::AssociatedOid;
+
+#[cfg(feature = "alloc")]
+pub use ::pkcs8::{EncodePrivateKey, EncodePublicKey};
 
 use crate::{
     MlKem512Params, MlKem768Params, MlKem1024Params,
@@ -12,7 +22,10 @@ use crate::{
     pke::EncryptionKey,
 };
 use ::pkcs8::{
-    der::{AnyRef, asn1::OctetStringRef},
+    der::{
+        AnyRef, Reader, SliceReader, TagNumber,
+        asn1::{ContextSpecific, OctetStringRef},
+    },
     spki,
 };
 use hybrid_array::Array;
@@ -20,8 +33,14 @@ use hybrid_array::Array;
 #[cfg(feature = "alloc")]
 use {
     crate::EncodedSizeUser,
-    ::pkcs8::der::{Encode, asn1::BitStringRef},
+    ::pkcs8::der::{Encode, TagMode, asn1::BitStringRef},
 };
+
+/// Tag number for the seed value.
+const SEED_TAG_NUMBER: TagNumber = TagNumber(0);
+
+/// ML-KEM seed serialized as ASN.1.
+type SeedString<'o> = ContextSpecific<OctetStringRef<'o>>;
 
 impl AssociatedOid for MlKem512Params {
     const OID: ::pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_512;
@@ -63,21 +82,6 @@ impl AssociatedAlgorithmIdentifier for MlKem1024Params {
             oid: Self::OID,
             parameters: None,
         };
-}
-
-/// The serialization of the private key is a choice between three different formats
-/// [according to PKCS#8](https://lamps-wg.github.io/kyber-certificates/draft-ietf-lamps-kyber-certificates.html#name-private-key-format).
-///
-/// “For ML-KEM private keys, the privateKey field in `OneAsymmetricKey`
-/// contains one of the following DER-encoded `CHOICE` structures.
-/// The seed format is a fixed 64-byte `OCTET STRING` (66 bytes total
-/// with the 0x8040 tag and length) for all security levels,
-/// while the expandedKey and both formats vary in size by security level”
-#[derive(Clone, Debug, pkcs8::der::Choice)]
-pub enum PrivateKeyChoice<'o> {
-    /// FIPS 203 format for an ML-KEM private key: a 64-octet seed
-    #[asn1(tag_mode = "IMPLICIT", context_specific = "0")]
-    Seed(OctetStringRef<'o>),
 }
 
 impl<P> AssociatedAlgorithmIdentifier for EncapsulationKey<P>
@@ -156,13 +160,17 @@ where
     /// Serialize the given `DecapsulationKey` into DER format.
     /// Returns a `SecretDocument` which wraps the DER document in case of success.
     fn to_pkcs8_der(&self) -> ::pkcs8::Result<pkcs8::SecretDocument> {
-        let decaps_key_bytes = self.to_seed().ok_or(pkcs8::Error::KeyMalformed)?;
-        let pk_key_der =
-            PrivateKeyChoice::Seed(OctetStringRef::new(decaps_key_bytes.as_slice())?).to_der()?;
-        let pk_key_octetstr: OctetStringRef<'_> = OctetStringRef::new(&pk_key_der)?;
+        let seed = self.to_seed().ok_or(pkcs8::Error::KeyMalformed)?;
 
-        let private_key_info =
-            pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, pk_key_octetstr);
+        let seed_der = SeedString {
+            tag_mode: TagMode::Implicit,
+            tag_number: SEED_TAG_NUMBER,
+            value: OctetStringRef::new(&seed)?,
+        }
+        .to_der()?;
+
+        let private_key = OctetStringRef::new(&seed_der)?;
+        let private_key_info = pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, private_key);
         pkcs8::SecretDocument::encode_msg(&private_key_info).map_err(pkcs8::Error::Asn1)
     }
 }
@@ -180,18 +188,16 @@ where
             .algorithm
             .assert_algorithm_oid(P::ALGORITHM_IDENTIFIER.oid)?;
 
-        let decaps_key = match private_key_info_ref
-            .private_key
-            .decode_into::<PrivateKeyChoice>()
-        {
-            Ok(PrivateKeyChoice::Seed(seed)) => Self::from_seed(
-                seed.as_bytes()
-                    .try_into()
-                    .map_err(|_| pkcs8::Error::KeyMalformed)?,
-            ),
-            Err(_) => return Err(pkcs8::Error::KeyMalformed),
-        };
+        let mut reader = SliceReader::new(private_key_info_ref.private_key.as_bytes())?;
+        let seed_string = SeedString::decode_implicit(&mut reader, SEED_TAG_NUMBER)?
+            .ok_or(pkcs8::Error::KeyMalformed)?;
+        let seed = seed_string
+            .value
+            .as_bytes()
+            .try_into()
+            .map_err(|_| pkcs8::Error::KeyMalformed)?;
+        reader.finish()?;
 
-        Ok(decaps_key)
+        Ok(Self::from_seed(seed))
     }
 }
