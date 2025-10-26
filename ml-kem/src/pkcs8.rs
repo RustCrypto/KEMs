@@ -40,7 +40,7 @@ use {
 const SEED_TAG_NUMBER: TagNumber = TagNumber(0);
 
 /// ML-KEM seed serialized as ASN.1.
-type SeedString<'o> = ContextSpecific<OctetStringRef<'o>>;
+type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
 
 impl AssociatedOid for MlKem512Params {
     const OID: ::pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_512;
