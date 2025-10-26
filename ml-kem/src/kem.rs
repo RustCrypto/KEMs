@@ -1,7 +1,7 @@
 use core::convert::Infallible;
 use core::marker::PhantomData;
 use hybrid_array::typenum::U32;
-use rand_core::CryptoRng;
+use rand_core::{CryptoRng, TryCryptoRng};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 use crate::crypto::{G, H, J, rand};
@@ -218,11 +218,11 @@ where
 {
     type Error = Infallible;
 
-    fn encapsulate<R: CryptoRng + ?Sized>(
+    fn encapsulate<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        let m: B32 = rand(rng);
+        let m: B32 = rand(&mut rng.unwrap_mut());
         Ok(self.encapsulate_deterministic_inner(&m))
     }
 }

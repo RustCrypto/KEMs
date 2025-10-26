@@ -26,17 +26,18 @@
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
-use core::convert::Infallible;
-
 pub use kem::{self, Decapsulate, Encapsulate};
+
+use core::convert::Infallible;
 use ml_kem::array::ArrayN;
 use ml_kem::{B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params};
-use rand_core::CryptoRng;
+use rand_core::{CryptoRng, TryCryptoRng};
 #[cfg(feature = "os_rng")]
 use rand_core::{OsRng, TryRngCore};
 use sha3::digest::{ExtendableOutput, XofReader};
 use sha3::{Sha3_256, Shake256, Shake256Reader};
 use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -75,14 +76,14 @@ pub struct EncapsulationKey {
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
     type Error = Infallible;
 
-    fn encapsulate<R: CryptoRng + ?Sized>(
+    fn encapsulate<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
         // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
         let (ct_m, ss_m) = self.pk_m.encapsulate(rng)?;
 
-        let ek_x = EphemeralSecret::random_from_rng(rng);
+        let ek_x = EphemeralSecret::random_from_rng(&mut rng.unwrap_mut());
         // Equal to ct_x = x25519(ek_x, BASE_POINT)
         let ct_x = PublicKey::from(&ek_x);
         // Equal to ss_x = x25519(ek_x, pk_x)

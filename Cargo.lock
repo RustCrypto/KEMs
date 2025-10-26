@@ -791,8 +791,7 @@ dependencies = [
 [[package]]
 name = "kem"
 version = "0.3.0-pre.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f58e5788990bf128ad84a39bf838e63c2e1707f586e01da23f5a737a924e58dc"
+source = "git+https://github.com/RustCrypto/traits.git#13941dc62a207c34d0889ebe6e64ae0ae7616d4b"
 dependencies = [
  "rand_core",
  "zeroize",
