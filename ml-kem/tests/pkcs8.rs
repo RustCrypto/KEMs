@@ -14,7 +14,7 @@ use pkcs8::{
 use rand_core::CryptoRng;
 
 /// ML-KEM seed serialized as ASN.1.
-type SeedString<'o> = ContextSpecific<OctetStringRef<'o>>;
+type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
 
 fn der_serialization_and_deserialization<K>(expected_encaps_len: u32)
 where
