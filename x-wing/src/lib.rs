@@ -29,7 +29,7 @@
 pub use kem::{self, Decapsulate, Encapsulate};
 
 use core::convert::Infallible;
-use ml_kem::array::ArrayN;
+use ml_kem::array::{ArrayN, typenum::consts::U32};
 use ml_kem::{B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params};
 use rand_core::{CryptoRng, TryCryptoRng};
 #[cfg(feature = "os_rng")]
@@ -142,6 +142,16 @@ impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
 
         let ss = combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x);
         Ok(ss)
+    }
+}
+
+impl ::kem::KeySizeUser for DecapsulationKey {
+    type KeySize = U32;
+}
+
+impl ::kem::KeyInit for DecapsulationKey {
+    fn new(key: &ArrayN<u8, 32>) -> Self {
+        Self { sk: key.0 }
     }
 }
 

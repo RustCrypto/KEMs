@@ -1,6 +1,6 @@
 use core::convert::Infallible;
 use core::marker::PhantomData;
-use hybrid_array::typenum::U32;
+use hybrid_array::typenum::{U32, U64};
 use rand_core::{CryptoRng, TryCryptoRng};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
@@ -95,6 +95,23 @@ where
         let dk_pke = self.dk_pke.as_bytes();
         let ek = self.ek.as_bytes();
         P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
+    }
+}
+
+impl<P> ::kem::KeySizeUser for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    type KeySize = U64;
+}
+
+impl<P> ::kem::KeyInit for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    #[inline]
+    fn new(seed: &Seed) -> Self {
+        Self::from_seed(*seed)
     }
 }
 

@@ -192,7 +192,7 @@ version = "0.5.0-rc.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd4ef774202f1749465fc7cf88d70fc30620e8cacd5429268f4bff7d003bd976"
 dependencies = [
- "crypto-common",
+ "crypto-common 0.2.0-rc.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "inout",
 ]
 
@@ -358,6 +358,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "crypto-common"
+version = "0.2.0-rc.4"
+source = "git+https://github.com/RustCrypto/traits#0ba3c983654a31077b0f1da3a3233e58f4a2230a"
+dependencies = [
+ "hybrid-array",
+ "rand_core",
+]
+
+[[package]]
 name = "cstr_core"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -437,7 +446,7 @@ checksum = "dac89f8a64533a9b0eaa73a68e424db0fb1fd6271c74cc0125336a05f090568d"
 dependencies = [
  "block-buffer",
  "const-oid",
- "crypto-common",
+ "crypto-common 0.2.0-rc.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "subtle",
 ]
 
@@ -791,9 +800,9 @@ dependencies = [
 [[package]]
 name = "kem"
 version = "0.4.0-pre.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1ec5336e2804a5746a2cf0575537afae902c0a29e82c542918b4c5adf392456"
+source = "git+https://github.com/RustCrypto/traits#0ba3c983654a31077b0f1da3a3233e58f4a2230a"
 dependencies = [
+ "crypto-common 0.2.0-rc.4 (git+https://github.com/RustCrypto/traits)",
  "rand_core",
  "zeroize",
 ]
