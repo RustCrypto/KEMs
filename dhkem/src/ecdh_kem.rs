@@ -38,12 +38,17 @@ impl<C> Decapsulate<PublicKey<C>, SharedSecret<C>> for DhDecapsulator<EphemeralS
 where
     C: CurveArithmetic,
 {
+    type Encapsulator = DhEncapsulator<PublicKey<C>>;
     type Error = Infallible;
 
     fn decapsulate(&self, encapsulated_key: &PublicKey<C>) -> Result<SharedSecret<C>, Self::Error> {
         let ss = self.0.diffie_hellman(encapsulated_key);
 
         Ok(ss)
+    }
+
+    fn encapsulator(&self) -> DhEncapsulator<PublicKey<C>> {
+        DhEncapsulator(self.0.public_key())
     }
 }
 

@@ -26,12 +26,17 @@ impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
 }
 
 impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
+    type Encapsulator = DhEncapsulator<PublicKey>;
     type Error = Infallible;
 
     fn decapsulate(&self, encapsulated_key: &PublicKey) -> Result<SharedSecret, Self::Error> {
         let ss = self.0.diffie_hellman(encapsulated_key);
 
         Ok(ss)
+    }
+
+    fn encapsulator(&self) -> DhEncapsulator<PublicKey> {
+        DhEncapsulator(PublicKey::from(&self.0))
     }
 }
 
