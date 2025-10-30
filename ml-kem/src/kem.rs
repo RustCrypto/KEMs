@@ -119,6 +119,7 @@ impl<P> ::kem::Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey
 where
     P: KemParams,
 {
+    type Encapsulator = EncapsulationKey<P>;
     type Error = Infallible;
 
     fn decapsulate(
@@ -134,6 +135,10 @@ where
             &Kp,
             cp.ct_eq(encapsulated_key),
         ))
+    }
+
+    fn encapsulator(&self) -> EncapsulationKey<P> {
+        self.ek.clone()
     }
 }
 

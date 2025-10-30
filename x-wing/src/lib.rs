@@ -129,6 +129,7 @@ pub struct DecapsulationKey {
 }
 
 impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
+    type Encapsulator = EncapsulationKey;
     type Error = Infallible;
 
     #[allow(clippy::similar_names)] // So we can use the names as in the RFC
@@ -142,6 +143,10 @@ impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
 
         let ss = combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x);
         Ok(ss)
+    }
+
+    fn encapsulator(&self) -> EncapsulationKey {
+        self.encapsulation_key()
     }
 }
 
