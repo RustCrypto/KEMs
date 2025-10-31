@@ -98,7 +98,7 @@ pub type Seed = Array<u8, U64>;
 /// ML-KEM-512 is the parameter set for security category 1, corresponding to key search on a block
 /// cipher with a 128-bit key.
 pub mod ml_kem_512 {
-    use super::*;
+    use super::{Debug, ParameterSet, U2, U3, U4, U10, kem};
 
     /// `MlKem512` is the parameter set for security category 1, corresponding to key search on a
     /// block cipher with a 128-bit key.
@@ -125,7 +125,7 @@ pub mod ml_kem_512 {
 /// ML-KEM-768 is the parameter set for security category 3, corresponding to key search on a block
 /// cipher with a 192-bit key.
 pub mod ml_kem_768 {
-    use super::*;
+    use super::{Debug, ParameterSet, U2, U3, U4, U10, kem};
 
     /// `MlKem768` is the parameter set for security category 3, corresponding to key search on a
     /// block cipher with a 192-bit key.
@@ -152,7 +152,7 @@ pub mod ml_kem_768 {
 /// ML-KEM-1024 is the parameter set for security category 5, corresponding to key search on a block
 /// cipher with a 256-bit key.
 pub mod ml_kem_1024 {
-    use super::*;
+    use super::{Debug, ParameterSet, U2, U4, U5, U11, kem};
 
     /// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a
     /// block cipher with a 256-bit key.
