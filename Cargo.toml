@@ -12,5 +12,3 @@ debug = true
 
 [patch.crates-io]
 ml-kem = { path = "./ml-kem" }
-
-kem = { git = "https://github.com/RustCrypto/traits" }

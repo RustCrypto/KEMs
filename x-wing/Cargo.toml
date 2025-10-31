@@ -17,7 +17,7 @@ os_rng = ["rand_core/os_rng"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 
 [dependencies]
-kem = "=0.4.0-pre.0"
+kem = "=0.4.0-pre.1"
 ml-kem = { version = "=0.3.0-pre.1", default-features = false, features = ["deterministic"] }
 rand_core = { version = "0.9.3", default-features = false }
 sha3 = { version = "0.11.0-rc.0", default-features = false }
