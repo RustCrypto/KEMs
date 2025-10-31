@@ -5,7 +5,10 @@ use rand_core::{CryptoRng, TryCryptoRng};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 use crate::crypto::{G, H, J, rand};
-use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
+use crate::param::{
+    DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
+    KemParams,
+};
 use crate::pke::{DecryptionKey, EncryptionKey};
 use crate::util::B32;
 use crate::{Encoded, EncodedSizeUser, Seed};
@@ -72,23 +75,9 @@ where
 {
     type EncodedSize = DecapsulationKeySize<P>;
 
-    #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
-    fn from_bytes(enc: &Encoded<Self>) -> Self {
-        let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
-        let ek_pke = EncryptionKey::from_bytes(ek_pke);
-
-        // XXX(RLB): The encoding here is redundant, since `h` can be computed from `ek_pke`.
-        // Should we verify that the provided `h` value is valid?
-
-        Self {
-            dk_pke: DecryptionKey::from_bytes(dk_pke),
-            ek: EncapsulationKey {
-                ek_pke,
-                h: h.clone(),
-            },
-            d: None,
-            z: z.clone(),
-        }
+    fn from_bytes(expanded: &Encoded<Self>) -> Self {
+        #[allow(deprecated)]
+        Self::from_expanded(expanded)
     }
 
     fn as_bytes(&self) -> Encoded<Self> {
@@ -152,6 +141,30 @@ where
     pub fn from_seed(seed: Seed) -> Self {
         let (d, z) = seed.split();
         Self::generate_deterministic(d, z)
+    }
+
+    /// Initialize a [`DecapsulationKey`] from the serialized expanded key form.
+    ///
+    /// Note that this form is deprecated in practice; prefer to use
+    /// [`DecapsulationKey::from_seed`].
+    #[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
+    #[must_use]
+    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Self {
+        let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
+        let ek_pke = EncryptionKey::from_bytes(ek_pke);
+
+        // XXX(RLB): The encoding here is redundant, since `h` can be computed from `ek_pke`.
+        // Should we verify that the provided `h` value is valid?
+
+        Self {
+            dk_pke: DecryptionKey::from_bytes(dk_pke),
+            ek: EncapsulationKey {
+                ek_pke,
+                h: h.clone(),
+            },
+            d: None,
+            z: z.clone(),
+        }
     }
 
     /// Serialize the [`Seed`] value: 64-bytes which can be used to reconstruct the
