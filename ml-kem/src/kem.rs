@@ -14,7 +14,7 @@ use crate::{Encoded, EncodedSizeUser, Seed};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 // Re-export traits from the `kem` crate
-pub use ::kem::{Decapsulate, Encapsulate};
+pub use ::kem::{Decapsulate, Encapsulate, KeyInit, KeySizeUser};
 
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;

@@ -21,12 +21,16 @@
 //! computers.
 //!
 //! ```
-//! # use ml_kem::*;
-//! # use ::kem::{Decapsulate, Encapsulate};
-//! let mut rng = rand::rng();
+//! use ml_kem::{
+//!     ml_kem_768::DecapsulationKey,
+//!     kem::{Decapsulate, Encapsulate, KeyInit}
+//! };
 //!
-//! // Generate a (decapsulation key, encapsulation key) pair
-//! let (dk, ek) = MlKem768::generate(&mut rng);
+//! // Generate a decapsulation/encapsulation keypair
+//! let mut rng = rand::rng();
+//! let seed = DecapsulationKey::generate_key_with_rng(&mut rng);
+//! let dk = DecapsulationKey::new(&seed);
+//! let ek = dk.encapsulator();
 //!
 //! // Encapsulate a shared key to the holder of the decapsulation key, receive the shared
 //! // secret `k_send` and the encapsulated form `ct`.
@@ -81,6 +85,9 @@ pub use hybrid_array as array;
 #[cfg(feature = "deterministic")]
 pub use util::B32;
 
+pub use ml_kem_512::MlKem512Params;
+pub use ml_kem_768::MlKem768Params;
+pub use ml_kem_1024::MlKem1024Params;
 pub use param::{ArraySize, ParameterSet};
 pub use traits::*;
 
@@ -88,43 +95,85 @@ pub use traits::*;
 /// security levels, and are the preferred serialization for representing such keys.
 pub type Seed = Array<u8, U64>;
 
-/// `MlKem512` is the parameter set for security category 1, corresponding to key search on a block
+/// ML-KEM-512 is the parameter set for security category 1, corresponding to key search on a block
 /// cipher with a 128-bit key.
-#[derive(Default, Clone, Debug, PartialEq)]
-pub struct MlKem512Params;
+pub mod ml_kem_512 {
+    use super::*;
 
-impl ParameterSet for MlKem512Params {
-    type K = U2;
-    type Eta1 = U3;
-    type Eta2 = U2;
-    type Du = U10;
-    type Dv = U4;
+    /// `MlKem512` is the parameter set for security category 1, corresponding to key search on a
+    /// block cipher with a 128-bit key.
+    #[derive(Default, Clone, Debug, PartialEq)]
+    pub struct MlKem512Params;
+
+    impl ParameterSet for MlKem512Params {
+        type K = U2;
+        type Eta1 = U3;
+        type Eta2 = U2;
+        type Du = U10;
+        type Dv = U4;
+    }
+
+    /// An ML-KEM-512 `DecapsulationKey` which provides the ability to generate a new key pair, and
+    /// decapsulate an encapsulated shared key.
+    pub type DecapsulationKey = kem::DecapsulationKey<MlKem512Params>;
+
+    /// An ML-KEM-512 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
+    /// can only be decapsulated by the holder of the corresponding decapsulation key.
+    pub type EncapsulationKey = kem::EncapsulationKey<MlKem512Params>;
 }
 
-/// `MlKem768` is the parameter set for security category 3, corresponding to key search on a block
+/// ML-KEM-768 is the parameter set for security category 3, corresponding to key search on a block
 /// cipher with a 192-bit key.
-#[derive(Default, Clone, Debug, PartialEq)]
-pub struct MlKem768Params;
+pub mod ml_kem_768 {
+    use super::*;
 
-impl ParameterSet for MlKem768Params {
-    type K = U3;
-    type Eta1 = U2;
-    type Eta2 = U2;
-    type Du = U10;
-    type Dv = U4;
+    /// `MlKem768` is the parameter set for security category 3, corresponding to key search on a
+    /// block cipher with a 192-bit key.
+    #[derive(Default, Clone, Debug, PartialEq)]
+    pub struct MlKem768Params;
+
+    impl ParameterSet for MlKem768Params {
+        type K = U3;
+        type Eta1 = U2;
+        type Eta2 = U2;
+        type Du = U10;
+        type Dv = U4;
+    }
+
+    /// An ML-KEM-768 `DecapsulationKey` which provides the ability to generate a new key pair, and
+    /// decapsulate an encapsulated shared key.
+    pub type DecapsulationKey = kem::DecapsulationKey<MlKem768Params>;
+
+    /// An ML-KEM-768 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
+    /// can only be decapsulated by the holder of the corresponding decapsulation key.
+    pub type EncapsulationKey = kem::EncapsulationKey<MlKem768Params>;
 }
 
-/// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a block
+/// ML-KEM-1024 is the parameter set for security category 5, corresponding to key search on a block
 /// cipher with a 256-bit key.
-#[derive(Default, Clone, Debug, PartialEq)]
-pub struct MlKem1024Params;
+pub mod ml_kem_1024 {
+    use super::*;
 
-impl ParameterSet for MlKem1024Params {
-    type K = U4;
-    type Eta1 = U2;
-    type Eta2 = U2;
-    type Du = U11;
-    type Dv = U5;
+    /// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a
+    /// block cipher with a 256-bit key.
+    #[derive(Default, Clone, Debug, PartialEq)]
+    pub struct MlKem1024Params;
+
+    impl ParameterSet for MlKem1024Params {
+        type K = U4;
+        type Eta1 = U2;
+        type Eta2 = U2;
+        type Du = U11;
+        type Dv = U5;
+    }
+
+    /// An ML-KEM-1024 `DecapsulationKey` which provides the ability to generate a new key pair, and
+    /// decapsulate an encapsulated shared key.
+    pub type DecapsulationKey = kem::DecapsulationKey<MlKem1024Params>;
+
+    /// An ML-KEM-1024 `EncapsulationKey` provides the ability to encapsulate a shared key so that
+    /// it can only be decapsulated by the holder of the corresponding decapsulation key.
+    pub type EncapsulationKey = kem::EncapsulationKey<MlKem1024Params>;
 }
 
 /// A shared key produced by the KEM `K`
