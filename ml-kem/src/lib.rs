@@ -21,12 +21,18 @@
 //! computers.
 //!
 //! ```
-//! # use ml_kem::*;
-//! # use ::kem::{Decapsulate, Encapsulate};
-//! let mut rng = rand::rng();
+//! use ml_kem::{
+//!     MlKem768Params,
+//!     kem::{Decapsulate, Encapsulate, KeyInit}
+//! };
+//!
+//! type DecapsulationKey = ml_kem::kem::DecapsulationKey<MlKem768Params>;
 //!
 //! // Generate a (decapsulation key, encapsulation key) pair
-//! let (dk, ek) = MlKem768::generate(&mut rng);
+//! let mut rng = rand::rng();
+//! let seed = DecapsulationKey::generate_key_with_rng(&mut rng);
+//! let dk = DecapsulationKey::new(&seed);
+//! let ek = dk.encapsulator();
 //!
 //! // Encapsulate a shared key to the holder of the decapsulation key, receive the shared
 //! // secret `k_send` and the encapsulated form `ct`.
