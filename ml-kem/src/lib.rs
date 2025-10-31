@@ -88,7 +88,7 @@ pub use util::B32;
 pub use ml_kem_512::MlKem512Params;
 pub use ml_kem_768::MlKem768Params;
 pub use ml_kem_1024::MlKem1024Params;
-pub use param::{ArraySize, ParameterSet};
+pub use param::{ArraySize, ExpandedDecapsulationKey, ParameterSet};
 pub use traits::*;
 
 /// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
