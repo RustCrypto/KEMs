@@ -80,6 +80,14 @@ This crate has been tested against the following `serde` compatible formats:
 - [x] serde_yaml
 - [x] toml
 
+## Minimum Supported Rust Version (MSRV) Policy
+
+MSRV increases are not considered breaking changes and can happen in patch
+releases.
+
+The crate MSRV accounts for all supported targets and crate feature
+combinations, excluding explicitly unstable features.
+
 ## License
 
 Licensed under
@@ -104,4 +112,4 @@ conditions.
 [docs-image]: https://docs.rs/frodo-kem/badge.svg
 [docs-link]: https://docs.rs/frodo-kem/
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[msrv-image]: https://img.shields.io/badge/rustc-1.82+-blue.svg
+[msrv-image]: https://img.shields.io/badge/rustc-1.85+-blue.svg
