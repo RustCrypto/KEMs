@@ -181,7 +181,7 @@ mod tests {
         let my_pk = EncryptionKey::<F>::from_slice(their_pk.as_ref()).unwrap();
         let my_sk = DecryptionKey::<F>::from_slice(their_sk.as_ref()).unwrap();
 
-        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
 
         let (my_ct, my_ess) = kem.encapsulate_with_rng(&my_pk, &mut rng);
         let (my_ss, _) = kem.decapsulate(&my_sk, &my_ct);
@@ -227,7 +227,7 @@ mod tests {
         #[case] kem: F,
         #[case] alg: safe_oqs::kem::Algorithm,
     ) {
-        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
         let (our_pk, our_sk) = kem.generate_keypair(&mut rng);
         let kem = safe_oqs::kem::Kem::new(alg).unwrap();
         let opt_pk = kem.public_key_from_bytes(&our_pk.0);
@@ -269,7 +269,7 @@ mod tests {
         safe_oqs::kem::Algorithm::FrodoKem1344Shake
     )]
     fn encapsulate_compatibility<F: Kem>(#[case] kem: F, #[case] alg: safe_oqs::kem::Algorithm) {
-        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
         let (our_pk, our_sk) = kem.generate_keypair(&mut rng);
         let safe_kem = safe_oqs::kem::Kem::new(alg).unwrap();
 
@@ -315,7 +315,7 @@ mod tests {
         safe_oqs::kem::Algorithm::FrodoKem1344Shake
     )]
     fn decapsulate_compatibility<F: Kem>(#[case] kem: F, #[case] alg: safe_oqs::kem::Algorithm) {
-        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
         let (our_pk, our_sk) = kem.generate_keypair(&mut rng);
         let safe_kem = safe_oqs::kem::Kem::new(alg).unwrap();
 

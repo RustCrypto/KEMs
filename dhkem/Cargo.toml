@@ -14,8 +14,8 @@ keywords = ["crypto", "ecdh", "ecc"]
 readme = "README.md"
 
 [dependencies]
-kem = "=0.4.0-pre.1"
-rand_core = "0.9.0"
+kem = "=0.4.0-pre.2"
+rand_core = "0.10.0-rc-2"
 
 # optional dependencies
 elliptic-curve = { version = "0.14.0-rc.16", optional = true, default-features = false }
@@ -23,8 +23,14 @@ k256 = { version = "0.14.0-rc.0", optional = true, default-features = false, fea
 p256 = { version = "0.14.0-rc.0", optional = true, default-features = false, features = ["arithmetic"] }
 p384 = { version = "0.14.0-rc.0", optional = true, default-features = false, features = ["arithmetic"] }
 p521 = { version = "0.14.0-rc.0", optional = true, default-features = false, features = ["arithmetic"] }
-x25519 = { version = "=3.0.0-pre.0", package = "x25519-dalek", optional = true, default-features = false }
+x25519 = { version = "=3.0.0-pre.1", package = "x25519-dalek", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
+
+[dev-dependencies]
+hex-literal = "1"
+hkdf = "0.13.0-rc.3"
+rand = "0.10.0-rc.1"
+sha2 = "0.11.0-rc.3"
 
 [features]
 default = ["zeroize"]
@@ -35,12 +41,6 @@ p384 = ["dep:p384", "ecdh"]
 p521 = ["dep:p521", "ecdh"]
 x25519 = ["dep:x25519", "x25519/reusable_secrets"]
 zeroize = ["dep:zeroize"]
-
-[dev-dependencies]
-hex-literal = "1"
-hkdf = "0.13.0-rc.0"
-rand = "0.9.2"
-sha2 = "0.11.0-rc.2"
 
 [package.metadata.docs.rs]
 all-features = true
