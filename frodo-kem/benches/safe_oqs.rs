@@ -6,7 +6,7 @@ use frodo_kem::*;
 use rand_core::SeedableRng;
 
 fn bench_keygen<M: Measurement>(group: &mut BenchmarkGroup<'_, M>) {
-    let mut rng = rand_chacha::ChaCha8Rng::from_os_rng();
+    let mut rng = chacha20::ChaCha8Rng::seed_from_u64(42);
     group.bench_function("KeyGen 640Aes", |b| {
         b.iter(|| {
             let (_pk, _sk) = Algorithm::EphemeralFrodoKem640Aes.generate_keypair(&mut rng);
@@ -81,7 +81,7 @@ fn bench_keygen<M: Measurement>(group: &mut BenchmarkGroup<'_, M>) {
 }
 
 fn bench_encapsulate<M: Measurement>(group: &mut BenchmarkGroup<'_, M>) {
-    let mut rng = rand_chacha::ChaCha8Rng::from_os_rng();
+    let mut rng = chacha20::ChaCha8Rng::seed_from_u64(42);
     let (pk, _sk) = Algorithm::EphemeralFrodoKem640Aes.generate_keypair(&mut rng);
     group.bench_function("Encapsulate 640Aes", |b| {
         b.iter(|| {
@@ -180,7 +180,7 @@ fn bench_encapsulate<M: Measurement>(group: &mut BenchmarkGroup<'_, M>) {
 }
 
 fn bench_decapsulate<M: Measurement>(group: &mut BenchmarkGroup<'_, M>) {
-    let mut rng = rand_chacha::ChaCha8Rng::from_os_rng();
+    let mut rng = chacha20::ChaCha8Rng::seed_from_u64(42);
     let (pk, sk) = Algorithm::EphemeralFrodoKem640Aes.generate_keypair(&mut rng);
     let (ct, _ss) = Algorithm::EphemeralFrodoKem640Aes
         .encapsulate_with_rng(&pk, &mut rng)

@@ -6,7 +6,7 @@
 //!
 //! ```
 //! use frodo_kem::Algorithm;
-//! use rand_core::{OsRng, TryRngCore};
+//! use rand::{rngs::OsRng, TryRngCore};
 //!
 //! let mut rng = OsRng.unwrap_err();
 //! let alg = Algorithm::FrodoKem640Shake;
@@ -28,7 +28,7 @@
 //!
 //! ```
 //! use frodo_kem::Algorithm;
-//! use rand_core::{RngCore, OsRng, TryRngCore};
+//! use rand::{rngs::OsRng, RngCore, TryRngCore};
 //!
 //! let mut rng = OsRng.unwrap_err();
 //! let alg = Algorithm::FrodoKem1344Shake;
@@ -1647,7 +1647,7 @@ mod tests {
         kem::Algorithm::FrodoKem1344Shake
     )]
     fn ephemeral_works(#[case] alg: Algorithm, #[case] safe_alg: kem::Algorithm) {
-        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
         let (our_pk, our_sk) = alg.generate_keypair(&mut rng);
         let kem = kem::Kem::new(safe_alg).unwrap();
 
@@ -1686,7 +1686,7 @@ mod tests {
     #[case::shake976(Algorithm::FrodoKem976Shake)]
     #[case::shake1344(Algorithm::FrodoKem1344Shake)]
     fn works(#[case] alg: Algorithm) {
-        let mut rng = rand_chacha::ChaCha8Rng::from_seed([1u8; 32]);
+        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
         let (our_pk, our_sk) = alg.generate_keypair(&mut rng);
 
         let mut mu = vec![0u8; alg.params().message_length];
@@ -1716,7 +1716,7 @@ mod tests {
             #[case::shake976(Algorithm::EphemeralFrodoKem976Shake)]
             #[case::shake1344(Algorithm::EphemeralFrodoKem1344Shake)]
             fn $name(#[case] alg: Algorithm) {
-                let mut rng = rand_chacha::ChaCha8Rng::from_seed([3u8; 32]);
+                let mut rng = chacha20::ChaCha8Rng::from_seed([3u8; 32]);
                 let (pk, sk) = alg.generate_keypair(&mut rng);
                 let (ct, ss) = alg.encapsulate_with_rng(&pk, &mut rng).unwrap();
 
