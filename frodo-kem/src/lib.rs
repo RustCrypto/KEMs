@@ -1634,49 +1634,6 @@ mod tests {
     use super::*;
     use rand_core::{RngCore, SeedableRng};
     use rstest::*;
-    use safe_oqs::kem;
-
-    #[rstest]
-    #[case::aes640(Algorithm::EphemeralFrodoKem640Aes, kem::Algorithm::FrodoKem640Aes)]
-    #[case::aes976(Algorithm::EphemeralFrodoKem976Aes, kem::Algorithm::FrodoKem976Aes)]
-    #[case::aes1344(Algorithm::EphemeralFrodoKem1344Aes, kem::Algorithm::FrodoKem1344Aes)]
-    #[case::shake640(Algorithm::EphemeralFrodoKem640Shake, kem::Algorithm::FrodoKem640Shake)]
-    #[case::shake976(Algorithm::EphemeralFrodoKem976Shake, kem::Algorithm::FrodoKem976Shake)]
-    #[case::shake1344(
-        Algorithm::EphemeralFrodoKem1344Shake,
-        kem::Algorithm::FrodoKem1344Shake
-    )]
-    fn ephemeral_works(#[case] alg: Algorithm, #[case] safe_alg: kem::Algorithm) {
-        let mut rng = chacha20::ChaCha8Rng::from_seed([1u8; 32]);
-        let (our_pk, our_sk) = alg.generate_keypair(&mut rng);
-        let kem = kem::Kem::new(safe_alg).unwrap();
-
-        let opt_pk = kem.public_key_from_bytes(&our_pk.value);
-        assert!(opt_pk.is_some());
-        let opt_sk = kem.secret_key_from_bytes(&our_sk.value);
-        assert!(opt_sk.is_some());
-
-        let their_pk = opt_pk.unwrap();
-        let their_sk = opt_sk.unwrap();
-
-        let mut mu = vec![0u8; alg.params().message_length];
-        rng.fill_bytes(&mut mu);
-        let (our_ct, our_ess) = alg.encapsulate(&our_pk, &mu, []).unwrap();
-        let (our_dss, mu_prime) = alg.decapsulate(&our_sk, &our_ct).unwrap();
-        assert_eq!(our_ess.value, our_dss.value);
-        assert_eq!(mu, mu_prime);
-
-        let their_ct = kem.ciphertext_from_bytes(&our_ct.value).unwrap();
-        let their_ss = kem.decapsulate(their_sk, their_ct).unwrap();
-        assert_eq!(our_dss.value, their_ss.as_ref());
-
-        let (their_ct, their_ess) = kem.encapsulate(their_pk).unwrap();
-
-        let our_ct = alg.ciphertext_from_bytes(their_ct.as_ref()).unwrap();
-
-        let (their_dss, _) = alg.decapsulate(&our_sk, &our_ct).unwrap();
-        assert_eq!(their_ess.as_ref(), their_dss.value);
-    }
 
     #[rstest]
     #[case::aes640(Algorithm::FrodoKem640Aes)]

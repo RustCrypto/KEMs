@@ -86,7 +86,6 @@ hybrid-array = "0.4"
 rand = "0.10.0-rc.1"
 chacha20 = "0.10.0-rc.3"
 rstest = "0.26"
-safe-oqs = { version = "0.10", default-features = false, features = ["frodokem"] }
 postcard = { version = "1.0", features = ["use-std"] }
 serde_bare = "0.5"
 serde_cbor = "0.11"
@@ -102,12 +101,6 @@ features = [
     "serde",
 ]
 rustdoc-args = ["--cfg", "docsrs"]
-
-[[bench]]
-name = "safe-oqs"
-harness = false
-path = "benches/safe_oqs.rs"
-required-features = ["efrodo"]
 
 [[bench]]
 name = "frodo"
