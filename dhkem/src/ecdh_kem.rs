@@ -3,11 +3,11 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use core::{convert::Infallible, marker::PhantomData};
 use elliptic_curve::{
-    ecdh::{EphemeralSecret, SharedSecret},
     CurveArithmetic, PublicKey,
+    ecdh::{EphemeralSecret, SharedSecret},
 };
 use kem::{Decapsulate, Encapsulate};
-use rand_core::CryptoRngCore;
+use rand_core::{CryptoRng, TryCryptoRng};
 
 /// Generic Elliptic Curve Diffie-Hellman KEM adapter compatible with curves implemented using
 /// traits from the `elliptic-curve` crate.
@@ -21,12 +21,12 @@ where
 {
     type Error = Infallible;
 
-    fn encapsulate(
+    fn encapsulate<R: TryCryptoRng + ?Sized>(
         &self,
-        rng: &mut impl CryptoRngCore,
+        rng: &mut R,
     ) -> Result<(PublicKey<C>, SharedSecret<C>), Self::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
-        let sk = EphemeralSecret::random(rng);
+        let sk = EphemeralSecret::random(&mut rng.unwrap_mut());
         let pk = sk.public_key();
         let ss = sk.diffie_hellman(&self.0);
 
@@ -38,12 +38,17 @@ impl<C> Decapsulate<PublicKey<C>, SharedSecret<C>> for DhDecapsulator<EphemeralS
 where
     C: CurveArithmetic,
 {
+    type Encapsulator = DhEncapsulator<PublicKey<C>>;
     type Error = Infallible;
 
     fn decapsulate(&self, encapsulated_key: &PublicKey<C>) -> Result<SharedSecret<C>, Self::Error> {
         let ss = self.0.diffie_hellman(encapsulated_key);
 
         Ok(ss)
+    }
+
+    fn encapsulator(&self) -> DhEncapsulator<PublicKey<C>> {
+        DhEncapsulator(self.0.public_key())
     }
 }
 
@@ -56,8 +61,8 @@ where
     type EncapsulatedKey = PublicKey<C>;
     type SharedSecret = SharedSecret<C>;
 
-    fn random_keypair(
-        rng: &mut impl CryptoRngCore,
+    fn random_keypair<R: CryptoRng + ?Sized>(
+        rng: &mut R,
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey) {
         let sk = EphemeralSecret::random(rng);
         let pk = PublicKey::from(&sk);

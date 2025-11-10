@@ -1,10 +1,12 @@
 #![cfg_attr(not(test), no_std)]
-#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+#![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 #![doc(
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
 )]
+#![deny(missing_docs)]
+#![warn(clippy::pedantic)]
 
 //! # Usage
 //!
@@ -12,38 +14,32 @@
 //! X-Wing-KEM is a KEM in the sense that it creates an (decapsulation key, encapsulation key) pair,
 //! such that anyone can use the encapsulation key to establish a shared key with the holder of the
 //! decapsulation key. X-Wing-KEM is a general-purpose hybrid post-quantum KEM, combining x25519 and ML-KEM-768.
+#![cfg_attr(feature = "getrandom", doc = "```")]
+#![cfg_attr(not(feature = "getrandom"), doc = "```ignore")]
+//! use kem::{Decapsulate, Encapsulate};
+//! use rand::rngs::OsRng;
 //!
-//! ```
-//! # use rand;
-//! # use kem::{Decapsulate, Encapsulate};
-//! let mut rng = rand::thread_rng();
-//!
-//! let (sk, pk) = x_wing::generate_key_pair(&mut rng);
-//!
-//! let (ct, ss_sender) = pk.encapsulate(&mut rng).unwrap();
-//!
+//! let (sk, pk) = x_wing::generate_key_pair();
+//! let (ct, ss_sender) = pk.encapsulate(&mut OsRng).unwrap();
 //! let ss_receiver = sk.decapsulate(&ct).unwrap();
-//!
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
-use core::convert::Infallible;
+pub use kem::{self, Decapsulate, Encapsulate};
 
-use kem::{Decapsulate, Encapsulate};
-use ml_kem::array::ArrayN;
-use ml_kem::{kem, EncodedSizeUser, KemCore, MlKem768, MlKem768Params, B32};
-use rand_core::CryptoRngCore;
-#[cfg(feature = "getrandom")]
-use rand_core::OsRng;
-use sha3::digest::core_api::XofReaderCoreWrapper;
+use core::convert::Infallible;
+use ml_kem::array::{ArrayN, typenum::consts::U32};
+use ml_kem::{B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params};
+use rand_core::{CryptoRng, TryCryptoRng};
 use sha3::digest::{ExtendableOutput, XofReader};
-use sha3::{Sha3_256, Shake256, Shake256ReaderCore};
-use x25519_dalek::{x25519, X25519_BASEPOINT_BYTES};
+use sha3::{Sha3_256, Shake256, Shake256Reader};
+use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-type MlKem768DecapsulationKey = kem::DecapsulationKey<MlKem768Params>;
-type MlKem768EncapsulationKey = kem::EncapsulationKey<MlKem768Params>;
+type MlKem768DecapsulationKey = ml_kem::kem::DecapsulationKey<MlKem768Params>;
+type MlKem768EncapsulationKey = ml_kem::kem::EncapsulationKey<MlKem768Params>;
 
 const X_WING_LABEL: &[u8; 6] = br"\.//^\";
 
@@ -71,31 +67,26 @@ pub type SharedSecret = [u8; 32];
 #[derive(Clone, PartialEq)]
 pub struct EncapsulationKey {
     pk_m: MlKem768EncapsulationKey,
-    pk_x: x25519_dalek::PublicKey,
+    pk_x: PublicKey,
 }
 
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
     type Error = Infallible;
 
-    fn encapsulate(
+    fn encapsulate<R: TryCryptoRng + ?Sized>(
         &self,
-        rng: &mut impl CryptoRngCore,
+        rng: &mut R,
     ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
         // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
         let (ct_m, ss_m) = self.pk_m.encapsulate(rng)?;
 
-        let ek_x: SharedSecret = generate(rng);
-        let ct_x = x25519(ek_x, X25519_BASEPOINT_BYTES);
-        let ss_x = x25519(ek_x, self.pk_x.to_bytes());
+        let ek_x = EphemeralSecret::random_from_rng(&mut rng.unwrap_mut());
+        // Equal to ct_x = x25519(ek_x, BASE_POINT)
+        let ct_x = PublicKey::from(&ek_x);
+        // Equal to ss_x = x25519(ek_x, pk_x)
+        let ss_x = ek_x.diffie_hellman(&self.pk_x);
 
         let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
-
-        #[cfg(feature = "zeroize")]
-        {
-            let mut ss_x = ss_x;
-            ss_x.zeroize();
-        }
-
         let ct = Ciphertext { ct_m, ct_x };
         Ok((ct, ss))
     }
@@ -103,9 +94,9 @@ impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
 
 impl EncapsulationKey {
     /// Convert the key to the following format:
-    /// ML-KEM-768 public key(1184 bytes) | X25519 public key(32 bytes).
+    /// ML-KEM-768 public key(1184 bytes) || X25519 public key(32 bytes).
     #[must_use]
-    pub fn as_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
+    pub fn to_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
         let mut buffer = [0u8; ENCAPSULATION_KEY_SIZE];
         buffer[0..1184].copy_from_slice(&self.pk_m.as_bytes());
         buffer[1184..1216].copy_from_slice(self.pk_x.as_bytes());
@@ -121,7 +112,7 @@ impl From<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
 
         let mut pk_x = [0; 32];
         pk_x.copy_from_slice(&value[1184..]);
-        let pk_x = x25519_dalek::PublicKey::from(pk_x);
+        let pk_x = PublicKey::from(pk_x);
         EncapsulationKey { pk_m, pk_x }
     }
 }
@@ -135,33 +126,53 @@ pub struct DecapsulationKey {
 }
 
 impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
+    type Encapsulator = EncapsulationKey;
     type Error = Infallible;
 
+    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
     fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
         let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
+
         let ss_m = sk_m.decapsulate(&ct.ct_m)?;
-        let ss_x = x25519(sk_x.to_bytes(), ct.ct_x);
+
+        // equal to ss_x = x25519(sk_x, ct_x)
+        let ss_x = sk_x.diffie_hellman(&ct.ct_x);
+
         let ss = combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x);
-
-        #[cfg(feature = "zeroize")]
-        {
-            let mut ss_x = ss_x;
-            ss_x.zeroize();
-        }
-
         Ok(ss)
+    }
+
+    fn encapsulator(&self) -> EncapsulationKey {
+        self.encapsulation_key()
+    }
+}
+
+impl ::kem::KeySizeUser for DecapsulationKey {
+    type KeySize = U32;
+}
+
+impl ::kem::KeyInit for DecapsulationKey {
+    fn new(key: &ArrayN<u8, 32>) -> Self {
+        Self { sk: key.0 }
     }
 }
 
 impl DecapsulationKey {
     /// Generate a new `DecapsulationKey` using `OsRng`.
+    ///
+    /// # Panics
+    ///
+    /// In the event of an RNG failure (shouldn't happen on modern OSes)
     #[cfg(feature = "getrandom")]
-    pub fn generate_from_os_rng() -> DecapsulationKey {
-        Self::generate(&mut OsRng)
+    #[must_use]
+    pub fn generate() -> DecapsulationKey {
+        let mut sk = [0; DECAPSULATION_KEY_SIZE];
+        getrandom::fill(&mut sk).expect("RNG failure");
+        DecapsulationKey { sk }
     }
 
     /// Generate a new `DecapsulationKey` using the provided RNG.
-    pub fn generate(rng: &mut impl CryptoRngCore) -> DecapsulationKey {
+    pub fn generate_from_rng<R: CryptoRng + ?Sized>(rng: &mut R) -> DecapsulationKey {
         let sk = generate(rng);
         DecapsulationKey { sk }
     }
@@ -177,22 +188,21 @@ impl DecapsulationKey {
         &self,
     ) -> (
         MlKem768DecapsulationKey,
-        x25519_dalek::StaticSecret,
+        StaticSecret,
         MlKem768EncapsulationKey,
-        x25519_dalek::PublicKey,
+        PublicKey,
     ) {
         use sha3::digest::Update;
         let mut shaker = Shake256::default();
         shaker.update(&self.sk);
-        let mut expanded = shaker.finalize_xof();
+        let mut expanded: Shake256Reader = shaker.finalize_xof();
 
-        let d = read_from(&mut expanded).into();
-        let z = read_from(&mut expanded).into();
-        let (sk_m, pk_m) = MlKem768::generate_deterministic(&d, &z);
+        let seed = read_from(&mut expanded).into();
+        let (sk_m, pk_m) = MlKem768::from_seed(seed);
 
         let sk_x = read_from(&mut expanded);
-        let sk_x = x25519_dalek::StaticSecret::from(sk_x);
-        let pk_x = x25519_dalek::PublicKey::from(&sk_x);
+        let sk_x = StaticSecret::from(sk_x);
+        let pk_x = PublicKey::from(&sk_x);
 
         (sk_m, sk_x, pk_m, pk_x)
     }
@@ -215,17 +225,17 @@ impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKey {
 #[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
 pub struct Ciphertext {
     ct_m: ArrayN<u8, 1088>,
-    ct_x: [u8; 32],
+    ct_x: PublicKey,
 }
 
 impl Ciphertext {
     /// Convert the ciphertext to the following format:
-    /// ML-KEM-768 ciphertext(1088 bytes) | X25519 ciphertext(32 bytes).
+    /// ML-KEM-768 ciphertext(1088 bytes) || X25519 ciphertext(32 bytes).
     #[must_use]
-    pub fn as_bytes(&self) -> [u8; CIPHERTEXT_SIZE] {
+    pub fn to_bytes(&self) -> [u8; CIPHERTEXT_SIZE] {
         let mut buffer = [0; CIPHERTEXT_SIZE];
         buffer[0..1088].copy_from_slice(&self.ct_m);
-        buffer[1088..].copy_from_slice(&self.ct_x);
+        buffer[1088..].copy_from_slice(self.ct_x.as_bytes());
         buffer
     }
 }
@@ -239,29 +249,34 @@ impl From<&[u8; CIPHERTEXT_SIZE]> for Ciphertext {
 
         Ciphertext {
             ct_m: ct_m.into(),
-            ct_x,
+            ct_x: ct_x.into(),
         }
     }
 }
 
 /// Generate a X-Wing key pair using `OsRng`.
 #[cfg(feature = "getrandom")]
-pub fn generate_key_pair_from_os_rng() -> (DecapsulationKey, EncapsulationKey) {
-    generate_key_pair(&mut OsRng)
+#[must_use]
+pub fn generate_key_pair() -> (DecapsulationKey, EncapsulationKey) {
+    let sk = DecapsulationKey::generate();
+    let pk = sk.encapsulation_key();
+    (sk, pk)
 }
 
 /// Generate a X-Wing key pair using the provided rng.
-pub fn generate_key_pair(rng: &mut impl CryptoRngCore) -> (DecapsulationKey, EncapsulationKey) {
-    let sk = DecapsulationKey::generate(rng);
+pub fn generate_key_pair_from_rng<R: CryptoRng + ?Sized>(
+    rng: &mut R,
+) -> (DecapsulationKey, EncapsulationKey) {
+    let sk = DecapsulationKey::generate_from_rng(rng);
     let pk = sk.encapsulation_key();
     (sk, pk)
 }
 
 fn combiner(
     ss_m: &B32,
-    ss_x: &[u8; 32],
-    ct_x: &[u8; 32],
-    pk_x: &x25519_dalek::PublicKey,
+    ss_x: &x25519_dalek::SharedSecret,
+    ct_x: &PublicKey,
+    pk_x: &PublicKey,
 ) -> SharedSecret {
     use sha3::Digest;
 
@@ -274,13 +289,13 @@ fn combiner(
     hasher.finalize().into()
 }
 
-fn read_from<const N: usize>(reader: &mut XofReaderCoreWrapper<Shake256ReaderCore>) -> [u8; N] {
+fn read_from<const N: usize>(reader: &mut Shake256Reader) -> [u8; N] {
     let mut data = [0; N];
     reader.read(&mut data);
     data
 }
 
-fn generate<const N: usize>(rng: &mut impl CryptoRngCore) -> [u8; N] {
+fn generate<const N: usize, R: CryptoRng + ?Sized>(rng: &mut R) -> [u8; N] {
     let mut random = [0; N];
     rng.fill_bytes(&mut random);
     random
@@ -288,13 +303,14 @@ fn generate<const N: usize>(rng: &mut impl CryptoRngCore) -> [u8; N] {
 
 #[cfg(test)]
 mod tests {
-    use rand_core::{impls, CryptoRng, OsRng, RngCore};
+    use rand::{CryptoRng, RngCore, TryRngCore, rngs::OsRng};
+    use rand_core::le;
     use serde::Deserialize;
 
     use super::*;
 
-    struct SeedRng {
-        seed: Vec<u8>,
+    pub(crate) struct SeedRng {
+        pub(crate) seed: Vec<u8>,
     }
 
     impl SeedRng {
@@ -305,21 +321,16 @@ mod tests {
 
     impl RngCore for SeedRng {
         fn next_u32(&mut self) -> u32 {
-            impls::next_u32_via_fill(self)
+            le::next_u32_via_fill(self)
         }
 
         fn next_u64(&mut self) -> u64 {
-            impls::next_u64_via_fill(self)
+            le::next_u64_via_fill(self)
         }
 
         fn fill_bytes(&mut self, dest: &mut [u8]) {
-            self.try_fill_bytes(dest).unwrap();
-        }
-
-        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), rand_core::Error> {
             dest.copy_from_slice(&self.seed[0..dest.len()]);
             self.seed.drain(0..dest.len());
-            Ok(())
         }
     }
 
@@ -359,16 +370,16 @@ mod tests {
 
     fn run_test(test_vector: TestVector) {
         let mut seed = SeedRng::new(test_vector.seed);
-        let (sk, pk) = generate_key_pair(&mut seed);
+        let (sk, pk) = generate_key_pair_from_rng(&mut seed);
 
-        assert_eq!(sk.as_bytes().to_vec(), test_vector.sk);
-        assert_eq!(pk.as_bytes().to_vec(), test_vector.pk);
+        assert_eq!(sk.as_bytes(), &test_vector.sk);
+        assert_eq!(&pk.to_bytes(), test_vector.pk.as_slice());
 
         let mut eseed = SeedRng::new(test_vector.eseed);
         let (ct, ss) = pk.encapsulate(&mut eseed).unwrap();
 
         assert_eq!(ss, test_vector.ss);
-        assert_eq!(ct.as_bytes().to_vec(), test_vector.ct);
+        assert_eq!(&ct.to_bytes(), test_vector.ct.as_slice());
 
         let ss = sk.decapsulate(&ct).unwrap();
         assert_eq!(ss, test_vector.ss);
@@ -376,14 +387,14 @@ mod tests {
 
     #[test]
     fn ciphertext_serialize() {
-        let mut rng = OsRng;
+        let mut rng = OsRng.unwrap_err();
 
         let ct_a = Ciphertext {
             ct_m: generate(&mut rng).into(),
-            ct_x: generate(&mut rng),
+            ct_x: generate(&mut rng).into(),
         };
 
-        let bytes = ct_a.as_bytes();
+        let bytes = ct_a.to_bytes();
 
         let ct_b = Ciphertext::from(&bytes);
 
@@ -392,14 +403,14 @@ mod tests {
 
     #[test]
     fn key_serialize() {
-        let sk = DecapsulationKey::generate(&mut OsRng);
+        let sk = DecapsulationKey::generate_from_rng(&mut OsRng.unwrap_err());
         let pk = sk.encapsulation_key();
 
         let sk_bytes = sk.as_bytes();
-        let pk_bytes = pk.as_bytes();
+        let pk_bytes = pk.to_bytes();
 
         let sk_b = DecapsulationKey::from(*sk_bytes);
-        let pk_b = EncapsulationKey::from(&pk_bytes.clone());
+        let pk_b = EncapsulationKey::from(&pk_bytes);
 
         assert!(sk == sk_b);
         assert!(pk == pk_b);

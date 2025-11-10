@@ -21,11 +21,16 @@ defaults:
     working-directory: frodo-kem
     shell: bash
 
+# Cancels CI jobs when new commits are pushed to a PR branch
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   set-msrv:
     uses: RustCrypto/actions/.github/workflows/set-msrv.yml@master
     with:
-      msrv: 1.82.0
+      msrv: 1.85.0
 
   build:
     needs: set-msrv
@@ -36,7 +41,7 @@ jobs:
           - ${{ needs.set-msrv.outputs.msrv }}
           - stable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -54,7 +59,7 @@ jobs:
           - ${{ needs.set-msrv.outputs.msrv }}
           - stable
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: ${{ matrix.rust }}
@@ -65,27 +70,28 @@ jobs:
   careful:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - uses: dtolnay/rust-toolchain@nightly
       - run: cargo install cargo-careful
       - run: cargo careful test tests
       - run: cargo careful test test_vector --release
 
-  cross:
-    needs: set-msrv
-    strategy:
-      matrix:
-        include:
-          - target: powerpc-unknown-linux-gnu
-            rust: ${{ needs.set-msrv.outputs.msrv }}
-          - target: powerpc-unknown-linux-gnu
-            rust: stable
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: ${{ matrix.rust }}
-          targets: ${{ matrix.target }}
-      - uses: RustCrypto/actions/cross-install@master
-      - run: cross test --release --target ${{ matrix.target }} --all-features
+# TODO(tarcieri): needs `set-msrv`
+#  cross:
+#    needs: set-msrv
+#    strategy:
+#      matrix:
+#        include:
+#          - target: powerpc-unknown-linux-gnu
+#            rust: ${{needs.set-msrv.outputs.msrv}}
+#          - target: powerpc-unknown-linux-gnu
+#            rust: stable
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@v5
+#      - uses: dtolnay/rust-toolchain@master
+#        with:
+#          toolchain: ${{ matrix.rust }}
+#          targets: ${{ matrix.target }}
+#      - uses: RustCrypto/actions/cross-install@master
+#      - run: cross test --release --target ${{ matrix.target }} --all-features

@@ -1,16 +1,16 @@
 #![allow(dead_code)]
 
 use hybrid_array::{Array, ArraySize};
-use rand_core::CryptoRngCore;
+use rand_core::CryptoRng;
 use sha3::{
-    digest::{ExtendableOutput, Update, XofReader},
     Digest, Sha3_256, Sha3_512, Shake128, Shake256,
+    digest::{ExtendableOutput, Update, XofReader},
 };
 
 use crate::param::{CbdSamplingSize, EncodedPolynomial};
 use crate::util::B32;
 
-pub fn rand<L: ArraySize>(rng: &mut impl CryptoRngCore) -> Array<u8, L> {
+pub fn rand<L: ArraySize, R: CryptoRng + ?Sized>(rng: &mut R) -> Array<u8, L> {
     let mut val = Array::default();
     rng.fill_bytes(&mut val);
     val
@@ -39,7 +39,7 @@ pub fn H(x: impl AsRef<[u8]>) -> B32 {
     // the `generic-array` crate.  It should be pretty cheap though, since there's only one
     // allocation / no copies.
     let mut out = B32::default();
-    h.finalize_into(out.as_mut_slice().into());
+    h.finalize_into(&mut out);
     out
 }
 

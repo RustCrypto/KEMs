@@ -1,4 +1,5 @@
-use hybrid_array::typenum::{Unsigned, U1};
+use hybrid_array::typenum::{U1, Unsigned};
+use subtle::{Choice, ConstantTimeEq};
 
 use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
@@ -12,12 +13,31 @@ use zeroize::Zeroize;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub struct DecryptionKey<P>
 where
     P: PkeParams,
 {
     s_hat: NttVector<P::K>,
+}
+
+impl<P> ConstantTimeEq for DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.s_hat.ct_eq(&other.s_hat)
+    }
+}
+
+// Handwritten to ensure a constant time comparison is performed
+impl<P> PartialEq for DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
 }
 
 #[cfg(feature = "zeroize")]
@@ -149,13 +169,13 @@ where
 mod test {
     use super::*;
     use crate::crypto::rand;
-    use crate::{MlKem1024Params, MlKem512Params, MlKem768Params};
+    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
 
     fn round_trip_test<P>()
     where
         P: PkeParams,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let d: B32 = rand(&mut rng);
         let original = B32::default();
         let randomness = B32::default();
@@ -177,7 +197,7 @@ mod test {
     where
         P: PkeParams,
     {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let d: B32 = rand(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 

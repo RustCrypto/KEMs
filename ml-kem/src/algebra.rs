@@ -1,11 +1,12 @@
 use core::ops::{Add, Mul, Sub};
-use hybrid_array::{typenum::U256, Array};
+use hybrid_array::{Array, typenum::U256};
 use sha3::digest::XofReader;
+use subtle::{Choice, ConstantTimeEq};
 
-use crate::crypto::{PrfOutput, PRF, XOF};
+use crate::crypto::{PRF, PrfOutput, XOF};
 use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
-use crate::util::{Truncate, B32};
+use crate::util::{B32, Truncate};
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -16,6 +17,12 @@ pub type Integer = u16;
 /// can defer modular reductions.
 #[derive(Copy, Clone, Debug, Default, PartialEq)]
 pub struct FieldElement(pub Integer);
+
+impl ConstantTimeEq for FieldElement {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
 
 #[cfg(feature = "zeroize")]
 impl Zeroize for FieldElement {
@@ -34,11 +41,7 @@ impl FieldElement {
 
     // A fast modular reduction for small numbers `x < 2*q`
     fn small_reduce(x: u16) -> u16 {
-        if x < Self::Q {
-            x
-        } else {
-            x - Self::Q
-        }
+        if x < Self::Q { x } else { x - Self::Q }
     }
 
     fn barrett_reduce(x: u32) -> u16 {
@@ -183,6 +186,12 @@ impl<K: ArraySize> PolynomialVector<K> {
 /// An element of the ring `T_q`, i.e., a tuple of 128 elements of the direct sum components of `T_q`.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NttPolynomial(pub Array<FieldElement, U256>);
+
+impl ConstantTimeEq for NttPolynomial {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
 
 #[cfg(feature = "zeroize")]
 impl Zeroize for NttPolynomial {
@@ -426,6 +435,12 @@ impl<K: ArraySize> NttVector<K> {
             let mut xof = XOF(rho, j.truncate(), i.truncate());
             NttPolynomial::sample_uniform(&mut xof)
         }))
+    }
+}
+
+impl<K: ArraySize> ConstantTimeEq for NttVector<K> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
     }
 }
 

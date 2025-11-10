@@ -4,9 +4,9 @@ description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
 (formerly known as Kyber) as described in FIPS 203
 """
-version = "0.3.0-pre"
-edition = "2021"
-rust-version = "1.81"
+version = "0.3.0-pre.2"
+edition = "2024"
+rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 homepage = "https://github.com/RustCrypto/KEMs/tree/master/ml-kem"
@@ -16,25 +16,31 @@ keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-default = ["std"]
-std = ["sha3/std"]
-deterministic = [] # Expose deterministic generation and encapsulation functions
+alloc = ["pkcs8?/alloc"]
+
+deterministic = [] # Expose deterministic encapsulation functions
+pem = ["pkcs8/pem"]
+pkcs8 = ["dep:const-oid", "dep:pkcs8"]
 zeroize = ["dep:zeroize"]
 
 [dependencies]
-kem = "0.3.0-pre.0"
-hybrid-array = { version = "0.2", features = ["extra-sizes"] }
-rand_core = "0.6.4"
-sha3 = { version = "0.10.8", default-features = false }
+kem = "=0.4.0-pre.2"
+hybrid-array = { version = "0.4.4", features = ["extra-sizes", "subtle"] }
+rand_core = "0.10.0-rc-2"
+sha3 = { version = "0.11.0-rc.3", default-features = false }
+subtle = { version = "2", default-features = false }
+
+# optional dependencies
+const-oid = { version = "0.10.1", optional = true, default-features = false, features = ["db"] }
+pkcs8 = { version = "0.11.0-rc.8", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
-criterion = "0.5.1"
+criterion = "0.7"
 hex = { version = "0.4.3", features = ["serde"] }
-hex-literal = "0.4.1"
+hex-literal = "1"
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
-rand = "0.8.5"
-crypto-common = { version = "0.1.6", features = ["rand_core"] }
+rand = "0.10.0-rc.1"
 serde = { version = "1.0.208", features = ["derive"] }
 serde_json = "1.0.125"
 
@@ -44,4 +50,3 @@ harness = false
 
 [package.metadata.docs.rs]
 all-features = true
-rustdoc-args = ["--cfg", "docsrs"]

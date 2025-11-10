@@ -1,11 +1,11 @@
 //! Random number generator for testing
 //! AES-CTR DRBG
 use aes::{
-    cipher::{BlockEncrypt, KeyInit},
     Aes256Enc, Block,
+    cipher::{BlockCipherEncrypt, KeyInit},
 };
-use hybrid_array::{typenum::U48, Array};
-use rand_core::{CryptoRng, Error, RngCore, SeedableRng};
+use hybrid_array::{Array, typenum::U48};
+use rand_core::{CryptoRng, RngCore, SeedableRng};
 
 /// Seed type for the AES-CTR DRBG
 pub type RngSeed = Array<u8, U48>;
@@ -64,11 +64,6 @@ impl RngCore for AesCtrDrbg {
 
         self.update(None);
         self.reseed_counter += 1;
-    }
-
-    fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Error> {
-        self.fill_bytes(dest);
-        Ok(())
     }
 }
 
