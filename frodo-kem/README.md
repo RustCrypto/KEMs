@@ -73,7 +73,6 @@ On Armv8, the rust shake implementation is faster than the openssl implementatio
 This crate has been tested against the following `serde` compatible formats:
 
 - [x] serde_bare
-- [x] bincode
 - [x] postcard
 - [x] serde_cbor
 - [x] serde_json
