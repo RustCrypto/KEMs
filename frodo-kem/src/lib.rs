@@ -1741,9 +1741,4 @@ mod tests {
         postcard::to_stdvec,
         postcard::from_bytes
     );
-    serde_test!(
-        serialization_bincode,
-        bincode::serialize,
-        bincode::deserialize
-    );
 }

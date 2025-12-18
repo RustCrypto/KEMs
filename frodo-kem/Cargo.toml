@@ -79,7 +79,6 @@ zeroize = "1"
 
 [dev-dependencies]
 aes = "0.9.0-rc.2"
-bincode = "1.3"
 criterion = "0.7"
 hex = "0.4"
 hybrid-array = "0.4"
