@@ -168,15 +168,17 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::crypto::rand;
     use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
+    use ::kem::Generate;
+    use getrandom::SysRng;
+    use rand_core::TryRngCore;
 
     fn round_trip_test<P>()
     where
         P: PkeParams,
     {
-        let mut rng = rand::rng();
-        let d: B32 = rand(&mut rng);
+        let mut rng = SysRng.unwrap_err();
+        let d = B32::from_rng(&mut rng);
         let original = B32::default();
         let randomness = B32::default();
 
@@ -197,8 +199,8 @@ mod test {
     where
         P: PkeParams,
     {
-        let mut rng = rand::rng();
-        let d: B32 = rand(&mut rng);
+        let mut rng = SysRng.unwrap_err();
+        let d = B32::from_rng(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 
         let dk_encoded = dk_original.as_bytes();

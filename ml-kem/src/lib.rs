@@ -13,28 +13,29 @@
 
 //! # Usage
 //!
-//! This crate implements the Module-Latice-based Key Encapsulation Method (ML-KEM) algorithm
-//! being standardized by NIST in FIPS 203.  ML-KEM is a KEM in the sense that it creates an
+//! This crate implements the Module-Lattice-based Key Encapsulation Method (ML-KEM) algorithm
+//! being standardized by NIST in FIPS 203.  ML-KEM is a KEM in the sense that it creates a
 //! (decapsulation key, encapsulation key) pair, such that anyone can use the encapsulation key to
 //! establish a shared key with the holder of the decapsulation key.  ML-KEM is the first KEM
 //! algorithm standardized by NIST that is designed to be resistant to attacks using quantum
 //! computers.
 //!
-//! ```
+#![cfg_attr(feature = "getrandom", doc = "```")]
+#![cfg_attr(not(feature = "getrandom"), doc = "```ignore")]
+//! // NOTE: requires the `getrandom` feature is enabled
+//!
 //! use ml_kem::{
 //!     ml_kem_768::DecapsulationKey,
-//!     kem::{Decapsulate, Encapsulate, KeyInit}
+//!     kem::{Decapsulate, Encapsulate, Generate, KeyInit}
 //! };
 //!
 //! // Generate a decapsulation/encapsulation keypair
-//! let mut rng = rand::rng();
-//! let seed = DecapsulationKey::generate_key_with_rng(&mut rng);
-//! let dk = DecapsulationKey::new(&seed);
+//! let dk = DecapsulationKey::generate();
 //! let ek = dk.encapsulator();
 //!
 //! // Encapsulate a shared key to the holder of the decapsulation key, receive the shared
 //! // secret `k_send` and the encapsulated form `ct`.
-//! let (ct, k_send) = ek.encapsulate(&mut rng).unwrap();
+//! let (ct, k_send) = ek.encapsulate().unwrap();
 //!
 //! // Decapsulate the shared key and verify that it was faithfully received.
 //! let k_recv = dk.decapsulate(&ct).unwrap();
@@ -198,16 +199,17 @@ pub type MlKem1024 = kem::Kem<MlKem1024Params>;
 mod test {
     use super::*;
     use ::kem::{Decapsulate, Encapsulate};
+    use rand_core::TryRngCore;
 
     fn round_trip_test<K>()
     where
         K: KemCore,
     {
-        let mut rng = rand::rng();
+        let mut rng = getrandom::SysRng.unwrap_err();
 
         let (dk, ek) = K::generate(&mut rng);
 
-        let (ct, k_send) = ek.encapsulate(&mut rng).unwrap();
+        let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
         let k_recv = dk.decapsulate(&ct).unwrap();
         assert_eq!(k_send, k_recv);
     }

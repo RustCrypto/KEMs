@@ -1,6 +1,7 @@
 use dhkem::DhKem;
+use getrandom::SysRng;
 use kem::{Decapsulate, Encapsulate};
-use rand::rng;
+use rand_core::TryRngCore;
 
 trait SecretBytes {
     fn as_slice(&self) -> &[u8];
@@ -30,9 +31,9 @@ fn test_kem<K: DhKem>()
 where
     <K as DhKem>::SharedSecret: SecretBytes,
 {
-    let mut rng = rng();
+    let mut rng = SysRng.unwrap_err();
     let (sk, pk) = K::random_keypair(&mut rng);
-    let (ek, ss1) = pk.encapsulate(&mut rng).expect("never fails");
+    let (ek, ss1) = pk.encapsulate_with_rng(&mut rng).expect("never fails");
     let ss2 = sk.decapsulate(&ek).expect("never fails");
 
     assert_eq!(ss1.as_slice(), ss2.as_slice());

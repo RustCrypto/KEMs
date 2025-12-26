@@ -6,9 +6,10 @@
 //!
 //! ```
 //! use frodo_kem::Algorithm;
-//! use rand::{rngs::OsRng, TryRngCore};
+//! use getrandom::SysRng;
+//! use rand_core::TryRngCore;
 //!
-//! let mut rng = OsRng.unwrap_err();
+//! let mut rng = SysRng.unwrap_err();
 //! let alg = Algorithm::FrodoKem640Shake;
 //! let (ek, dk) = alg.generate_keypair(&mut rng);
 //! let (ct, enc_ss) = alg.encapsulate_with_rng(&ek, &mut rng).unwrap();
@@ -28,9 +29,10 @@
 //!
 //! ```
 //! use frodo_kem::Algorithm;
-//! use rand::{rngs::OsRng, RngCore, TryRngCore};
+//! use getrandom::SysRng;
+//! use rand_core::{RngCore, TryRngCore};
 //!
-//! let mut rng = OsRng.unwrap_err();
+//! let mut rng = SysRng.unwrap_err();
 //! let alg = Algorithm::FrodoKem1344Shake;
 //! let params = alg.params();
 //! let (ek, dk) = alg.generate_keypair(&mut rng);

@@ -12,7 +12,7 @@ pub struct X25519Kem;
 impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
     type Error = Infallible;
 
-    fn encapsulate<R: TryCryptoRng + ?Sized>(
+    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(PublicKey, SharedSecret), Self::Error> {

@@ -13,26 +13,25 @@ keywords = ["crypto", "x-wing", "xwing", "kem", "post-quantum"]
 exclude = ["src/test-vectors.json"]
 
 [features]
-getrandom = ["dep:getrandom"]
+getrandom = ["kem/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 
 [dependencies]
-kem = "=0.4.0-pre.2"
+kem = "0.4.0-rc.0"
 ml-kem = { version = "=0.3.0-pre.2", default-features = false, features = ["deterministic"] }
-rand_core = { version = "0.10.0-rc-2", default-features = false }
+rand_core = { version = "0.10.0-rc-3", default-features = false }
 sha3 = { version = "0.11.0-rc.3", default-features = false }
 x25519-dalek = { version = "=3.0.0-pre.1", default-features = false, features = ["static_secrets"] }
 
 # optional dependencies
-getrandom = { version = "0.3", optional = true }
 zeroize = { version = "1.8.1", optional = true, default-features = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]
-rand_core = { version = "0.10.0-rc-2" }
+getrandom = { version = "0.3.4", features = ["sys_rng"] }
 hex = { version = "0.4", features = ["serde"] }
+rand_core = "0.10.0-rc-3"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-rand = "0.10.0-rc.1"
 
 [package.metadata.docs.rs]
 all-features = true
