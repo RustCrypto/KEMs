@@ -1,20 +1,14 @@
 #![allow(dead_code)]
 
-use hybrid_array::{Array, ArraySize};
-use rand_core::CryptoRng;
 use sha3::{
     Digest, Sha3_256, Sha3_512, Shake128, Shake256,
     digest::{ExtendableOutput, Update, XofReader},
 };
 
-use crate::param::{CbdSamplingSize, EncodedPolynomial};
-use crate::util::B32;
-
-pub fn rand<L: ArraySize, R: CryptoRng + ?Sized>(rng: &mut R) -> Array<u8, L> {
-    let mut val = Array::default();
-    rng.fill_bytes(&mut val);
-    val
-}
+use crate::{
+    param::{CbdSamplingSize, EncodedPolynomial},
+    util::B32,
+};
 
 pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
     let mut h = Sha3_512::new();

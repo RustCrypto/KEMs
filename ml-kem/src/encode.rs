@@ -144,12 +144,11 @@ where
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
-    use core::fmt::Debug;
-    use core::ops::Rem;
+    use core::{fmt::Debug, ops::Rem};
     use hybrid_array::typenum::{
         U1, U2, U3, U4, U5, U6, U8, U10, U11, U12, marker_traits::Zero, operator_aliases::Mod,
     };
-    use rand::Rng;
+    use rand_core::{RngCore, TryRngCore};
 
     use crate::param::EncodedPolynomialVector;
 
@@ -184,9 +183,8 @@ pub(crate) mod test {
         assert_eq!(&actual_decoded, decoded);
 
         // Test random decode/encode and encode/decode round trips
-        let mut rng = rand::rng();
-        let mut decoded: Array<Integer, U256> = Array::default();
-        rng.fill(decoded.as_mut_slice());
+        let mut rng = getrandom::SysRng.unwrap_err();
+        let decoded = Array::<Integer, U256>::from_fn(|_| (rng.next_u32() & 0xFFFF) as Integer);
         let m = match D::USIZE {
             12 => FieldElement::Q,
             d => (1 as Integer) << d,

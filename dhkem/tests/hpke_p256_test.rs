@@ -81,7 +81,7 @@ fn test_dhkem_p256_hkdf_sha256() {
     assert_eq!(pkr.to_encoded_point(false).as_bytes(), &pkr_hex);
 
     let (pke, ss1) = pkr
-        .encapsulate(&mut ConstantRng(&hex!(
+        .encapsulate_with_rng(&mut ConstantRng(&hex!(
             "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb"
         )))
         .expect("never fails");

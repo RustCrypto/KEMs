@@ -11,7 +11,7 @@ use pkcs8::{
         asn1::{ContextSpecific, OctetStringRef},
     },
 };
-use rand_core::CryptoRng;
+use rand_core::{CryptoRng, TryRngCore};
 
 /// ML-KEM seed serialized as ASN.1.
 type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
@@ -22,7 +22,7 @@ where
     K::EncapsulationKey: EncodePublicKey + DecodePublicKey,
     K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey + From<Seed> + PartialEq,
 {
-    let mut rng = rand::rng();
+    let mut rng = getrandom::SysRng.unwrap_err();
     let (decaps_key, encaps_key) = K::generate(&mut rng);
 
     // TEST: (de)serialize encapsulation key into DER document

@@ -58,7 +58,7 @@ serde = ["dep:hex", "dep:serde"]
 aes = { version = "0.9.0-rc.2", optional = true }
 hex = { version = "0.4", optional = true }
 openssl-sys = { version = "0.9.104", optional = true }
-rand_core = { version = "0.10.0-rc-2", features = [] }
+rand_core = { version = "0.10.0-rc-3", features = [] }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serdect = "0.4"
 subtle = "2.6"
@@ -80,10 +80,10 @@ zeroize = "1"
 [dev-dependencies]
 aes = "0.9.0-rc.2"
 criterion = "0.7"
+getrandom = { version = "0.3.4", features = ["sys_rng"] }
 hex = "0.4"
 hybrid-array = "0.4"
-rand = "0.10.0-rc.1"
-chacha20 = "0.10.0-rc.3"
+chacha20 = { version = "0.10.0-rc.6", features = ["rng"] }
 rstest = "0.26"
 postcard = { version = "1.0", features = ["use-std"] }
 serde_bare = "0.5"

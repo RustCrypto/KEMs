@@ -21,7 +21,7 @@ where
 {
     type Error = Infallible;
 
-    fn encapsulate<R: TryCryptoRng + ?Sized>(
+    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(PublicKey<C>, SharedSecret<C>), Self::Error> {
