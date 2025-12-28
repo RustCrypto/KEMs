@@ -92,11 +92,11 @@ impl<P> Generate for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    fn try_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
+    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
-        Self::generate_from_rng(rng)
+        Self::try_generate_from_rng(rng)
     }
 }
 
@@ -201,12 +201,12 @@ where
     }
 
     #[inline]
-    pub(crate) fn generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
+    pub(crate) fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
-        let d = B32::try_from_rng(rng)?;
-        let z = B32::try_from_rng(rng)?;
+        let d = B32::try_generate_from_rng(rng)?;
+        let z = B32::try_generate_from_rng(rng)?;
         Ok(Self::generate_deterministic(d, z))
     }
 
@@ -274,7 +274,7 @@ where
         rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
         // TODO(tarcieri): propagate RNG errors instead of panicking?
-        let m = B32::from_rng(&mut rng.unwrap_mut());
+        let m = B32::generate_from_rng(&mut rng.unwrap_mut());
         Ok(self.encapsulate_deterministic_inner(&m))
     }
 }
@@ -317,7 +317,7 @@ where
     fn generate<R: CryptoRng + ?Sized>(
         rng: &mut R,
     ) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
-        let dk = Self::DecapsulationKey::generate_from_rng(rng).expect("RNG failure");
+        let dk = Self::DecapsulationKey::generate_from_rng(rng);
         let ek = dk.encapsulation_key().clone();
         (dk, ek)
     }
@@ -343,7 +343,7 @@ mod test {
     {
         let mut rng = SysRng.unwrap_err();
 
-        let dk = DecapsulationKey::<P>::from_rng(&mut rng);
+        let dk = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek = dk.encapsulation_key();
 
         let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
@@ -363,7 +363,7 @@ mod test {
         P: KemParams,
     {
         let mut rng = SysRng.unwrap_err();
-        let dk_original = DecapsulationKey::<P>::from_rng(&mut rng);
+        let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
         let dk_encoded = dk_original.as_bytes();

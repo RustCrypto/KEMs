@@ -200,11 +200,11 @@ impl DecapsulationKey {
 }
 
 impl Generate for DecapsulationKey {
-    fn try_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
+    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
-        <[u8; DECAPSULATION_KEY_SIZE]>::try_from_rng(rng).map(Into::into)
+        <[u8; DECAPSULATION_KEY_SIZE]>::try_generate_from_rng(rng).map(Into::into)
     }
 }
 
@@ -261,7 +261,7 @@ pub fn generate_key_pair() -> (DecapsulationKey, EncapsulationKey) {
 pub fn generate_key_pair_from_rng<R: CryptoRng + ?Sized>(
     rng: &mut R,
 ) -> (DecapsulationKey, EncapsulationKey) {
-    let sk = DecapsulationKey::from_rng(rng);
+    let sk = DecapsulationKey::generate_from_rng(rng);
     let pk = sk.encapsulation_key();
     (sk, pk)
 }
@@ -379,12 +379,11 @@ mod tests {
         let mut rng = SysRng.unwrap_err();
 
         let ct_a = Ciphertext {
-            ct_m: Array::from_rng(&mut rng),
-            ct_x: <[u8; 32]>::from_rng(&mut rng).into(),
+            ct_m: Array::generate_from_rng(&mut rng),
+            ct_x: <[u8; 32]>::generate_from_rng(&mut rng).into(),
         };
 
         let bytes = ct_a.to_bytes();
-
         let ct_b = Ciphertext::from(&bytes);
 
         assert!(ct_a == ct_b);
@@ -392,7 +391,7 @@ mod tests {
 
     #[test]
     fn key_serialize() {
-        let sk = DecapsulationKey::from_rng(&mut SysRng.unwrap_err());
+        let sk = DecapsulationKey::generate_from_rng(&mut SysRng.unwrap_err());
         let pk = sk.encapsulation_key();
 
         let sk_bytes = sk.as_bytes();

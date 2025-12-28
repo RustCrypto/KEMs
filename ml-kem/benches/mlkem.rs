@@ -10,13 +10,13 @@ fn criterion_benchmark(c: &mut Criterion) {
     // Key generation
     c.bench_function("keygen", |b| {
         b.iter(|| {
-            let dk = ml_kem_768::DecapsulationKey::from_rng(&mut rng);
+            let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
             let _dk_bytes = dk.as_bytes();
             let _ek_bytes = dk.encapsulator().as_bytes();
         })
     });
 
-    let dk = ml_kem_768::DecapsulationKey::from_rng(&mut rng);
+    let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
     let dk_bytes = dk.as_bytes();
     let ek_bytes = dk.encapsulator().as_bytes();
 
@@ -38,7 +38,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     // Round trip
     c.bench_function("round_trip", |b| {
         b.iter(|| {
-            let dk = ml_kem_768::DecapsulationKey::from_rng(&mut rng);
+            let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
             let ek = dk.encapsulator();
             let (ct, _sk) = ek.encapsulate_with_rng(&mut rng).unwrap();
             dk.decapsulate(&ct).unwrap();

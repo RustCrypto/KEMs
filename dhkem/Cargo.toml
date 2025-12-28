@@ -14,8 +14,8 @@ keywords = ["crypto", "ecdh", "ecc"]
 readme = "README.md"
 
 [dependencies]
-kem = "0.4.0-rc.0"
-rand_core = "0.10.0-rc-2"
+kem = "0.4.0-rc.1"
+rand_core = "0.10.0-rc-3"
 
 # optional dependencies
 elliptic-curve = { version = "0.14.0-rc.16", optional = true, default-features = false }

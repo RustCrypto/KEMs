@@ -55,6 +55,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 /// Newtype for a piece of data that may be encapsulated
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
 pub struct DhEncapsulator<X>(X);
+
 /// Newtype for a piece of data that may be decapsulated
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
 pub struct DhDecapsulator<X>(X);

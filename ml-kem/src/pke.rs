@@ -178,7 +178,7 @@ mod test {
         P: PkeParams,
     {
         let mut rng = SysRng.unwrap_err();
-        let d = B32::from_rng(&mut rng);
+        let d = B32::generate_from_rng(&mut rng);
         let original = B32::default();
         let randomness = B32::default();
 
@@ -200,7 +200,7 @@ mod test {
         P: PkeParams,
     {
         let mut rng = SysRng.unwrap_err();
-        let d = B32::from_rng(&mut rng);
+        let d = B32::generate_from_rng(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 
         let dk_encoded = dk_original.as_bytes();
