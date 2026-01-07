@@ -27,7 +27,7 @@ x25519-dalek = { version = "=3.0.0-pre.3", default-features = false, features = 
 zeroize = { version = "1.8.1", optional = true, default-features = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]
-getrandom = { version = "0.3.4", features = ["sys_rng"] }
+getrandom = { version = "0.4.0-rc.0", features = ["sys_rng"] }
 hex = { version = "0.4", features = ["serde"] }
 rand_core = "0.10.0-rc-3"
 serde = { version = "1.0", features = ["derive"] }

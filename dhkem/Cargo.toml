@@ -27,7 +27,7 @@ x25519 = { version = "=3.0.0-pre.3", package = "x25519-dalek", optional = true, 
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
-getrandom = { version = "0.3.4", features = ["sys_rng"] }
+getrandom = { version = "0.4.0-rc.0", features = ["sys_rng"] }
 hex-literal = "1"
 hkdf = "0.13.0-rc.3"
 sha2 = "0.11.0-rc.3"
