@@ -288,7 +288,7 @@ version = "0.2.0-rc.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e6165b8029cdc3e765b74d3548f85999ee799d5124877ce45c2c85ca78e4d4aa"
 dependencies = [
- "getrandom 0.4.0-rc.0",
+ "getrandom",
  "hybrid-array",
  "rand_core",
 ]
@@ -335,7 +335,7 @@ name = "dhkem"
 version = "0.0.1-alpha"
 dependencies = [
  "elliptic-curve",
- "getrandom 0.3.4",
+ "getrandom",
  "hex-literal",
  "hkdf",
  "k256",
@@ -417,7 +417,7 @@ dependencies = [
  "aes",
  "chacha20",
  "criterion",
- "getrandom 0.3.4",
+ "getrandom",
  "hex",
  "hybrid-array",
  "openssl-sys",
@@ -478,18 +478,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "getrandom"
-version = "0.3.4"
-source = "git+https://github.com/rust-random/getrandom#f67c70110f706f80d7dd6fa52e38d0920754fe2c"
-dependencies = [
- "cfg-if",
- "libc",
- "r-efi",
- "rand_core",
- "wasip2",
 ]
 
 [[package]]
@@ -707,7 +695,7 @@ version = "0.3.0-pre.2"
 dependencies = [
  "const-oid",
  "criterion",
- "getrandom 0.3.4",
+ "getrandom",
  "hex",
  "hex-literal",
  "hybrid-array",
@@ -1588,7 +1576,7 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 name = "x-wing"
 version = "0.1.0-pre.2"
 dependencies = [
- "getrandom 0.3.4",
+ "getrandom",
  "hex",
  "kem",
  "ml-kem",

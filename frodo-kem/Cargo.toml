@@ -80,7 +80,7 @@ zeroize = "1"
 [dev-dependencies]
 aes = "0.9.0-rc.2"
 criterion = "0.7"
-getrandom = { version = "0.3.4", features = ["sys_rng"] }
+getrandom = { version = "0.4.0-rc.0", features = ["sys_rng"] }
 hex = "0.4"
 hybrid-array = "0.4"
 chacha20 = { version = "0.10.0-rc.6", features = ["rng"] }
