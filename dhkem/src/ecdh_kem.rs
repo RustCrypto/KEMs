@@ -3,7 +3,7 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use core::{convert::Infallible, marker::PhantomData};
 use elliptic_curve::{
-    CurveArithmetic, PublicKey,
+    CurveArithmetic, Generate, PublicKey,
     ecdh::{EphemeralSecret, SharedSecret},
 };
 use kem::{Decapsulate, Encapsulate};
@@ -27,7 +27,7 @@ where
     ) -> Result<(PublicKey<C>, SharedSecret<C>), Self::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
         // TODO(tarcieri): propagate RNG errors
-        let sk = EphemeralSecret::try_from_rng(rng).expect("RNG failure");
+        let sk = EphemeralSecret::try_generate_from_rng(rng).expect("RNG failure");
         let pk = sk.public_key();
         let ss = sk.diffie_hellman(&self.0);
 
@@ -66,7 +66,7 @@ where
         rng: &mut R,
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey) {
         // TODO(tarcieri): propagate RNG errors
-        let sk = EphemeralSecret::try_from_rng(rng).expect("RNG failure");
+        let sk = EphemeralSecret::try_generate_from_rng(rng).expect("RNG failure");
         let pk = PublicKey::from(&sk);
 
         (DhDecapsulator(sk), DhEncapsulator(pk))
