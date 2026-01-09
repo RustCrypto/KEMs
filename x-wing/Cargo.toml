@@ -17,7 +17,7 @@ getrandom = ["kem/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 
 [dependencies]
-kem = "0.4.0-rc.1"
+kem = "0.4.0-rc.2"
 ml-kem = { version = "=0.3.0-pre.2", default-features = false, features = ["deterministic"] }
 rand_core = { version = "0.10.0-rc-3", default-features = false }
 sha3 = { version = "0.11.0-rc.3", default-features = false }
