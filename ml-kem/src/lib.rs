@@ -72,6 +72,8 @@ mod param;
 
 pub mod pkcs8;
 
+/// Error type
+mod error;
 /// Trait definitions
 mod traits;
 
@@ -86,6 +88,7 @@ pub use hybrid_array as array;
 #[cfg(feature = "deterministic")]
 pub use util::B32;
 
+pub use error::Error;
 pub use ml_kem_512::MlKem512Params;
 pub use ml_kem_768::MlKem768Params;
 pub use ml_kem_1024::MlKem1024Params;

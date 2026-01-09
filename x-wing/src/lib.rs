@@ -29,7 +29,7 @@ pub use kem::{self, Decapsulate, Encapsulate, Generate};
 
 use core::convert::Infallible;
 use ml_kem::{
-    B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    B32, EncodedSizeUser, Error, KemCore, MlKem768, MlKem768Params,
     array::{ArrayN, typenum::consts::U32},
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
@@ -75,7 +75,7 @@ pub struct EncapsulationKey {
 }
 
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
-    type Error = Infallible;
+    type Error = Error;
 
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,

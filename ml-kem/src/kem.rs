@@ -4,7 +4,7 @@ use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 use crate::{
-    Encoded, EncodedSizeUser, Seed,
+    Encoded, EncodedSizeUser, Error, Seed,
     crypto::{G, H, J},
     param::{
         DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
@@ -267,14 +267,13 @@ impl<P> Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
 where
     P: KemParams,
 {
-    type Error = Infallible;
+    type Error = Error;
 
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        // TODO(tarcieri): propagate RNG errors instead of panicking?
-        let m = B32::generate_from_rng(&mut rng.unwrap_mut());
+        let m = B32::try_generate_from_rng(rng).map_err(|_| Error)?;
         Ok(self.encapsulate_deterministic_inner(&m))
     }
 }
