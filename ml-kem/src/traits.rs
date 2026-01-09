@@ -1,6 +1,6 @@
 //! Trait definitions
 
-use crate::{ArraySize, Ciphertext, Seed, SharedKey};
+use crate::{ArraySize, Ciphertext, Error, Seed, SharedKey};
 use core::fmt::Debug;
 use hybrid_array::Array;
 use kem::{Decapsulate, Encapsulate};
@@ -10,12 +10,15 @@ use rand_core::CryptoRng;
 use crate::B32;
 
 /// An object that knows what size it is
-pub trait EncodedSizeUser {
+pub trait EncodedSizeUser: Sized {
     /// The size of an encoded object
     type EncodedSize: ArraySize;
 
     /// Parse an object from its encoded form
-    fn from_bytes(enc: &Encoded<Self>) -> Self;
+    ///
+    /// # Errors
+    /// - If the object failed to decode successfully
+    fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error>;
 
     /// Serialize an object to its encoded form
     fn as_bytes(&self) -> Encoded<Self>;

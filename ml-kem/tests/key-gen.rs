@@ -41,8 +41,8 @@ fn verify<K: KemCore>(tc: &acvp::TestCase) {
     assert_eq!(ek.as_bytes().as_slice(), tc.ek.as_slice());
 
     // Verify correctness via deserialization
-    assert_eq!(dk, K::DecapsulationKey::from_bytes(&dk_bytes));
-    assert_eq!(ek, K::EncapsulationKey::from_bytes(&ek_bytes));
+    assert_eq!(dk, K::DecapsulationKey::from_bytes(&dk_bytes).unwrap());
+    assert_eq!(ek, K::EncapsulationKey::from_bytes(&ek_bytes).unwrap());
 }
 
 mod acvp {

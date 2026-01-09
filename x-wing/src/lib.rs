@@ -108,16 +108,18 @@ impl EncapsulationKey {
     }
 }
 
-impl From<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
-    fn from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Self {
+impl TryFrom<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
+    type Error = ml_kem::Error;
+
+    fn try_from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Result<Self, ml_kem::Error> {
         let mut pk_m = [0; 1184];
         pk_m.copy_from_slice(&value[0..1184]);
-        let pk_m = MlKem768EncapsulationKey::from_bytes(&pk_m.into());
+        let pk_m = MlKem768EncapsulationKey::from_bytes(&pk_m.into())?;
 
         let mut pk_x = [0; 32];
         pk_x.copy_from_slice(&value[1184..]);
         let pk_x = PublicKey::from(pk_x);
-        EncapsulationKey { pk_m, pk_x }
+        Ok(EncapsulationKey { pk_m, pk_x })
     }
 }
 
@@ -398,7 +400,7 @@ mod tests {
         let pk_bytes = pk.to_bytes();
 
         let sk_b = DecapsulationKey::from(*sk_bytes);
-        let pk_b = EncapsulationKey::from(&pk_bytes);
+        let pk_b = EncapsulationKey::try_from(&pk_bytes).unwrap();
 
         assert!(sk == sk_b);
         assert!(pk == pk_b);

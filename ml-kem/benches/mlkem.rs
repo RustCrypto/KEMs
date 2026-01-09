@@ -19,8 +19,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
     let dk_bytes = dk.as_bytes();
     let ek_bytes = dk.encapsulator().as_bytes();
+    let ek = ml_kem_768::EncapsulationKey::from_bytes(&ek_bytes).unwrap();
 
-    let ek = ml_kem_768::EncapsulationKey::from_bytes(&ek_bytes);
     // Encapsulation
     c.bench_function("encapsulate", |b| {
         b.iter(|| ek.encapsulate_with_rng(&mut rng).unwrap())
@@ -28,7 +28,8 @@ fn criterion_benchmark(c: &mut Criterion) {
     let (ct, _ss) = ek.encapsulate_with_rng(&mut rng).unwrap();
 
     // Decapsulation
-    let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(&dk_bytes);
+    let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(&dk_bytes).unwrap();
+
     c.bench_function("decapsulate", |b| {
         b.iter(|| {
             dk.decapsulate(&ct).unwrap();

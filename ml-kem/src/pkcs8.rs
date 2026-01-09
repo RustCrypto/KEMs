@@ -120,7 +120,7 @@ where
 
     /// Deserialize the encapsulation key from DER format found in `spki.subject_public_key`.
     /// Returns an `EncapsulationKey` containing `ek_{pke}` and `h` in case of success.
-    fn try_from(spki: ::pkcs8::SubjectPublicKeyInfoRef<'_>) -> Result<Self, Self::Error> {
+    fn try_from(spki: ::pkcs8::SubjectPublicKeyInfoRef<'_>) -> Result<Self, spki::Error> {
         if spki.algorithm.oid != P::ALGORITHM_IDENTIFIER.oid {
             return Err(spki::Error::OidUnknown {
                 oid: P::ALGORITHM_IDENTIFIER.oid,
@@ -134,7 +134,7 @@ where
                     Ok(array) => array,
                     Err(_) => return Err(spki::Error::KeyMalformed),
                 };
-                EncryptionKey::from_bytes(&arr)
+                EncryptionKey::from_bytes(&arr).map_err(|_| spki::Error::KeyMalformed)?
             }
             None => return Err(spki::Error::KeyMalformed),
         };
