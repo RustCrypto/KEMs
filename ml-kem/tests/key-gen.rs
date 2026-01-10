@@ -37,8 +37,8 @@ fn verify<K: KemCore>(tc: &acvp::TestCase) {
     let (dk, ek) = K::from_seed(d.concat(z));
 
     // Verify correctness via serialization
-    assert_eq!(dk.as_bytes().as_slice(), tc.dk.as_slice());
-    assert_eq!(ek.as_bytes().as_slice(), tc.ek.as_slice());
+    assert_eq!(dk.to_bytes().as_slice(), tc.dk.as_slice());
+    assert_eq!(ek.to_bytes().as_slice(), tc.ek.as_slice());
 
     // Verify correctness via deserialization
     assert_eq!(dk, K::DecapsulationKey::from_bytes(&dk_bytes).unwrap());

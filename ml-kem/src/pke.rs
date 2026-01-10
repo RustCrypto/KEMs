@@ -98,7 +98,7 @@ where
     }
 
     /// Represent this decryption key as a byte array `(s_hat)`
-    pub fn as_bytes(&self) -> EncodedDecryptionKey<P> {
+    pub fn to_bytes(&self) -> EncodedDecryptionKey<P> {
         P::encode_u12(&self.s_hat)
     }
 
@@ -150,7 +150,7 @@ where
     }
 
     /// Represent this encryption key as a byte array `(t_hat || rho)`
-    pub fn as_bytes(&self) -> EncodedEncryptionKey<P> {
+    pub fn to_bytes(&self) -> EncodedEncryptionKey<P> {
         let t_hat = P::encode_u12(&self.t_hat);
         P::concat_ek(t_hat, self.rho.clone())
     }
@@ -194,7 +194,7 @@ where
         // #1 is performed by the `EncodedEncryptionKey` type, and the following check vicariously
         // performs #2 by encoding the integer-mod-q array using our implementation of ByteEncode₁₂
         // and comparing the resulting serialization to see if it round-trips.
-        if &ret.as_bytes() == enc {
+        if &ret.to_bytes() == enc {
             Ok(ret)
         } else {
             Err(Error)
@@ -240,11 +240,11 @@ mod test {
         let d = B32::generate_from_rng(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 
-        let dk_encoded = dk_original.as_bytes();
+        let dk_encoded = dk_original.to_bytes();
         let dk_decoded = DecryptionKey::from_bytes(&dk_encoded);
         assert_eq!(dk_original, dk_decoded);
 
-        let ek_encoded = ek_original.as_bytes();
+        let ek_encoded = ek_original.to_bytes();
         let ek_decoded = EncryptionKey::from_bytes(&ek_encoded).unwrap();
         assert_eq!(ek_original, ek_decoded);
     }
