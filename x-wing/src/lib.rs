@@ -102,7 +102,7 @@ impl EncapsulationKey {
     #[must_use]
     pub fn to_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
         let mut buffer = [0u8; ENCAPSULATION_KEY_SIZE];
-        buffer[0..1184].copy_from_slice(&self.pk_m.as_bytes());
+        buffer[0..1184].copy_from_slice(&self.pk_m.to_bytes());
         buffer[1184..1216].copy_from_slice(self.pk_x.as_bytes());
         buffer
     }

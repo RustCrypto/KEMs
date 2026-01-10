@@ -11,14 +11,14 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("keygen", |b| {
         b.iter(|| {
             let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
-            let _dk_bytes = dk.as_bytes();
-            let _ek_bytes = dk.encapsulator().as_bytes();
+            let _dk_bytes = dk.to_bytes();
+            let _ek_bytes = dk.encapsulator().to_bytes();
         })
     });
 
     let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
-    let dk_bytes = dk.as_bytes();
-    let ek_bytes = dk.encapsulator().as_bytes();
+    let dk_bytes = dk.to_bytes();
+    let ek_bytes = dk.encapsulator().to_bytes();
     let ek = ml_kem_768::EncapsulationKey::from_bytes(&ek_bytes).unwrap();
 
     // Encapsulation

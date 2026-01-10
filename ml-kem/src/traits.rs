@@ -21,7 +21,7 @@ pub trait EncodedSizeUser: Sized {
     fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error>;
 
     /// Serialize an object to its encoded form
-    fn as_bytes(&self) -> Encoded<Self>;
+    fn to_bytes(&self) -> Encoded<Self>;
 }
 
 /// A byte array encoding a value the indicated size

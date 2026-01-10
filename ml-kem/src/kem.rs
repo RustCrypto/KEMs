@@ -81,9 +81,9 @@ where
         Self::from_expanded(expanded)
     }
 
-    fn as_bytes(&self) -> Encoded<Self> {
-        let dk_pke = self.dk_pke.as_bytes();
-        let ek = self.ek.as_bytes();
+    fn to_bytes(&self) -> Encoded<Self> {
+        let dk_pke = self.dk_pke.to_bytes();
+        let ek = self.ek.to_bytes();
         P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
     }
 }
@@ -239,7 +239,7 @@ where
     P: KemParams,
 {
     pub(crate) fn new(ek_pke: EncryptionKey<P>) -> Self {
-        let h = H(ek_pke.as_bytes());
+        let h = H(ek_pke.to_bytes());
         Self { ek_pke, h }
     }
 
@@ -260,8 +260,8 @@ where
         Ok(Self::new(EncryptionKey::from_bytes(enc)?))
     }
 
-    fn as_bytes(&self) -> Encoded<Self> {
-        self.ek_pke.as_bytes()
+    fn to_bytes(&self) -> Encoded<Self> {
+        self.ek_pke.to_bytes()
     }
 }
 
@@ -367,11 +367,11 @@ mod test {
         let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
-        let dk_encoded = dk_original.as_bytes();
+        let dk_encoded = dk_original.to_bytes();
         let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded).unwrap();
         assert_eq!(dk_original, dk_decoded);
 
-        let ek_encoded = ek_original.as_bytes();
+        let ek_encoded = ek_original.to_bytes();
         let ek_decoded = EncapsulationKey::from_bytes(&ek_encoded).unwrap();
         assert_eq!(ek_original, ek_decoded);
     }

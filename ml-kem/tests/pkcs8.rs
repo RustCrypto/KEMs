@@ -37,7 +37,7 @@ where
         // verify that original encapsulation key corresponds to deserialized encapsulation key
         let pub_key = parsed.decode_msg::<SubjectPublicKeyInfoRef>().unwrap();
         assert_eq!(
-            encaps_key.as_bytes().as_slice(),
+            encaps_key.to_bytes().as_slice(),
             pub_key.subject_public_key.as_bytes().unwrap()
         );
     }
