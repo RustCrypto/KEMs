@@ -353,7 +353,7 @@ dependencies = [
 
 [[package]]
 name = "dhkem"
-version = "0.0.1-alpha"
+version = "0.1.0-pre.0"
 dependencies = [
  "elliptic-curve",
  "getrandom",
@@ -440,7 +440,7 @@ checksum = "f449e6c6c08c865631d4890cfacf252b3d396c9bcc83adb6623cdb02a8336c41"
 
 [[package]]
 name = "frodo-kem"
-version = "0.0.1"
+version = "0.1.0-pre.0"
 dependencies = [
  "aes",
  "chacha20",
@@ -713,7 +713,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "ml-kem"
-version = "0.3.0-pre.2"
+version = "0.3.0-pre.3"
 dependencies = [
  "const-oid",
  "criterion",
@@ -1520,7 +1520,7 @@ checksum = "f17a85883d4e6d00e8a97c586de764dabcc06133f7f1d55dce5cdc070ad7fe59"
 
 [[package]]
 name = "x-wing"
-version = "0.1.0-pre.2"
+version = "0.1.0-pre.3"
 dependencies = [
  "getrandom",
  "hex",
