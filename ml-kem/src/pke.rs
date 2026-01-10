@@ -5,6 +5,7 @@ use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
 use crate::encode::Encode;
+use crate::error::Error;
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use crate::util::B32;
 
@@ -155,13 +156,15 @@ where
     }
 
     /// Parse an encryption key from a byte array `(t_hat || rho)`
-    pub fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Self {
+    // TODO(tarcieri): validate decoded keys
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, Error> {
         let (t_hat, rho) = P::split_ek(enc);
         let t_hat = P::decode_u12(t_hat);
-        Self {
+        Ok(Self {
             t_hat,
             rho: rho.clone(),
-        }
+        })
     }
 }
 
@@ -208,7 +211,7 @@ mod test {
         assert_eq!(dk_original, dk_decoded);
 
         let ek_encoded = ek_original.as_bytes();
-        let ek_decoded = EncryptionKey::from_bytes(&ek_encoded);
+        let ek_decoded = EncryptionKey::from_bytes(&ek_encoded).unwrap();
         assert_eq!(ek_original, ek_decoded);
     }
 

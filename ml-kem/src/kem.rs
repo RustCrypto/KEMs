@@ -76,7 +76,7 @@ where
 {
     type EncodedSize = DecapsulationKeySize<P>;
 
-    fn from_bytes(expanded: &Encoded<Self>) -> Self {
+    fn from_bytes(expanded: &Encoded<Self>) -> Result<Self, Error> {
         #[allow(deprecated)]
         Self::from_expanded(expanded)
     }
@@ -160,16 +160,18 @@ where
     ///
     /// Note that this form is deprecated in practice; prefer to use
     /// [`DecapsulationKey::from_seed`].
+    ///
+    /// # Errors
+    /// - Returns [`Error`] in the event the expanded key failed validation
     #[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
-    #[must_use]
-    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Self {
+    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, Error> {
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
-        let ek_pke = EncryptionKey::from_bytes(ek_pke);
+        let ek_pke = EncryptionKey::from_bytes(ek_pke)?;
 
         // XXX(RLB): The encoding here is redundant, since `h` can be computed from `ek_pke`.
         // Should we verify that the provided `h` value is valid?
 
-        Self {
+        Ok(Self {
             dk_pke: DecryptionKey::from_bytes(dk_pke),
             ek: EncapsulationKey {
                 ek_pke,
@@ -177,7 +179,7 @@ where
             },
             d: None,
             z: z.clone(),
-        }
+        })
     }
 
     /// Serialize the [`Seed`] value: 64-bytes which can be used to reconstruct the
@@ -254,8 +256,8 @@ where
 {
     type EncodedSize = EncapsulationKeySize<P>;
 
-    fn from_bytes(enc: &Encoded<Self>) -> Self {
-        Self::new(EncryptionKey::from_bytes(enc))
+    fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error> {
+        Ok(Self::new(EncryptionKey::from_bytes(enc)?))
     }
 
     fn as_bytes(&self) -> Encoded<Self> {
@@ -366,11 +368,11 @@ mod test {
         let ek_original = dk_original.encapsulation_key().clone();
 
         let dk_encoded = dk_original.as_bytes();
-        let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded);
+        let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded).unwrap();
         assert_eq!(dk_original, dk_decoded);
 
         let ek_encoded = ek_original.as_bytes();
-        let ek_decoded = EncapsulationKey::from_bytes(&ek_encoded);
+        let ek_decoded = EncapsulationKey::from_bytes(&ek_encoded).unwrap();
         assert_eq!(ek_original, ek_decoded);
     }
 

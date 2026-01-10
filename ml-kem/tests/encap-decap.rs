@@ -42,7 +42,7 @@ where
 {
     let m = Array::try_from(tc.m.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
-    let ek = K::EncapsulationKey::from_bytes(&ek_bytes);
+    let ek = K::EncapsulationKey::from_bytes(&ek_bytes).unwrap();
 
     let (c, k) = ek.encapsulate_deterministic(&m).unwrap();
 
@@ -62,7 +62,7 @@ fn verify_decap_group(tg: &acvp::DecapTestGroup) {
 
 fn verify_decap<K: KemCore>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
     let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(dk_slice).unwrap();
-    let dk = K::DecapsulationKey::from_bytes(&dk_bytes);
+    let dk = K::DecapsulationKey::from_bytes(&dk_bytes).unwrap();
 
     let c = Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
     let k = dk.decapsulate(&c).unwrap();
