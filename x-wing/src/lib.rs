@@ -30,7 +30,7 @@ pub use kem::{self, Decapsulate, Encapsulate, Generate};
 use core::convert::Infallible;
 use ml_kem::{
     B32, EncapsulateDeterministic as Foo, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
-    array::{ArrayN, typenum::consts::U32},
+    array::{ArrayN, sizes::U1184, typenum::consts::U32},
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use sha3::{
@@ -131,13 +131,12 @@ impl TryFrom<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
     type Error = ml_kem::Error;
 
     fn try_from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Result<Self, ml_kem::Error> {
-        let mut pk_m = [0; 1184];
-        pk_m.copy_from_slice(&value[0..1184]);
-        let pk_m = MlKem768EncapsulationKey::from_bytes(&pk_m.into())?;
+        let value: &ArrayN<u8, ENCAPSULATION_KEY_SIZE> = value.try_into().unwrap();
 
-        let mut pk_x = [0; 32];
-        pk_x.copy_from_slice(&value[1184..]);
-        let pk_x = PublicKey::from(pk_x);
+        let (pk_m_bytes, pk_x_bytes) = value.split_ref::<U1184>();
+        let pk_m = MlKem768EncapsulationKey::from_bytes(pk_m_bytes)?;
+        let pk_x = PublicKey::from(pk_x_bytes.0);
+
         Ok(EncapsulationKey { pk_m, pk_x })
     }
 }
