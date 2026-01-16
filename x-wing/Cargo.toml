@@ -13,8 +13,10 @@ keywords = ["crypto", "x-wing", "xwing", "kem", "post-quantum"]
 exclude = ["src/test-vectors.json"]
 
 [features]
+default = ["deterministic"]
 getrandom = ["kem/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
+deterministic = ["ml-kem/deterministic"]
 
 [dependencies]
 kem = "0.4.0-rc.2"
@@ -36,3 +38,6 @@ serde_json = "1.0"
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
+
+[patch.crates-io]
+kem = { path = "../../traits/kem" }

@@ -29,7 +29,7 @@ pub use kem::{self, Decapsulate, Encapsulate, Generate};
 
 use core::convert::Infallible;
 use ml_kem::{
-    B32, EncodedSizeUser, Error, KemCore, MlKem768, MlKem768Params,
+    B32, EncapsulateDeterministic as Foo, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
     array::{ArrayN, typenum::consts::U32},
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
@@ -37,7 +37,7 @@ use sha3::{
     Sha3_256, Shake256, Shake256Reader,
     digest::{ExtendableOutput, XofReader},
 };
-use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -75,24 +75,22 @@ pub struct EncapsulationKey {
 }
 
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
-    type Error = Error;
+    type Error = ml_kem::Error;
 
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
     ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
-        // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
-        let (ct_m, ss_m) = self.pk_m.encapsulate_with_rng(rng)?;
+        let mut randomness = [0u8; 64];
+        rng.try_fill_bytes(&mut randomness)
+            .map_err(|_| ml_kem::Error)?;
 
-        let ek_x = EphemeralSecret::random_from_rng(&mut rng.unwrap_mut());
-        // Equal to ct_x = x25519(ek_x, BASE_POINT)
-        let ct_x = PublicKey::from(&ek_x);
-        // Equal to ss_x = x25519(ek_x, pk_x)
-        let ss_x = ek_x.diffie_hellman(&self.pk_x);
+        let res = self.encapsulate_deterministic(&randomness);
 
-        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
-        let ct = Ciphertext { ct_m, ct_x };
-        Ok((ct, ss))
+        #[cfg(feature = "zeroize")]
+        randomness.zeroize();
+
+        Ok(res)
     }
 }
 
@@ -105,6 +103,27 @@ impl EncapsulationKey {
         buffer[0..1184].copy_from_slice(&self.pk_m.to_bytes());
         buffer[1184..1216].copy_from_slice(self.pk_x.as_bytes());
         buffer
+    }
+
+    /// Encapsulates with the given randomness
+    pub fn encapsulate_deterministic(&self, randomness: &[u8; 64]) -> (Ciphertext, SharedSecret) {
+        // Split randomness into two 32-byte arrays
+        let randomness: &ArrayN<u8, 64> = randomness.try_into().unwrap();
+        let (rand_m, rand_x) = randomness.split::<U32>();
+
+        // Encapsulate with ML-KEM first. This is infallible
+        let (ct_m, ss_m) = self.pk_m.encapsulate_deterministic(&rand_m).unwrap();
+
+        let ek_x = StaticSecret::from(rand_x.0);
+        // Equal to ct_x = x25519(ek_x, BASE_POINT)
+        let ct_x = PublicKey::from(&ek_x);
+        // Equal to ss_x = x25519(ek_x, pk_x)
+        let ss_x = ek_x.diffie_hellman(&self.pk_x);
+
+        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
+        let ct = Ciphertext { ct_m, ct_x };
+
+        (ct, ss)
     }
 }
 
