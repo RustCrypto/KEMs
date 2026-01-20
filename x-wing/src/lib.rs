@@ -105,7 +105,8 @@ impl EncapsulationKey {
         buffer
     }
 
-    /// Encapsulates with the given randomness
+    /// Encapsulates with the given randomness. Uses the first 32 bytes for ML-KEM and the last 32
+    /// bytes for x25519.
     pub fn encapsulate_deterministic(&self, randomness: &[u8; 64]) -> (Ciphertext, SharedSecret) {
         // Split randomness into two 32-byte arrays
         let randomness: &ArrayN<u8, 64> = randomness.try_into().unwrap();
