@@ -13,7 +13,7 @@ keywords = ["crypto", "x-wing", "xwing", "kem", "post-quantum"]
 exclude = ["src/test-vectors.json"]
 
 [features]
-default = ["deterministic"]
+default = []
 getrandom = ["kem/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 deterministic = ["ml-kem/deterministic"]
