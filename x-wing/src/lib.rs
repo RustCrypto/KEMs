@@ -70,8 +70,8 @@ pub type SharedSecret = [u8; 32];
 /// X-Wing encapsulation or public key.
 #[derive(Clone, PartialEq)]
 pub struct EncapsulationKey {
-    pk_m: MlKem768EncapsulationKey,
-    pk_x: PublicKey,
+    pk_mlkem: MlKem768EncapsulationKey,
+    pk_x25519: PublicKey,
 }
 
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
@@ -100,28 +100,31 @@ impl EncapsulationKey {
     #[must_use]
     pub fn to_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
         let mut buffer = [0u8; ENCAPSULATION_KEY_SIZE];
-        buffer[0..1184].copy_from_slice(&self.pk_m.to_bytes());
-        buffer[1184..1216].copy_from_slice(self.pk_x.as_bytes());
+        buffer[0..1184].copy_from_slice(&self.pk_mlkem.to_bytes());
+        buffer[1184..1216].copy_from_slice(self.pk_x25519.as_bytes());
         buffer
     }
 
     /// Encapsulates with the given randomness. Uses the first 32 bytes for ML-KEM and the last 32
     /// bytes for x25519.
+    #[cfg(feature = "deterministic")]
+    #[expect(clippy::must_use_candidate)]
     pub fn encapsulate_deterministic(&self, randomness: &[u8; 64]) -> (Ciphertext, SharedSecret) {
         // Split randomness into two 32-byte arrays
-        let randomness: &ArrayN<u8, 64> = randomness.try_into().unwrap();
+        let randomness: &ArrayN<u8, 64> = randomness.into();
         let (rand_m, rand_x) = randomness.split::<U32>();
 
         // Encapsulate with ML-KEM first. This is infallible
-        let (ct_m, ss_m) = self.pk_m.encapsulate_deterministic(&rand_m).unwrap();
+        #[expect(clippy::missing_panics_doc, reason = "infallible")]
+        let (ct_m, ss_m) = self.pk_mlkem.encapsulate_deterministic(&rand_m).unwrap();
 
         let ek_x = StaticSecret::from(rand_x.0);
         // Equal to ct_x = x25519(ek_x, BASE_POINT)
         let ct_x = PublicKey::from(&ek_x);
         // Equal to ss_x = x25519(ek_x, pk_x)
-        let ss_x = ek_x.diffie_hellman(&self.pk_x);
+        let ss_x = ek_x.diffie_hellman(&self.pk_x25519);
 
-        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
+        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x25519);
         let ct = Ciphertext { ct_m, ct_x };
 
         (ct, ss)
@@ -132,13 +135,16 @@ impl TryFrom<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
     type Error = ml_kem::Error;
 
     fn try_from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Result<Self, ml_kem::Error> {
-        let value: &ArrayN<u8, ENCAPSULATION_KEY_SIZE> = value.try_into().unwrap();
+        let value: &ArrayN<u8, ENCAPSULATION_KEY_SIZE> = value.into();
 
-        let (pk_m_bytes, pk_x_bytes) = value.split_ref::<U1184>();
-        let pk_m = MlKem768EncapsulationKey::from_bytes(pk_m_bytes)?;
-        let pk_x = PublicKey::from(pk_x_bytes.0);
+        let (pk_mlkem_bytes, pk_x_bytes) = value.split_ref::<U1184>();
+        let pk_mlkem = MlKem768EncapsulationKey::from_bytes(pk_mlkem_bytes)?;
+        let pk_x25519 = PublicKey::from(pk_x_bytes.0);
 
-        Ok(EncapsulationKey { pk_m, pk_x })
+        Ok(EncapsulationKey {
+            pk_mlkem,
+            pk_x25519,
+        })
     }
 }
 
@@ -186,8 +192,11 @@ impl DecapsulationKey {
     /// Provide the matching `EncapsulationKey`.
     #[must_use]
     pub fn encapsulation_key(&self) -> EncapsulationKey {
-        let (_sk_m, _sk_x, pk_m, pk_x) = self.expand_key();
-        EncapsulationKey { pk_m, pk_x }
+        let (_sk_m, _sk_x, pk_mlkem, pk_x25519) = self.expand_key();
+        EncapsulationKey {
+            pk_mlkem,
+            pk_x25519,
+        }
     }
 
     fn expand_key(
