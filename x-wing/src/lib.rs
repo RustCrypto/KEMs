@@ -115,7 +115,10 @@ impl EncapsulationKey {
         let (rand_m, rand_x) = randomness.split::<U32>();
 
         // Encapsulate with ML-KEM first. This is infallible
-        #[expect(clippy::missing_panics_doc, reason = "infallible")]
+        #[cfg_attr(
+            feature = "deterministic",
+            expect(clippy::missing_panics_doc, reason = "infallible")
+        )]
         let (ct_m, ss_m) = self.pk_mlkem.encapsulate_deterministic(&rand_m).unwrap();
 
         let ek_x = StaticSecret::from(rand_x.0);
