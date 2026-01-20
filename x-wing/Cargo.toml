@@ -16,7 +16,6 @@ exclude = ["src/test-vectors.json"]
 default = []
 getrandom = ["kem/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
-deterministic = ["ml-kem/deterministic"]
 
 [dependencies]
 kem = "0.4.0-rc.2"

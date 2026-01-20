@@ -107,7 +107,6 @@ impl EncapsulationKey {
 
     /// Encapsulates with the given randomness. Uses the first 32 bytes for ML-KEM and the last 32
     /// bytes for x25519.
-    #[cfg_attr(not(feature = "deterministic"), doc(hidden))]
     #[expect(clippy::must_use_candidate)]
     pub fn encapsulate_deterministic(&self, randomness: &[u8; 64]) -> (Ciphertext, SharedSecret) {
         // Split randomness into two 32-byte arrays
@@ -115,10 +114,7 @@ impl EncapsulationKey {
         let (rand_m, rand_x) = randomness.split::<U32>();
 
         // Encapsulate with ML-KEM first. This is infallible
-        #[cfg_attr(
-            feature = "deterministic",
-            expect(clippy::missing_panics_doc, reason = "infallible")
-        )]
+        #[expect(clippy::missing_panics_doc, reason = "infallible")]
         let (ct_m, ss_m) = self.pk_mlkem.encapsulate_deterministic(&rand_m).unwrap();
 
         let ek_x = StaticSecret::from(rand_x.0);
