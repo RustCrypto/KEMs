@@ -12,3 +12,5 @@ debug = true
 
 [patch.crates-io]
 ml-kem = { path = "./ml-kem" }
+
+x25519-dalek = { git = "https://github.com/baloo/curve25519-dalek.git", branch = "baloo/push-lpxummypqqox" }

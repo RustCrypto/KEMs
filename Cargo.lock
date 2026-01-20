@@ -106,9 +106,9 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "chacha20"
-version = "0.10.0-rc.6"
+version = "0.10.0-rc.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f895fb33c1ad22da4bc79d37c0bddff8aee2ba4575705345eb73b8ffbc386074"
+checksum = "26f659b53b7f4e776e0cb370508f21d62a22349009195b1089de5f9b24afba2f"
 dependencies = [
  "cfg-if",
  "cipher",
@@ -145,9 +145,9 @@ dependencies = [
 
 [[package]]
 name = "cipher"
-version = "0.5.0-rc.3"
+version = "0.5.0-rc.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "98d708bac5451350d56398433b19a7889022fa9187df1a769c0edbc3b2c03167"
+checksum = "118a99a35f72e30b718e8eb5ea6ba24652d08415260a4a32b838f76aa4e3284a"
 dependencies = [
  "block-buffer",
  "crypto-common",
@@ -295,9 +295,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.2.0-rc.9"
+version = "0.2.0-rc.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "41b8986f836d4aeb30ccf4c9d3bd562fd716074cfd7fc4a2948359fbd21ed809"
+checksum = "0f4fc0003068acd7e9cb6659fd956dc4d671f102a06cc115990b9e7bb5745c25"
 dependencies = [
  "getrandom",
  "hybrid-array",
@@ -966,9 +966,9 @@ checksum = "69cdb34c158ceb288df11e18b4bd39de994f6657d83847bdffdbd7f346754b0f"
 
 [[package]]
 name = "rand_core"
-version = "0.10.0-rc-3"
+version = "0.10.0-rc-5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f66ee92bc15280519ef199a274fe0cafff4245d31bc39aaa31c011ad56cb1f05"
+checksum = "05a06e03bd1f2ae861ab9e7498b6c64ed3dadb9ce175c0464a2522a5f23c0045"
 
 [[package]]
 name = "rayon"
@@ -1537,8 +1537,7 @@ dependencies = [
 [[package]]
 name = "x25519-dalek"
 version = "3.0.0-pre.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5887899407ca8fb861126d509bb08465c14a9c60fad1f24c59ed59630a45586"
+source = "git+https://github.com/baloo/curve25519-dalek.git?branch=baloo%2Fpush-lpxummypqqox#b8b2a3f62d8850bb7f3a934717ca3141c75851d0"
 dependencies = [
  "curve25519-dalek",
  "rand_core",

@@ -11,7 +11,7 @@ use pkcs8::{
         asn1::{ContextSpecific, OctetStringRef},
     },
 };
-use rand_core::{CryptoRng, TryRngCore};
+use rand_core::{RngCore, TryCryptoRng, TryRngCore};
 
 /// ML-KEM seed serialized as ASN.1.
 type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
@@ -111,28 +111,31 @@ where
         seed: [u8; SEED_LEN],
     }
 
-    impl rand_core::RngCore for SeedBasedRng {
-        fn next_u32(&mut self) -> u32 {
+    impl rand_core::TryRngCore for SeedBasedRng {
+        type Error = core::convert::Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
             let mut buf = [0u8; 4];
             self.fill_bytes(&mut buf);
-            u32::from_be_bytes(buf)
+            Ok(u32::from_be_bytes(buf))
         }
 
-        fn next_u64(&mut self) -> u64 {
+        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
             let mut buf = [0u8; 8];
             self.fill_bytes(&mut buf);
-            u64::from_be_bytes(buf)
+            Ok(u64::from_be_bytes(buf))
         }
 
-        fn fill_bytes(&mut self, dst: &mut [u8]) {
+        fn try_fill_bytes(&mut self, dst: &mut [u8]) -> Result<(), Self::Error> {
             for item in dst {
                 *item = self.seed[self.index];
                 self.index = self.index.wrapping_add(1) & ((1 << SEED_LEN.ilog2()) - 1);
             }
+            Ok(())
         }
     }
 
-    impl CryptoRng for SeedBasedRng {}
+    impl TryCryptoRng for SeedBasedRng {}
 
     const SEED_LEN: usize = 64;
     assert_eq!(SEED_LEN & (SEED_LEN - 1), 0);
