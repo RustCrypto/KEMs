@@ -320,9 +320,10 @@ fn read_from<const N: usize>(reader: &mut Shake256Reader) -> [u8; N] {
 
 #[cfg(test)]
 mod tests {
+    use core::convert::Infallible;
     use getrandom::SysRng;
     use ml_kem::array::Array;
-    use rand_core::{CryptoRng, RngCore, TryRngCore, utils};
+    use rand_core::{TryCryptoRng, TryRngCore, utils};
     use serde::Deserialize;
 
     use super::*;
@@ -337,18 +338,21 @@ mod tests {
         }
     }
 
-    impl RngCore for SeedRng {
-        fn next_u32(&mut self) -> u32 {
+    impl TryRngCore for SeedRng {
+        type Error = Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
             utils::next_word_via_fill(self)
         }
 
-        fn next_u64(&mut self) -> u64 {
+        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
             utils::next_word_via_fill(self)
         }
 
-        fn fill_bytes(&mut self, dest: &mut [u8]) {
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
             dest.copy_from_slice(&self.seed[0..dest.len()]);
             self.seed.drain(0..dest.len());
+            Ok(())
         }
     }
 
@@ -373,7 +377,7 @@ mod tests {
         ct: Vec<u8>, //[u8; 1120],
     }
 
-    impl CryptoRng for SeedRng {}
+    impl TryCryptoRng for SeedRng {}
 
     /// Test with test vectors from: <https://github.com/dconnolly/draft-connolly-cfrg-xwing-kem/blob/main/spec/test-vectors.json>
     #[test]

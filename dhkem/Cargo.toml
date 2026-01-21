@@ -15,7 +15,7 @@ readme = "README.md"
 
 [dependencies]
 kem = "0.4.0-rc.2"
-rand_core = "0.10.0-rc-3"
+rand_core = "0.10.0-rc-5"
 
 # optional dependencies
 elliptic-curve = { version = "0.14.0-rc.21", optional = true, default-features = false }
