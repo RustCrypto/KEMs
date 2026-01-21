@@ -1537,7 +1537,8 @@ dependencies = [
 [[package]]
 name = "x25519-dalek"
 version = "3.0.0-pre.4"
-source = "git+https://github.com/baloo/curve25519-dalek.git?branch=baloo%2Fpush-lpxummypqqox#b8b2a3f62d8850bb7f3a934717ca3141c75851d0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a5887899407ca8fb861126d509bb08465c14a9c60fad1f24c59ed59630a45586"
 dependencies = [
  "curve25519-dalek",
  "rand_core",
