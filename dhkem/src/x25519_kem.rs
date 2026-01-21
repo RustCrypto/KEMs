@@ -1,7 +1,7 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use core::convert::Infallible;
 use kem::{Decapsulate, Encapsulate};
-use rand_core::{CryptoRng, TryCryptoRng};
+use rand_core::{CryptoRng, TryCryptoRng, UnwrapErr};
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
 
 /// X22519 Diffie-Hellman KEM adapter.
@@ -17,7 +17,7 @@ impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
         rng: &mut R,
     ) -> Result<(PublicKey, SharedSecret), Self::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
-        let sk = ReusableSecret::random_from_rng(&mut rng.unwrap_mut());
+        let sk = ReusableSecret::random_from_rng(&mut UnwrapErr(rng));
         let pk = PublicKey::from(&sk);
         let ss = sk.diffie_hellman(&self.0);
 
