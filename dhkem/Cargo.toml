@@ -14,15 +14,15 @@ keywords = ["crypto", "ecdh", "ecc"]
 readme = "README.md"
 
 [dependencies]
-kem = "0.4.0-rc.2"
+kem = "0.4.0-rc.4"
 rand_core = "0.10.0-rc-5"
 
 # optional dependencies
-elliptic-curve = { version = "0.14.0-rc.21", optional = true, default-features = false }
-k256 = { version = "0.14.0-rc.4", optional = true, default-features = false, features = ["arithmetic"] }
-p256 = { version = "0.14.0-rc.4", optional = true, default-features = false, features = ["arithmetic"] }
-p384 = { version = "0.14.0-rc.4", optional = true, default-features = false, features = ["arithmetic"] }
-p521 = { version = "0.14.0-rc.4", optional = true, default-features = false, features = ["arithmetic"] }
+elliptic-curve = { version = "0.14.0-rc.23", optional = true, default-features = false }
+k256 = { version = "0.14.0-rc.5", optional = true, default-features = false, features = ["arithmetic"] }
+p256 = { version = "0.14.0-rc.5", optional = true, default-features = false, features = ["arithmetic"] }
+p384 = { version = "0.14.0-rc.5", optional = true, default-features = false, features = ["arithmetic"] }
+p521 = { version = "0.14.0-rc.5", optional = true, default-features = false, features = ["arithmetic"] }
 x25519 = { version = "=3.0.0-pre.4", package = "x25519-dalek", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
