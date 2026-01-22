@@ -53,6 +53,8 @@ pub const ENCAPSULATION_KEY_SIZE: usize = 1216;
 pub const DECAPSULATION_KEY_SIZE: usize = 32;
 /// Size in bytes of the `Ciphertext`.
 pub const CIPHERTEXT_SIZE: usize = 1120;
+/// Number of bytes necessary to encapsulate a key
+pub const ENCAPSULATION_RANDOMNESS_SIZE: usize = 64;
 
 /// Shared secret key.
 pub type SharedSecret = [u8; 32];
@@ -81,7 +83,7 @@ impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
         &self,
         rng: &mut R,
     ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
-        let mut randomness = [0u8; 64];
+        let mut randomness = [0u8; ENCAPSULATION_RANDOMNESS_SIZE];
         rng.try_fill_bytes(&mut randomness)
             .map_err(|_| ml_kem::Error)?;
 
@@ -109,9 +111,12 @@ impl EncapsulationKey {
     /// bytes for x25519.
     #[expect(clippy::must_use_candidate)]
     #[expect(clippy::missing_panics_doc, reason = "infallible")]
-    pub fn encapsulate_deterministic(&self, randomness: &[u8; 64]) -> (Ciphertext, SharedSecret) {
+    pub fn encapsulate_deterministic(
+        &self,
+        randomness: &[u8; ENCAPSULATION_RANDOMNESS_SIZE],
+    ) -> (Ciphertext, SharedSecret) {
         // Split randomness into two 32-byte arrays
-        let randomness: &ArrayN<u8, 64> = randomness.into();
+        let randomness: &ArrayN<u8, ENCAPSULATION_RANDOMNESS_SIZE> = randomness.into();
         let (rand_m, rand_x) = randomness.split::<U32>();
 
         // Encapsulate with ML-KEM first. This is infallible
