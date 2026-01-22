@@ -17,7 +17,14 @@ The original paper: [X-Wing The Hybrid KEM You’ve Been Looking For][X-WING-PAP
 
 [Documentation][docs-link]
 
-## About
+## Features
+
+The following features are provided by this crate:
+* `getrandom` — Enables `generate_key_pair` (generate without an explicit RNG)
+* `zeroize` — Enables memory zeroing for all cryptographic secrets
+* `hazmat` — Enables `EncapsulationKey::encapsulate_deterministic`. Useful for testing purposes. Do NOT enable unless you know what you are doing.
+
+The **default** features are `[]` (nothing).
 
 ## ⚠️ Security Warning
 

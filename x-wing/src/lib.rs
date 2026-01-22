@@ -108,7 +108,12 @@ impl EncapsulationKey {
     }
 
     /// Encapsulates with the given randomness. Uses the first 32 bytes for ML-KEM and the last 32
-    /// bytes for x25519.
+    /// bytes for x25519. This is useful for testing against known vectors.
+    ///
+    /// # Warning
+    /// Do NOT use this function unless you know what you're doing. If you fail to use all uniform
+    /// random bytes even once, you can have catastrophic security failure.
+    #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
     #[expect(clippy::must_use_candidate)]
     #[expect(clippy::missing_panics_doc, reason = "infallible")]
     pub fn encapsulate_deterministic(
