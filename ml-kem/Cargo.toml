@@ -4,7 +4,7 @@ description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
 (formerly known as Kyber) as described in FIPS 203
 """
-version = "0.3.0-pre.3"
+version = "0.3.0-pre.4"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
@@ -26,7 +26,7 @@ zeroize = ["dep:zeroize"]
 
 [dependencies]
 array = { package = "hybrid-array", version = "0.4.4", features = ["extra-sizes", "subtle"] }
-kem = "0.4.0-rc.4"
+kem = "0.3.0-rc.0"
 rand_core = "0.10.0-rc-5"
 sha3 = { version = "0.11.0-rc.3", default-features = false }
 subtle = { version = "2", default-features = false }
