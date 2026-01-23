@@ -6,7 +6,7 @@ use std::{fs::read_to_string, path::PathBuf};
 
 // A helper trait for deterministic encapsulation tests
 pub trait EncapsulateDeterministic {
-    // Returns (ciphertext, shared_secret) or RNG error
+    // Returns (ciphertext, shared_secret)
     fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>);
 }
 
