@@ -77,7 +77,7 @@ pub type SharedSecret = Array<u8, U32>;
 // _x -> x25519 related key
 
 /// X-Wing encapsulation or public key.
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EncapsulationKey {
     pk_m: MlKem768EncapsulationKey,
     pk_x: PublicKey,
