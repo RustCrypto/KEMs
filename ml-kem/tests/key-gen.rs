@@ -1,8 +1,6 @@
-#![cfg(feature = "deterministic")]
-
 use ml_kem::*;
 
-use array::Array;
+use array::ArrayN;
 use std::{fs::read_to_string, path::PathBuf};
 
 #[test]
@@ -29,8 +27,8 @@ fn acvp_key_gen() {
 
 fn verify<K: KemCore>(tc: &acvp::TestCase) {
     // Import test data into the relevant array structures
-    let d: B32 = Array::try_from(tc.d.as_slice()).unwrap();
-    let z: B32 = Array::try_from(tc.z.as_slice()).unwrap();
+    let d = ArrayN::<u8, 32>::try_from(tc.d.as_slice()).unwrap();
+    let z = ArrayN::<u8, 32>::try_from(tc.z.as_slice()).unwrap();
     let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(tc.dk.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
 

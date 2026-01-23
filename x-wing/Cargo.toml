@@ -13,12 +13,14 @@ keywords = ["crypto", "x-wing", "xwing", "kem", "post-quantum"]
 exclude = ["src/test-vectors.json"]
 
 [features]
+default = []
 getrandom = ["kem/getrandom"]
 zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
+hazmat = []
 
 [dependencies]
 kem = "0.3.0-rc.0"
-ml-kem = { version = "=0.3.0-pre.4", default-features = false, features = ["deterministic"] }
+ml-kem = { version = "=0.3.0-pre.4", default-features = false, features = ["hazmat"] }
 rand_core = { version = "0.10.0-rc-5", default-features = false }
 sha3 = { version = "0.11.0-rc.3", default-features = false }
 x25519-dalek = { version = "=3.0.0-pre.4", default-features = false, features = ["static_secrets"] }

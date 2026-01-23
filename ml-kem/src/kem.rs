@@ -21,8 +21,6 @@ use core::marker::PhantomData;
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
-#[cfg(feature = "deterministic")]
-use core::convert::Infallible;
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -248,7 +246,13 @@ where
         Self { ek_pke, h }
     }
 
-    fn encapsulate_deterministic_inner(&self, m: &B32) -> (EncodedCiphertext<P>, SharedKey) {
+    /// Encapsulates with the given randomness. This is useful for testing against known vectors.
+    ///
+    /// # Warning
+    /// Do NOT use this function unless you know what you're doing. If you fail to use all uniform
+    /// random bytes even once, you can have catastrophic security failure.
+    #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
+    pub fn encapsulate_deterministic(&self, m: &B32) -> (EncodedCiphertext<P>, SharedKey) {
         let (K, r) = G(&[m, &self.h]);
         let c = self.ek_pke.encrypt(m, &r);
         (c, K)
@@ -264,7 +268,7 @@ where
         rng: &mut R,
     ) -> Result<(EncodedCiphertext<P>, SharedKey), R::Error> {
         let m = B32::try_generate_from_rng(rng)?;
-        Ok(self.encapsulate_deterministic_inner(&m))
+        Ok(self.encapsulate_deterministic(&m))
     }
 }
 
@@ -326,21 +330,6 @@ where
     fn eq(&self, other: &Self) -> bool {
         // Handwritten to avoid derive putting `Eq` bounds on `KemParams`
         self.ek_pke == other.ek_pke && self.h == other.h
-    }
-}
-
-#[cfg(feature = "deterministic")]
-impl<P> crate::EncapsulateDeterministic<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
-where
-    P: KemParams,
-{
-    type Error = Infallible;
-
-    fn encapsulate_deterministic(
-        &self,
-        m: &B32,
-    ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        Ok(self.encapsulate_deterministic_inner(m))
     }
 }
 

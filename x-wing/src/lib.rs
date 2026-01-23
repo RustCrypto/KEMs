@@ -31,10 +31,10 @@ pub use kem::{
 };
 
 use ml_kem::{
-    B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
     array::{
         Array, ArrayN, AsArrayRef,
-        sizes::{U32, U1120, U1216},
+        sizes::{U32, U1120, U1184, U1216},
     },
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
@@ -42,7 +42,7 @@ use sha3::{
     Sha3_256, Shake256, Shake256Reader,
     digest::{ExtendableOutput, XofReader},
 };
-use x25519_dalek::{EphemeralSecret, PublicKey, StaticSecret};
+use x25519_dalek::{PublicKey, StaticSecret};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -58,6 +58,8 @@ pub const ENCAPSULATION_KEY_SIZE: usize = 1216;
 pub const DECAPSULATION_KEY_SIZE: usize = 32;
 /// Size in bytes of the `Ciphertext`.
 pub const CIPHERTEXT_SIZE: usize = 1120;
+/// Number of bytes necessary to encapsulate a key
+pub const ENCAPSULATION_RANDOMNESS_SIZE: usize = 64;
 
 /// Serialized ciphertext.
 pub type Ciphertext = Array<u8, U1120>;
@@ -81,15 +83,26 @@ pub struct EncapsulationKey {
     pk_x: PublicKey,
 }
 
-impl Encapsulate for EncapsulationKey {
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
+impl EncapsulationKey {
+    /// Encapsulates with the given randomness. Uses the first 32 bytes for ML-KEM and the last 32
+    /// bytes for x25519. This is useful for testing against known vectors.
+    ///
+    /// # Warning
+    /// Do NOT use this function unless you know what you're doing. If you fail to use all uniform
+    /// random bytes even once, you can have catastrophic security failure.
+    #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
+    #[expect(clippy::must_use_candidate)]
+    pub fn encapsulate_deterministic(
         &self,
-        rng: &mut R,
-    ) -> Result<(Ciphertext, SharedSecret), R::Error> {
-        // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
-        let (ct_m, ss_m) = self.pk_m.encapsulate_with_rng(rng)?;
+        randomness: &ArrayN<u8, ENCAPSULATION_RANDOMNESS_SIZE>,
+    ) -> (Ciphertext, SharedSecret) {
+        // Split randomness into two 32-byte arrays
+        let (rand_m, rand_x) = randomness.split::<U32>();
 
-        let ek_x = EphemeralSecret::random_from_rng(&mut rng.unwrap_err());
+        // Encapsulate with ML-KEM first. This is infallible
+        let (ct_m, ss_m) = self.pk_m.encapsulate_deterministic(&rand_m);
+
+        let ek_x = StaticSecret::from(rand_x.0);
         // Equal to ct_x = x25519(ek_x, BASE_POINT)
         let ct_x = PublicKey::from(&ek_x);
         // Equal to ss_x = x25519(ek_x, pk_x)
@@ -97,7 +110,25 @@ impl Encapsulate for EncapsulationKey {
 
         let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
         let ct = CiphertextMessage { ct_m, ct_x };
-        Ok((ct.into(), ss))
+
+        (ct.into(), ss)
+    }
+}
+
+impl Encapsulate for EncapsulationKey {
+    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
+        &self,
+        rng: &mut R,
+    ) -> Result<(Ciphertext, SharedSecret), R::Error> {
+        let mut randomness = Array::default();
+        rng.try_fill_bytes(&mut randomness)?;
+
+        let res = self.encapsulate_deterministic(&randomness);
+
+        #[cfg(feature = "zeroize")]
+        randomness.zeroize();
+
+        Ok(res)
     }
 }
 
@@ -122,14 +153,11 @@ impl KeyExport for EncapsulationKey {
 
 impl TryKeyInit for EncapsulationKey {
     fn new(key_bytes: &Key<Self>) -> Result<Self, InvalidKey> {
-        let mut pk_m = [0; 1184];
-        pk_m.copy_from_slice(&key_bytes[0..1184]);
-        let pk_m =
-            MlKem768EncapsulationKey::from_encoded_bytes(&pk_m.into()).map_err(|_| InvalidKey)?;
+        let (m_bytes, x_bytes) = key_bytes.split_ref::<U1184>();
 
-        let mut pk_x = [0; 32];
-        pk_x.copy_from_slice(&key_bytes[1184..]);
-        let pk_x = PublicKey::from(pk_x);
+        let pk_m = MlKem768EncapsulationKey::from_encoded_bytes(m_bytes).map_err(|_| InvalidKey)?;
+        let pk_x = PublicKey::from(x_bytes.0);
+
         Ok(EncapsulationKey { pk_m, pk_x })
     }
 }
@@ -306,7 +334,7 @@ pub fn generate_key_pair_from_rng<R: CryptoRng + ?Sized>(
 }
 
 fn combiner(
-    ss_m: &B32,
+    ss_m: &ArrayN<u8, 32>,
     ss_x: &x25519_dalek::SharedSecret,
     ct_x: &PublicKey,
     pk_x: &PublicKey,

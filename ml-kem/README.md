@@ -30,6 +30,17 @@ In summary, ML-KEM stands at the forefront of post-quantum cryptography, offerin
 and efficiency in key encapsulation mechanisms to safeguard sensitive communications in an era where
 quantum computers potentially pose a looming threat.
 
+## Features
+
+The following features are provided by this crate:
+* `zeroize` — Enables memory zeroing for all cryptographic secrets
+* `pkcs8` — Enables PKCS#8 encoding/decoding traits for encapsulation and decapsulation key types
+* `alloc` — Enables allocating PKCS#8 encoding functions
+* `pem` — Enables PEM encoding/decoding support for PKCS#8 keys
+* `hazmat` — Enables `EncapsulationKey::encapsulate_deterministic`. Useful for testing purposes. Do NOT enable unless you know what you are doing.
+
+The **default** features are `[]` (nothing).
+
 ## ⚠️ Security Warning
 
 The implementation contained in this crate has never been independently audited!
