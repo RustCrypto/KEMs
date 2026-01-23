@@ -31,6 +31,9 @@ rand_core = "0.10.0-rc-5"
 sha3 = { version = "0.11.0-rc.3", default-features = false }
 subtle = { version = "2", default-features = false }
 
+# TODO(tarcieri): remove this and get these from `kem`
+common = { package = "crypto-common", version = "0.2.0-rc.12" }
+
 # optional dependencies
 const-oid = { version = "0.10.1", optional = true, default-features = false, features = ["db"] }
 pkcs8 = { version = "0.11.0-rc.8", optional = true, default-features = false }

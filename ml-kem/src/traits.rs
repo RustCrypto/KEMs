@@ -18,10 +18,10 @@ pub trait EncodedSizeUser: Sized {
     ///
     /// # Errors
     /// - If the object failed to decode successfully
-    fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error>;
+    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, Error>;
 
     /// Serialize an object to its encoded form
-    fn to_bytes(&self) -> Encoded<Self>;
+    fn to_encoded_bytes(&self) -> Encoded<Self>;
 }
 
 /// A byte array encoding a value the indicated size

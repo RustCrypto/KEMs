@@ -1,13 +1,53 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
 use core::convert::Infallible;
-use kem::{Decapsulate, Encapsulate};
+use kem::{Decapsulate, Encapsulate, KeyExport, KeySizeUser, TryKeyInit, consts::U32};
 use rand_core::{CryptoRng, TryCryptoRng, UnwrapErr};
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
+
+// TODO(tarcieri): get these from `kem`
+use common::{InvalidKey, Key};
 
 /// X22519 Diffie-Hellman KEM adapter.
 ///
 /// Implements a KEM interface that internally uses X25519 ECDH.
 pub struct X25519Kem;
+
+/// From [RFC9810 §7.1.1]: `SerializePublicKey` and `DeserializePublicKey`:
+///
+/// > For X25519 and X448, the SerializePublicKey() and
+/// > DeserializePublicKey() functions are the identity function, since
+/// > these curves already use fixed-length byte strings for public keys.
+///
+/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#name-serializepublickey-and-dese
+impl KeySizeUser for DhEncapsulator<PublicKey> {
+    type KeySize = U32;
+}
+
+/// From [RFC9810 §7.1.1]: `SerializePublicKey` and `DeserializePublicKey`:
+///
+/// > For X25519 and X448, the SerializePublicKey() and
+/// > DeserializePublicKey() functions are the identity function, since
+/// > these curves already use fixed-length byte strings for public keys.
+///
+/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#name-serializepublickey-and-dese
+impl TryKeyInit for DhEncapsulator<PublicKey> {
+    fn new(encapsulation_key: &Key<Self>) -> Result<Self, InvalidKey> {
+        Ok(Self(PublicKey::from(encapsulation_key.0)))
+    }
+}
+
+/// From [RFC9810 §7.1.1]: `SerializePublicKey` and `DeserializePublicKey`:
+///
+/// > For X25519 and X448, the SerializePublicKey() and
+/// > DeserializePublicKey() functions are the identity function, since
+/// > these curves already use fixed-length byte strings for public keys.
+///
+/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#name-serializepublickey-and-dese
+impl KeyExport for DhEncapsulator<PublicKey> {
+    fn to_bytes(&self) -> Key<Self> {
+        self.0.to_bytes().into()
+    }
+}
 
 impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
     type Error = Infallible;
@@ -30,9 +70,7 @@ impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
     type Error = Infallible;
 
     fn decapsulate(&self, encapsulated_key: &PublicKey) -> Result<SharedSecret, Self::Error> {
-        let ss = self.0.diffie_hellman(encapsulated_key);
-
-        Ok(ss)
+        Ok(self.0.diffie_hellman(encapsulated_key))
     }
 
     fn encapsulator(&self) -> DhEncapsulator<PublicKey> {

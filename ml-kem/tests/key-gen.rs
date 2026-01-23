@@ -37,12 +37,18 @@ fn verify<K: KemCore>(tc: &acvp::TestCase) {
     let (dk, ek) = K::from_seed(d.concat(z));
 
     // Verify correctness via serialization
-    assert_eq!(dk.to_bytes().as_slice(), tc.dk.as_slice());
-    assert_eq!(ek.to_bytes().as_slice(), tc.ek.as_slice());
+    assert_eq!(dk.to_encoded_bytes().as_slice(), tc.dk.as_slice());
+    assert_eq!(ek.to_encoded_bytes().as_slice(), tc.ek.as_slice());
 
     // Verify correctness via deserialization
-    assert_eq!(dk, K::DecapsulationKey::from_bytes(&dk_bytes).unwrap());
-    assert_eq!(ek, K::EncapsulationKey::from_bytes(&ek_bytes).unwrap());
+    assert_eq!(
+        dk,
+        K::DecapsulationKey::from_encoded_bytes(&dk_bytes).unwrap()
+    );
+    assert_eq!(
+        ek,
+        K::EncapsulationKey::from_encoded_bytes(&ek_bytes).unwrap()
+    );
 }
 
 mod acvp {

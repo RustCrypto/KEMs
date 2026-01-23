@@ -26,8 +26,9 @@
 //!
 //! use ml_kem::{
 //!     ml_kem_768::DecapsulationKey,
-//!     kem::{Decapsulate, Encapsulate, Generate, KeyInit}
+//!     kem::{Decapsulate, Encapsulate, Generate}
 //! };
+//! use common::KeyInit; // TODO(tarcieri): fix this!
 //!
 //! // Generate a decapsulation/encapsulation keypair
 //! let dk = DecapsulationKey::generate();
@@ -94,6 +95,9 @@ pub use ml_kem_768::MlKem768Params;
 pub use ml_kem_1024::MlKem1024Params;
 pub use param::{ArraySize, ExpandedDecapsulationKey, ParameterSet};
 pub use traits::*;
+
+// TODO(tarcieri): get rid of this!
+pub use common;
 
 /// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
 /// security levels, and are the preferred serialization for representing such keys.
