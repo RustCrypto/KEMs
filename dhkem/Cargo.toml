@@ -4,7 +4,7 @@ description = """
 Pure Rust implementation of Key Encapsulation Mechanism (KEM) adapters for Elliptic Curve
 Diffie Hellman (ECDH) protocols
 """
-version = "0.1.0-pre.0"
+version = "0.1.0-pre.1"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
@@ -14,7 +14,7 @@ keywords = ["crypto", "ecdh", "ecc"]
 readme = "README.md"
 
 [dependencies]
-kem = "0.4.0-rc.4"
+kem = "0.3.0-rc.0"
 rand_core = "0.10.0-rc-5"
 
 # optional dependencies
