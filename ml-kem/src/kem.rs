@@ -183,9 +183,11 @@ where
     /// Serialize the [`Seed`] value: 64-bytes which can be used to reconstruct the
     /// [`DecapsulationKey`].
     ///
-    /// # ⚠️Warning!
+    /// <div class="warning">
+    /// <b>Warning!</B>
     ///
     /// This value is key material. Please treat it with care.
+    /// </div>
     ///
     /// # Returns
     /// - `Some` if the [`DecapsulationKey`] was initialized using `from_seed` or `generate`.
