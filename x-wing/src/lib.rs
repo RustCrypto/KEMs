@@ -31,7 +31,7 @@ pub use kem::{
 };
 
 use ml_kem::{
-    B32, EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
     array::{
         Array, ArrayN, AsArrayRef,
         sizes::{U32, U1120, U1184, U1216},
@@ -92,17 +92,15 @@ impl EncapsulationKey {
     /// random bytes even once, you can have catastrophic security failure.
     #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
     #[expect(clippy::must_use_candidate)]
-    #[expect(clippy::missing_panics_doc, reason = "infallible")]
     pub fn encapsulate_deterministic(
         &self,
-        randomness: &[u8; ENCAPSULATION_RANDOMNESS_SIZE],
+        randomness: &ArrayN<u8, ENCAPSULATION_RANDOMNESS_SIZE>,
     ) -> (Ciphertext, SharedSecret) {
         // Split randomness into two 32-byte arrays
-        let randomness: &ArrayN<u8, ENCAPSULATION_RANDOMNESS_SIZE> = randomness.into();
         let (rand_m, rand_x) = randomness.split::<U32>();
 
         // Encapsulate with ML-KEM first. This is infallible
-        let (ct_m, ss_m) = self.pk_m.encapsulate_deterministic(&rand_m).unwrap();
+        let (ct_m, ss_m) = self.pk_m.encapsulate_deterministic(&rand_m);
 
         let ek_x = StaticSecret::from(rand_x.0);
         // Equal to ct_x = x25519(ek_x, BASE_POINT)
@@ -122,7 +120,7 @@ impl Encapsulate for EncapsulationKey {
         &self,
         rng: &mut R,
     ) -> Result<(Ciphertext, SharedSecret), R::Error> {
-        let mut randomness = [0u8; ENCAPSULATION_RANDOMNESS_SIZE];
+        let mut randomness = Array::default();
         rng.try_fill_bytes(&mut randomness)?;
 
         let res = self.encapsulate_deterministic(&randomness);
@@ -337,7 +335,7 @@ pub fn generate_key_pair_from_rng<R: CryptoRng + ?Sized>(
 }
 
 fn combiner(
-    ss_m: &B32,
+    ss_m: &ArrayN<u8, 32>,
     ss_x: &x25519_dalek::SharedSecret,
     ct_x: &PublicKey,
     pk_x: &PublicKey,

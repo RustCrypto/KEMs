@@ -6,9 +6,6 @@ use core::fmt::Debug;
 use kem::{Decapsulate, Encapsulate, InvalidKey};
 use rand_core::CryptoRng;
 
-#[cfg(feature = "deterministic")]
-use crate::B32;
-
 /// An object that knows what size it is
 pub trait EncodedSizeUser: Sized {
     /// The size of an encoded object
@@ -26,21 +23,6 @@ pub trait EncodedSizeUser: Sized {
 
 /// A byte array encoding a value the indicated size
 pub type Encoded<T> = Array<u8, <T as EncodedSizeUser>::EncodedSize>;
-
-/// A value that can be encapsulated to.  Note that this interface is not safe: In order for the
-/// KEM to be secure, the `m` input must be randomly generated.
-#[cfg(feature = "deterministic")]
-pub trait EncapsulateDeterministic<EK, SS> {
-    /// Encapsulation error
-    type Error: Debug;
-
-    /// Encapsulates a fresh shared secret.
-    ///
-    /// # Errors
-    ///
-    /// Will vary depending on the underlying implementation.
-    fn encapsulate_deterministic(&self, m: &B32) -> Result<(EK, SS), Self::Error>;
-}
 
 /// A generic interface to a Key Encapsulation Method
 pub trait KemCore: Clone {

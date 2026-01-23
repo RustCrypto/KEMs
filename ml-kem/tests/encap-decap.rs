@@ -1,10 +1,35 @@
-#![cfg(feature = "deterministic")]
-
 use ml_kem::*;
 
 use ::kem::Decapsulate;
-use array::Array;
+use array::{Array, ArrayN};
 use std::{fs::read_to_string, path::PathBuf};
+
+// A helper trait for deterministic encapsulation tests
+pub trait EncapsulateDeterministic {
+    // Returns (ciphertext, shared_secret) or RNG error
+    fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>);
+}
+
+impl EncapsulateDeterministic for EncapsulationKey512 {
+    fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
+        let (c, k) = self.encapsulate_deterministic(m);
+        (c.to_vec(), k.to_vec())
+    }
+}
+
+impl EncapsulateDeterministic for EncapsulationKey768 {
+    fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
+        let (c, k) = self.encapsulate_deterministic(m);
+        (c.to_vec(), k.to_vec())
+    }
+}
+
+impl EncapsulateDeterministic for EncapsulationKey1024 {
+    fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
+        let (c, k) = self.encapsulate_deterministic(m);
+        (c.to_vec(), k.to_vec())
+    }
+}
 
 #[test]
 fn acvp_encap_decap() {
@@ -38,13 +63,13 @@ fn verify_encap_group(tg: &acvp::EncapTestGroup) {
 fn verify_encap<K>(tc: &acvp::EncapTestCase)
 where
     K: KemCore,
-    K::EncapsulationKey: EncapsulateDeterministic<Ciphertext<K>, SharedKey<K>>,
+    K::EncapsulationKey: EncapsulateDeterministic,
 {
     let m = Array::try_from(tc.m.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
     let ek = K::EncapsulationKey::from_encoded_bytes(&ek_bytes).unwrap();
 
-    let (c, k) = ek.encapsulate_deterministic(&m).unwrap();
+    let (c, k) = ek.encapsulate_deterministic(&m);
 
     assert_eq!(k.as_slice(), tc.k.as_slice());
     assert_eq!(c.as_slice(), tc.c.as_slice());

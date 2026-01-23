@@ -84,9 +84,6 @@ pub use ml_kem_1024::MlKem1024Params;
 pub use param::{ArraySize, ExpandedDecapsulationKey, ParameterSet};
 pub use traits::*;
 
-#[cfg(feature = "deterministic")]
-pub use util::B32;
-
 use array::{
     Array,
     typenum::{U2, U3, U4, U5, U10, U11, U64},
