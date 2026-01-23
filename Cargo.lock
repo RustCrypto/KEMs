@@ -355,7 +355,6 @@ dependencies = [
 name = "dhkem"
 version = "0.1.0-pre.0"
 dependencies = [
- "crypto-common",
  "elliptic-curve",
  "getrandom",
  "hex-literal",
@@ -684,7 +683,7 @@ dependencies = [
 [[package]]
 name = "kem"
 version = "0.4.0-rc.4"
-source = "git+https://github.com/RustCrypto/traits#4e195b4fc5062a9ccd0080070d2b05202b2b3108"
+source = "git+https://github.com/RustCrypto/traits#55376359fd1375ebd63825a4c1394d3c3ee3e6de"
 dependencies = [
  "crypto-common",
  "rand_core",
@@ -717,7 +716,6 @@ version = "0.3.0-pre.3"
 dependencies = [
  "const-oid",
  "criterion",
- "crypto-common",
  "getrandom",
  "hex",
  "hex-literal",

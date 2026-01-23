@@ -91,7 +91,7 @@ fn test_dhkem_p256_hkdf_sha256() {
         .expect("never fails");
     assert_eq!(pke.to_encoded_point(false).as_bytes(), &pke_hex);
 
-    let ss2 = skr.decapsulate(&pke).expect("never fails");
+    let ss2 = skr.decapsulate(&pke);
 
     assert_eq!(ss1.raw_secret_bytes(), ss2.raw_secret_bytes());
 

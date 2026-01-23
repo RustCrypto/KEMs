@@ -20,18 +20,22 @@
 //! use kem::{Decapsulate, Encapsulate};
 //!
 //! let (sk, pk) = x_wing::generate_key_pair();
-//! let (ct, ss_sender) = pk.encapsulate().unwrap();
-//! let ss_receiver = sk.decapsulate(&ct).unwrap();
+//! let (ct, ss_sender) = pk.encapsulate();
+//! let ss_receiver = sk.decapsulate(&ct);
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
-pub use kem::{self, Decapsulate, Encapsulate, Generate, KeyExport, KeySizeUser, TryKeyInit};
+pub use kem::{
+    self, Decapsulate, Encapsulate, Generate, InvalidKey, Key, KeyExport, KeyInit, KeySizeUser,
+    TryKeyInit,
+};
 
-use core::convert::Infallible;
 use ml_kem::{
-    B32, EncodedSizeUser, Error, KemCore, MlKem768, MlKem768Params,
-    array::{ArrayN, typenum::consts::U32},
-    common::{InvalidKey, Key, KeyInit, array::sizes::U1216},
+    B32, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    array::{
+        ArrayN,
+        sizes::{U32, U1216},
+    },
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use sha3::{
@@ -76,12 +80,10 @@ pub struct EncapsulationKey {
 }
 
 impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
-    type Error = Error;
-
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
-    ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
+    ) -> Result<(Ciphertext, SharedSecret), R::Error> {
         // Swapped order of operations compared to RFC, so that usage of the rng matches the RFC
         let (ct_m, ss_m) = self.pk_m.encapsulate_with_rng(rng)?;
 
@@ -143,19 +145,17 @@ pub struct DecapsulationKey {
 
 impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
     type Encapsulator = EncapsulationKey;
-    type Error = Infallible;
 
     #[allow(clippy::similar_names)] // So we can use the names as in the RFC
-    fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
+    fn decapsulate(&self, ct: &Ciphertext) -> SharedSecret {
         let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
 
-        let ss_m = sk_m.decapsulate(&ct.ct_m)?;
+        let ss_m = sk_m.decapsulate(&ct.ct_m);
 
         // equal to ss_x = x25519(sk_x, ct_x)
         let ss_x = sk_x.diffie_hellman(&ct.ct_x);
 
-        let ss = combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x);
-        Ok(ss)
+        combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x)
     }
 
     fn encapsulator(&self) -> EncapsulationKey {
@@ -386,7 +386,7 @@ mod tests {
         assert_eq!(ss, test_vector.ss);
         assert_eq!(&ct.to_bytes(), test_vector.ct.as_slice());
 
-        let ss = sk.decapsulate(&ct).unwrap();
+        let ss = sk.decapsulate(&ct);
         assert_eq!(ss, test_vector.ss);
     }
 

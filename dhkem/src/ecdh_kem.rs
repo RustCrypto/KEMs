@@ -1,20 +1,15 @@
 //! Generic Elliptic Curve Diffie-Hellman KEM adapter.
 
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
-use core::{convert::Infallible, marker::PhantomData};
+use core::marker::PhantomData;
 use elliptic_curve::{
-    AffinePoint,
-    CurveArithmetic,
-    FieldBytesSize,
-    Generate,
-    PublicKey,
-    common::InvalidKey, // TODO(tarcieri): get from `kem` crate
+    AffinePoint, CurveArithmetic, FieldBytesSize, Generate, PublicKey,
     ecdh::{EphemeralSecret, SharedSecret},
     sec1::{
         FromEncodedPoint, ModulusSize, ToEncodedPoint, UncompressedPoint, UncompressedPointSize,
     },
 };
-use kem::{Decapsulate, Encapsulate, KeyExport, KeySizeUser, TryKeyInit};
+use kem::{Decapsulate, Encapsulate, InvalidKey, KeyExport, KeySizeUser, TryKeyInit};
 use rand_core::{CryptoRng, TryCryptoRng};
 
 /// Generic Elliptic Curve Diffie-Hellman KEM adapter compatible with curves implemented using
@@ -86,12 +81,10 @@ where
     FieldBytesSize<C>: ModulusSize,
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
 {
-    type Error = Infallible;
-
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
-    ) -> Result<(PublicKey<C>, SharedSecret<C>), Self::Error> {
+    ) -> Result<(PublicKey<C>, SharedSecret<C>), R::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
         // TODO(tarcieri): propagate RNG errors
         let sk = EphemeralSecret::try_generate_from_rng(rng).expect("RNG failure");
@@ -109,12 +102,9 @@ where
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
 {
     type Encapsulator = DhEncapsulator<PublicKey<C>>;
-    type Error = Infallible;
 
-    fn decapsulate(&self, encapsulated_key: &PublicKey<C>) -> Result<SharedSecret<C>, Self::Error> {
-        let ss = self.0.diffie_hellman(encapsulated_key);
-
-        Ok(ss)
+    fn decapsulate(&self, encapsulated_key: &PublicKey<C>) -> SharedSecret<C> {
+        self.0.diffie_hellman(encapsulated_key)
     }
 
     fn encapsulator(&self) -> DhEncapsulator<PublicKey<C>> {

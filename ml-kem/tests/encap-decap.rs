@@ -3,7 +3,7 @@
 use ml_kem::*;
 
 use ::kem::Decapsulate;
-use hybrid_array::Array;
+use array::Array;
 use std::{fs::read_to_string, path::PathBuf};
 
 #[test]
@@ -65,7 +65,7 @@ fn verify_decap<K: KemCore>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
     let dk = K::DecapsulationKey::from_encoded_bytes(&dk_bytes).unwrap();
 
     let c = Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
-    let k = dk.decapsulate(&c).unwrap();
+    let k = dk.decapsulate(&c);
     assert_eq!(k.as_slice(), tc.k.as_slice());
 }
 

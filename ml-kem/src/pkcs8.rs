@@ -28,7 +28,7 @@ use ::pkcs8::{
     },
     spki,
 };
-use hybrid_array::Array;
+use array::Array;
 
 #[cfg(feature = "alloc")]
 use {
