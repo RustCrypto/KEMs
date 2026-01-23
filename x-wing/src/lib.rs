@@ -153,11 +153,10 @@ impl KeyExport for EncapsulationKey {
 
 impl TryKeyInit for EncapsulationKey {
     fn new(key_bytes: &Key<Self>) -> Result<Self, InvalidKey> {
-        let (pk_m_bytes, pk_x_bytes) = key_bytes.split_ref::<U1184>();
+        let (m_bytes, x_bytes) = key_bytes.split_ref::<U1184>();
 
-        let pk_m =
-            MlKem768EncapsulationKey::from_encoded_bytes(pk_m_bytes).map_err(|_| InvalidKey)?;
-        let pk_x = PublicKey::from(pk_x_bytes.0);
+        let pk_m = MlKem768EncapsulationKey::from_encoded_bytes(m_bytes).map_err(|_| InvalidKey)?;
+        let pk_x = PublicKey::from(x_bytes.0);
 
         Ok(EncapsulationKey { pk_m, pk_x })
     }
