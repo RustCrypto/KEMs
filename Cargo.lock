@@ -295,9 +295,9 @@ dependencies = [
 
 [[package]]
 name = "crypto-common"
-version = "0.2.0-rc.11"
+version = "0.2.0-rc.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7d2bcc93d5cde6659e8649fc412894417ebc14dee54cfc6ee439c683a4a58342"
+checksum = "a6dcdb44f2c3ee25689ca12a4c19e664fd09f97aeae0bc5043b2dbab6389e308"
 dependencies = [
  "getrandom",
  "hybrid-array",
@@ -355,6 +355,7 @@ dependencies = [
 name = "dhkem"
 version = "0.1.0-pre.0"
 dependencies = [
+ "crypto-common",
  "elliptic-curve",
  "getrandom",
  "hex-literal",
@@ -608,9 +609,9 @@ dependencies = [
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.5"
+version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f471e0a81b2f90ffc0cb2f951ae04da57de8baa46fa99112b062a5173a5088d0"
+checksum = "b41fb3dc24fe72c2e3a4685eed55917c2fb228851257f4a8f2d985da9443c3e5"
 dependencies = [
  "subtle",
  "typenum",
@@ -683,8 +684,7 @@ dependencies = [
 [[package]]
 name = "kem"
 version = "0.4.0-rc.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e364ee5b2ff87ea53e759732e09cea035602f5c35449088f2d7d05591680272"
+source = "git+https://github.com/RustCrypto/traits#4e195b4fc5062a9ccd0080070d2b05202b2b3108"
 dependencies = [
  "crypto-common",
  "rand_core",
@@ -717,6 +717,7 @@ version = "0.3.0-pre.3"
 dependencies = [
  "const-oid",
  "criterion",
+ "crypto-common",
  "getrandom",
  "hex",
  "hex-literal",
@@ -1114,8 +1115,7 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 [[package]]
 name = "sec1"
 version = "0.8.0-rc.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b54617aeb7e34ace1a4b72ba79bb6297e48285dc0cce064dc063ddcbf538996"
+source = "git+https://github.com/RustCrypto/formats#eb63b10272698f9055b6197c09076dd69acfdc59"
 dependencies = [
  "base16ct",
  "ctutils",

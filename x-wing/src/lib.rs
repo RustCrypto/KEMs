@@ -25,12 +25,13 @@
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
-pub use kem::{self, Decapsulate, Encapsulate, Generate};
+pub use kem::{self, Decapsulate, Encapsulate, Generate, KeyExport, KeySizeUser, TryKeyInit};
 
 use core::convert::Infallible;
 use ml_kem::{
     B32, EncodedSizeUser, Error, KemCore, MlKem768, MlKem768Params,
     array::{ArrayN, typenum::consts::U32},
+    common::{InvalidKey, Key, KeyInit, array::sizes::U1216},
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use sha3::{
@@ -96,30 +97,39 @@ impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
     }
 }
 
-impl EncapsulationKey {
-    /// Convert the key to the following format:
-    /// ML-KEM-768 public key(1184 bytes) || X25519 public key(32 bytes).
-    #[must_use]
-    pub fn to_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
-        let mut buffer = [0u8; ENCAPSULATION_KEY_SIZE];
-        buffer[0..1184].copy_from_slice(&self.pk_m.to_bytes());
-        buffer[1184..1216].copy_from_slice(self.pk_x.as_bytes());
-        buffer
+impl KeySizeUser for EncapsulationKey {
+    type KeySize = U1216;
+}
+
+impl KeyExport for EncapsulationKey {
+    fn to_bytes(&self) -> Key<Self> {
+        let mut key_bytes = Key::<Self>::default();
+        let (m, x) = key_bytes.split_at_mut(1184);
+        m.copy_from_slice(&self.pk_m.to_encoded_bytes());
+        x.copy_from_slice(self.pk_x.as_bytes());
+        key_bytes
     }
 }
 
-impl TryFrom<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
-    type Error = ml_kem::Error;
-
-    fn try_from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Result<Self, ml_kem::Error> {
+impl TryKeyInit for EncapsulationKey {
+    fn new(key_bytes: &Key<Self>) -> Result<Self, InvalidKey> {
         let mut pk_m = [0; 1184];
-        pk_m.copy_from_slice(&value[0..1184]);
-        let pk_m = MlKem768EncapsulationKey::from_bytes(&pk_m.into())?;
+        pk_m.copy_from_slice(&key_bytes[0..1184]);
+        let pk_m =
+            MlKem768EncapsulationKey::from_encoded_bytes(&pk_m.into()).map_err(|_| InvalidKey)?;
 
         let mut pk_x = [0; 32];
-        pk_x.copy_from_slice(&value[1184..]);
+        pk_x.copy_from_slice(&key_bytes[1184..]);
         let pk_x = PublicKey::from(pk_x);
         Ok(EncapsulationKey { pk_m, pk_x })
+    }
+}
+
+impl TryFrom<&[u8]> for EncapsulationKey {
+    type Error = InvalidKey;
+
+    fn try_from(key_bytes: &[u8]) -> Result<Self, InvalidKey> {
+        Self::new_from_slice(key_bytes)
     }
 }
 
@@ -153,11 +163,11 @@ impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
     }
 }
 
-impl ::kem::KeySizeUser for DecapsulationKey {
+impl KeySizeUser for DecapsulationKey {
     type KeySize = U32;
 }
 
-impl ::kem::KeyInit for DecapsulationKey {
+impl KeyInit for DecapsulationKey {
     fn new(key: &ArrayN<u8, 32>) -> Self {
         Self { sk: key.0 }
     }
@@ -368,7 +378,7 @@ mod tests {
         let (sk, pk) = generate_key_pair_from_rng(&mut seed);
 
         assert_eq!(sk.as_bytes(), &test_vector.sk);
-        assert_eq!(&pk.to_bytes(), test_vector.pk.as_slice());
+        assert_eq!(&*pk.to_bytes(), test_vector.pk.as_slice());
 
         let mut eseed = SeedRng::new(test_vector.eseed);
         let (ct, ss) = pk.encapsulate_with_rng(&mut eseed).unwrap();
@@ -404,7 +414,7 @@ mod tests {
         let pk_bytes = pk.to_bytes();
 
         let sk_b = DecapsulationKey::from(*sk_bytes);
-        let pk_b = EncapsulationKey::try_from(&pk_bytes).unwrap();
+        let pk_b = EncapsulationKey::new(&pk_bytes).unwrap();
 
         assert!(sk == sk_b);
         assert!(pk == pk_b);

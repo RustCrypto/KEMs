@@ -1,7 +1,7 @@
-use core::{convert::Infallible, marker::PhantomData};
-use hybrid_array::typenum::{U32, U64};
-use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
-use subtle::{ConditionallySelectable, ConstantTimeEq};
+//!
+
+// Re-export traits from the `kem` crate
+pub use ::kem::{Decapsulate, Encapsulate, Generate, KeyExport, KeySizeUser, TryKeyInit};
 
 use crate::{
     Encoded, EncodedSizeUser, Error, Seed,
@@ -13,12 +13,16 @@ use crate::{
     pke::{DecryptionKey, EncryptionKey},
     util::B32,
 };
+use core::{convert::Infallible, marker::PhantomData};
+use hybrid_array::typenum::{U32, U64};
+use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
+use subtle::{ConditionallySelectable, ConstantTimeEq};
+
+// TODO(tarcieri): get these from `kem`
+use common::{InvalidKey, Key, KeyInit};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
-
-// Re-export traits from the `kem` crate
-pub use ::kem::{Decapsulate, Encapsulate, Generate, KeyInit, KeySizeUser};
 
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
@@ -76,14 +80,14 @@ where
 {
     type EncodedSize = DecapsulationKeySize<P>;
 
-    fn from_bytes(expanded: &Encoded<Self>) -> Result<Self, Error> {
+    fn from_encoded_bytes(expanded: &Encoded<Self>) -> Result<Self, Error> {
         #[allow(deprecated)]
         Self::from_expanded(expanded)
     }
 
-    fn to_bytes(&self) -> Encoded<Self> {
+    fn to_encoded_bytes(&self) -> Encoded<Self> {
         let dk_pke = self.dk_pke.to_bytes();
-        let ek = self.ek.to_bytes();
+        let ek = self.ek.to_encoded_bytes();
         P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
     }
 }
@@ -256,11 +260,38 @@ where
 {
     type EncodedSize = EncapsulationKeySize<P>;
 
-    fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error> {
+    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, Error> {
         Ok(Self::new(EncryptionKey::from_bytes(enc)?))
     }
 
-    fn to_bytes(&self) -> Encoded<Self> {
+    fn to_encoded_bytes(&self) -> Encoded<Self> {
+        self.ek_pke.to_bytes()
+    }
+}
+
+impl<P> KeySizeUser for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    type KeySize = EncapsulationKeySize<P>;
+}
+
+impl<P> TryKeyInit for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn new(encapsulation_key: &Key<Self>) -> Result<Self, InvalidKey> {
+        EncryptionKey::from_bytes(encapsulation_key)
+            .map(Self::new)
+            .map_err(|_| InvalidKey)
+    }
+}
+
+impl<P> KeyExport for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn to_bytes(&self) -> Key<Self> {
         self.ek_pke.to_bytes()
     }
 }
@@ -367,12 +398,12 @@ mod test {
         let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
-        let dk_encoded = dk_original.to_bytes();
-        let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded).unwrap();
+        let dk_encoded = dk_original.to_encoded_bytes();
+        let dk_decoded = DecapsulationKey::from_encoded_bytes(&dk_encoded).unwrap();
         assert_eq!(dk_original, dk_decoded);
 
-        let ek_encoded = ek_original.to_bytes();
-        let ek_decoded = EncapsulationKey::from_bytes(&ek_encoded).unwrap();
+        let ek_encoded = ek_original.to_encoded_bytes();
+        let ek_decoded = EncapsulationKey::from_encoded_bytes(&ek_encoded).unwrap();
         assert_eq!(ek_original, ek_decoded);
     }
 
