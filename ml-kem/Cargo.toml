@@ -25,14 +25,11 @@ pkcs8 = ["dep:const-oid", "dep:pkcs8"]
 zeroize = ["dep:zeroize"]
 
 [dependencies]
+array = { package = "hybrid-array", version = "0.4.4", features = ["extra-sizes", "subtle"] }
 kem = "0.4.0-rc.4"
-hybrid-array = { version = "0.4.4", features = ["extra-sizes", "subtle"] }
 rand_core = "0.10.0-rc-5"
 sha3 = { version = "0.11.0-rc.3", default-features = false }
 subtle = { version = "2", default-features = false }
-
-# TODO(tarcieri): remove this and get these from `kem`
-common = { package = "crypto-common", version = "0.2.0-rc.12" }
 
 # optional dependencies
 const-oid = { version = "0.10.1", optional = true, default-features = false, features = ["db"] }

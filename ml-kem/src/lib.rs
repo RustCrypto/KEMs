@@ -26,9 +26,8 @@
 //!
 //! use ml_kem::{
 //!     ml_kem_768::DecapsulationKey,
-//!     kem::{Decapsulate, Encapsulate, Generate}
+//!     kem::{Decapsulate, Encapsulate, Generate, KeyInit}
 //! };
-//! use common::KeyInit; // TODO(tarcieri): fix this!
 //!
 //! // Generate a decapsulation/encapsulation keypair
 //! let dk = DecapsulationKey::generate();
@@ -36,10 +35,12 @@
 //!
 //! // Encapsulate a shared key to the holder of the decapsulation key, receive the shared
 //! // secret `k_send` and the encapsulated form `ct`.
-//! let (ct, k_send) = ek.encapsulate().unwrap();
+//! let (ct, k_send) = ek.encapsulate();
 //!
-//! // Decapsulate the shared key and verify that it was faithfully received.
-//! let k_recv = dk.decapsulate(&ct).unwrap();
+//! // Decapsulate the shared key
+//! let k_recv = dk.decapsulate(&ct);
+//!
+//! // We've now established a shared key
 //! assert_eq!(k_send, k_recv);
 //! ```
 //!
@@ -73,31 +74,24 @@ mod param;
 
 pub mod pkcs8;
 
-/// Error type
-mod error;
 /// Trait definitions
 mod traits;
 
-use core::fmt::Debug;
-use hybrid_array::{
-    Array,
-    typenum::{U2, U3, U4, U5, U10, U11, U64},
-};
-
-pub use hybrid_array as array;
-
-#[cfg(feature = "deterministic")]
-pub use util::B32;
-
-pub use error::Error;
+pub use array;
 pub use ml_kem_512::MlKem512Params;
 pub use ml_kem_768::MlKem768Params;
 pub use ml_kem_1024::MlKem1024Params;
 pub use param::{ArraySize, ExpandedDecapsulationKey, ParameterSet};
 pub use traits::*;
 
-// TODO(tarcieri): get rid of this!
-pub use common;
+#[cfg(feature = "deterministic")]
+pub use util::B32;
+
+use array::{
+    Array,
+    typenum::{U2, U3, U4, U5, U10, U11, U64},
+};
+use core::fmt::Debug;
 
 /// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
 /// security levels, and are the preferred serialization for representing such keys.
@@ -217,7 +211,7 @@ mod test {
         let (dk, ek) = K::generate(&mut rng);
 
         let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
-        let k_recv = dk.decapsulate(&ct).unwrap();
+        let k_recv = dk.decapsulate(&ct);
         assert_eq!(k_send, k_recv);
     }
 

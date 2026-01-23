@@ -1,9 +1,9 @@
 //! Trait definitions
 
-use crate::{ArraySize, Ciphertext, Error, Seed, SharedKey};
+use crate::{ArraySize, Ciphertext, Seed, SharedKey};
+use array::Array;
 use core::fmt::Debug;
-use hybrid_array::Array;
-use kem::{Decapsulate, Encapsulate};
+use kem::{Decapsulate, Encapsulate, InvalidKey};
 use rand_core::CryptoRng;
 
 #[cfg(feature = "deterministic")]
@@ -18,7 +18,7 @@ pub trait EncodedSizeUser: Sized {
     ///
     /// # Errors
     /// - If the object failed to decode successfully
-    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, Error>;
+    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, InvalidKey>;
 
     /// Serialize an object to its encoded form
     fn to_encoded_bytes(&self) -> Encoded<Self>;

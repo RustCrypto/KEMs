@@ -1,10 +1,13 @@
-//!
+//! Key encapsulation mechanism implementation.
 
 // Re-export traits from the `kem` crate
-pub use ::kem::{Decapsulate, Encapsulate, Generate, KeyExport, KeySizeUser, TryKeyInit};
+pub use ::kem::{
+    Decapsulate, Encapsulate, Generate, InvalidKey, Key, KeyExport, KeyInit, KeySizeUser,
+    TryKeyInit,
+};
 
 use crate::{
-    Encoded, EncodedSizeUser, Error, Seed,
+    Encoded, EncodedSizeUser, Seed,
     crypto::{G, H, J},
     param::{
         DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
@@ -13,14 +16,13 @@ use crate::{
     pke::{DecryptionKey, EncryptionKey},
     util::B32,
 };
-use core::{convert::Infallible, marker::PhantomData};
-use hybrid_array::typenum::{U32, U64};
+use array::typenum::{U32, U64};
+use core::marker::PhantomData;
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
-// TODO(tarcieri): get these from `kem`
-use common::{InvalidKey, Key, KeyInit};
-
+#[cfg(feature = "deterministic")]
+use core::convert::Infallible;
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -80,7 +82,7 @@ where
 {
     type EncodedSize = DecapsulationKeySize<P>;
 
-    fn from_encoded_bytes(expanded: &Encoded<Self>) -> Result<Self, Error> {
+    fn from_encoded_bytes(expanded: &Encoded<Self>) -> Result<Self, InvalidKey> {
         #[allow(deprecated)]
         Self::from_expanded(expanded)
     }
@@ -126,21 +128,13 @@ where
     P: KemParams,
 {
     type Encapsulator = EncapsulationKey<P>;
-    type Error = Infallible;
 
-    fn decapsulate(
-        &self,
-        encapsulated_key: &EncodedCiphertext<P>,
-    ) -> Result<SharedKey, Self::Error> {
+    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> SharedKey {
         let mp = self.dk_pke.decrypt(encapsulated_key);
         let (Kp, rp) = G(&[&mp, &self.ek.h]);
         let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
         let cp = self.ek.ek_pke.encrypt(&mp, &rp);
-        Ok(B32::conditional_select(
-            &Kbar,
-            &Kp,
-            cp.ct_eq(encapsulated_key),
-        ))
+        B32::conditional_select(&Kbar, &Kp, cp.ct_eq(encapsulated_key))
     }
 
     fn encapsulator(&self) -> EncapsulationKey<P> {
@@ -166,9 +160,9 @@ where
     /// [`DecapsulationKey::from_seed`].
     ///
     /// # Errors
-    /// - Returns [`Error`] in the event the expanded key failed validation
+    /// - Returns [`InvalidKey`] in the event the expanded key failed validation
     #[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
-    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, Error> {
+    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, InvalidKey> {
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
         let ek_pke = EncryptionKey::from_bytes(ek_pke)?;
 
@@ -260,7 +254,7 @@ where
 {
     type EncodedSize = EncapsulationKeySize<P>;
 
-    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, Error> {
+    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, InvalidKey> {
         Ok(Self::new(EncryptionKey::from_bytes(enc)?))
     }
 
@@ -300,13 +294,11 @@ impl<P> Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
 where
     P: KemParams,
 {
-    type Error = Error;
-
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
-    ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        let m = B32::try_generate_from_rng(rng).map_err(|_| Error)?;
+    ) -> Result<(EncodedCiphertext<P>, SharedKey), R::Error> {
+        let m = B32::try_generate_from_rng(rng)?;
         Ok(self.encapsulate_deterministic_inner(&m))
     }
 }
@@ -379,7 +371,7 @@ mod test {
         let ek = dk.encapsulation_key();
 
         let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
-        let k_recv = dk.decapsulate(&ct).unwrap();
+        let k_recv = dk.decapsulate(&ct);
         assert_eq!(k_send, k_recv);
     }
 

@@ -17,9 +17,6 @@ readme = "README.md"
 kem = "0.4.0-rc.4"
 rand_core = "0.10.0-rc-5"
 
-# TODO(tarcieri): remove this and get these from `kem`
-common = { package = "crypto-common", version = "0.2.0-rc.12" }
-
 # optional dependencies
 elliptic-curve = { version = "0.14.0-rc.23", optional = true, default-features = false }
 k256 = { version = "0.14.0-rc.5", optional = true, default-features = false, features = ["arithmetic"] }

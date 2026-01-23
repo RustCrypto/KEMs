@@ -2,7 +2,7 @@
 
 use ml_kem::*;
 
-use hybrid_array::Array;
+use array::Array;
 use std::{fs::read_to_string, path::PathBuf};
 
 #[test]

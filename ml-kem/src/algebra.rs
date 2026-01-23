@@ -1,5 +1,5 @@
+use array::{Array, typenum::U256};
 use core::ops::{Add, Mul, Sub};
-use hybrid_array::{Array, typenum::U256};
 use sha3::digest::XofReader;
 use subtle::{Choice, ConstantTimeEq};
 
@@ -525,7 +525,7 @@ impl<K: ArraySize> NttMatrix<K> {
 mod test {
     use super::*;
     use crate::util::Flatten;
-    use hybrid_array::typenum::{U2, U3, U8};
+    use array::typenum::{U2, U3, U8};
 
     // Multiplication in R_q, modulo X^256 + 1
     impl Mul<&Polynomial> for &Polynomial {

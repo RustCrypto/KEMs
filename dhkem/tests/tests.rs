@@ -34,7 +34,7 @@ where
     let mut rng = SysRng.unwrap_err();
     let (sk, pk) = K::random_keypair(&mut rng);
     let (ek, ss1) = pk.encapsulate_with_rng(&mut rng).expect("never fails");
-    let ss2 = sk.decapsulate(&ek).expect("never fails");
+    let ss2 = sk.decapsulate(&ek);
 
     assert_eq!(ss1.as_slice(), ss2.as_slice());
 }

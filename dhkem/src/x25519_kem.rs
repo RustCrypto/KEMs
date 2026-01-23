@@ -1,11 +1,9 @@
 use crate::{DhDecapsulator, DhEncapsulator, DhKem};
-use core::convert::Infallible;
-use kem::{Decapsulate, Encapsulate, KeyExport, KeySizeUser, TryKeyInit, consts::U32};
+use kem::{
+    Decapsulate, Encapsulate, InvalidKey, Key, KeyExport, KeySizeUser, TryKeyInit, consts::U32,
+};
 use rand_core::{CryptoRng, TryCryptoRng, UnwrapErr};
 use x25519::{PublicKey, ReusableSecret, SharedSecret};
-
-// TODO(tarcieri): get these from `kem`
-use common::{InvalidKey, Key};
 
 /// X22519 Diffie-Hellman KEM adapter.
 ///
@@ -50,12 +48,10 @@ impl KeyExport for DhEncapsulator<PublicKey> {
 }
 
 impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
-    type Error = Infallible;
-
     fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
         &self,
         rng: &mut R,
-    ) -> Result<(PublicKey, SharedSecret), Self::Error> {
+    ) -> Result<(PublicKey, SharedSecret), R::Error> {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
         let sk = ReusableSecret::random_from_rng(&mut UnwrapErr(rng));
         let pk = PublicKey::from(&sk);
@@ -67,10 +63,9 @@ impl Encapsulate<PublicKey, SharedSecret> for DhEncapsulator<PublicKey> {
 
 impl Decapsulate<PublicKey, SharedSecret> for DhDecapsulator<ReusableSecret> {
     type Encapsulator = DhEncapsulator<PublicKey>;
-    type Error = Infallible;
 
-    fn decapsulate(&self, encapsulated_key: &PublicKey) -> Result<SharedSecret, Self::Error> {
-        Ok(self.0.diffie_hellman(encapsulated_key))
+    fn decapsulate(&self, encapsulated_key: &PublicKey) -> SharedSecret {
+        self.0.diffie_hellman(encapsulated_key)
     }
 
     fn encapsulator(&self) -> DhEncapsulator<PublicKey> {

@@ -89,7 +89,7 @@ impl<K: ArraySize> Compress for PolynomialVector<K> {
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
-    use hybrid_array::typenum::{U1, U4, U5, U6, U10, U11, U12};
+    use array::typenum::{U1, U4, U5, U6, U10, U11, U12};
     use num_rational::Ratio;
 
     #[allow(clippy::cast_possible_truncation)]

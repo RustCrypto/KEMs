@@ -32,7 +32,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     c.bench_function("decapsulate", |b| {
         b.iter(|| {
-            dk.decapsulate(&ct).unwrap();
+            dk.decapsulate(&ct);
         })
     });
 
@@ -42,7 +42,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
             let ek = dk.encapsulator();
             let (ct, _sk) = ek.encapsulate_with_rng(&mut rng).unwrap();
-            dk.decapsulate(&ct).unwrap();
+            dk.decapsulate(&ct);
         })
     });
 }

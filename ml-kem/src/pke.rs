@@ -1,13 +1,12 @@
-use hybrid_array::typenum::{U1, Unsigned};
-use subtle::{Choice, ConstantTimeEq};
-
 use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
 use crate::encode::Encode;
-use crate::error::Error;
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use crate::util::B32;
+use array::typenum::{U1, Unsigned};
+use kem::InvalidKey;
+use subtle::{Choice, ConstantTimeEq};
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -158,9 +157,9 @@ where
     /// Parse an encryption key from a byte array `(t_hat || rho)`.
     ///
     /// # Errors
-    /// Returns [`Error`] in the event that the key fails the encapsulation key checks specified in
-    /// FIPS 203 §7.2.
-    pub fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, Error> {
+    /// Returns [`InvalidKey`] in the event that the key fails the encapsulation key checks
+    /// specified in FIPS 203 §7.2.
+    pub fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, InvalidKey> {
         let (t_hat, rho) = P::split_ek(enc);
         let t_hat = P::decode_u12(t_hat);
         let ret = Self {
@@ -197,7 +196,7 @@ where
         if &ret.to_bytes() == enc {
             Ok(ret)
         } else {
-            Err(Error)
+            Err(InvalidKey)
         }
     }
 }
