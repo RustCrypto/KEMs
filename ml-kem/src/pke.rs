@@ -30,12 +30,13 @@ where
     }
 }
 
-// Handwritten to ensure a constant time comparison is performed
+impl<P> Eq for DecryptionKey<P> where P: PkeParams {}
 impl<P> PartialEq for DecryptionKey<P>
 where
     P: PkeParams,
 {
     fn eq(&self, other: &Self) -> bool {
+        // Compare decryption keys in constant-time
         self.ct_eq(other).into()
     }
 }
@@ -110,7 +111,7 @@ where
 
 /// An `EncryptionKey` provides the ability to encrypt a value so that it can only be
 /// decrypted by the holder of the corresponding decapsulation key.
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct EncryptionKey<P>
 where
     P: PkeParams,

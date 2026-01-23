@@ -2,12 +2,12 @@
 
 // Re-export traits from the `kem` crate
 pub use ::kem::{
-    Decapsulate, Encapsulate, Generate, InvalidKey, Key, KeyExport, KeyInit, KeySizeUser,
-    TryKeyInit,
+    Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Key, KeyExport, KeyInit,
+    KeySizeUser, TryKeyInit,
 };
 
 use crate::{
-    Encoded, EncodedSizeUser, Seed,
+    Encoded, EncodedSizeUser, KemCore, Seed,
     crypto::{G, H, J},
     param::{
         DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
@@ -76,6 +76,30 @@ where
     }
 }
 
+impl<P> Decapsulate for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> SharedKey {
+        let mp = self.dk_pke.decrypt(encapsulated_key);
+        let (Kp, rp) = G(&[&mp, &self.ek.h]);
+        let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
+        let cp = self.ek.ek_pke.encrypt(&mp, &rp);
+        B32::conditional_select(&Kbar, &Kp, cp.ct_eq(encapsulated_key))
+    }
+}
+
+impl<P> Decapsulator for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    type Encapsulator = EncapsulationKey<P>;
+
+    fn encapsulator(&self) -> &EncapsulationKey<P> {
+        &self.ek
+    }
+}
+
 impl<P> EncodedSizeUser for DecapsulationKey<P>
 where
     P: KemParams,
@@ -120,25 +144,6 @@ where
     #[inline]
     fn new(seed: &Seed) -> Self {
         Self::from_seed(*seed)
-    }
-}
-
-impl<P> Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
-where
-    P: KemParams,
-{
-    type Encapsulator = EncapsulationKey<P>;
-
-    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> SharedKey {
-        let mp = self.dk_pke.decrypt(encapsulated_key);
-        let (Kp, rp) = G(&[&mp, &self.ek.h]);
-        let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
-        let cp = self.ek.ek_pke.encrypt(&mp, &rp);
-        B32::conditional_select(&Kbar, &Kp, cp.ct_eq(encapsulated_key))
-    }
-
-    fn encapsulator(&self) -> EncapsulationKey<P> {
-        self.ek.clone()
     }
 }
 
@@ -223,7 +228,7 @@ where
 
 /// An `EncapsulationKey` provides the ability to encapsulate a shared key so that it can only be
 /// decapsulated by the holder of the corresponding decapsulation key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct EncapsulationKey<P>
 where
     P: KemParams,
@@ -248,6 +253,19 @@ where
     }
 }
 
+impl<P> Encapsulate for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
+        &self,
+        rng: &mut R,
+    ) -> Result<(EncodedCiphertext<P>, SharedKey), R::Error> {
+        let m = B32::try_generate_from_rng(rng)?;
+        Ok(self.encapsulate_deterministic_inner(&m))
+    }
+}
+
 impl<P> EncodedSizeUser for EncapsulationKey<P>
 where
     P: KemParams,
@@ -259,6 +277,23 @@ where
     }
 
     fn to_encoded_bytes(&self) -> Encoded<Self> {
+        self.ek_pke.to_bytes()
+    }
+}
+
+impl<P> ::kem::KemParams for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    type CiphertextSize = P::CiphertextSize;
+    type SharedSecretSize = U32;
+}
+
+impl<P> KeyExport for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn to_bytes(&self) -> Key<Self> {
         self.ek_pke.to_bytes()
     }
 }
@@ -281,25 +316,14 @@ where
     }
 }
 
-impl<P> KeyExport for EncapsulationKey<P>
+impl<P> Eq for EncapsulationKey<P> where P: KemParams {}
+impl<P> PartialEq for EncapsulationKey<P>
 where
     P: KemParams,
 {
-    fn to_bytes(&self) -> Key<Self> {
-        self.ek_pke.to_bytes()
-    }
-}
-
-impl<P> Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
-where
-    P: KemParams,
-{
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(EncodedCiphertext<P>, SharedKey), R::Error> {
-        let m = B32::try_generate_from_rng(rng)?;
-        Ok(self.encapsulate_deterministic_inner(&m))
+    fn eq(&self, other: &Self) -> bool {
+        // Handwritten to avoid derive putting `Eq` bounds on `KemParams`
+        self.ek_pke == other.ek_pke && self.h == other.h
     }
 }
 
@@ -328,7 +352,7 @@ where
     _phantom: PhantomData<P>,
 }
 
-impl<P> crate::KemCore for Kem<P>
+impl<P> KemCore for Kem<P>
 where
     P: KemParams,
 {

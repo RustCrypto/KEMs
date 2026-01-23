@@ -1,6 +1,6 @@
 //! Trait definitions
 
-use crate::{ArraySize, Ciphertext, Seed, SharedKey};
+use crate::{ArraySize, Seed};
 use array::Array;
 use core::fmt::Debug;
 use kem::{Decapsulate, Encapsulate, InvalidKey};
@@ -51,17 +51,10 @@ pub trait KemCore: Clone {
     type CiphertextSize: ArraySize;
 
     /// A decapsulation key for this KEM
-    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>>
-        + EncodedSizeUser
-        + Debug
-        + PartialEq;
+    type DecapsulationKey: Decapsulate + EncodedSizeUser + Debug + PartialEq;
 
     /// An encapsulation key for this KEM
-    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
-        + EncodedSizeUser
-        + Clone
-        + Debug
-        + PartialEq;
+    type EncapsulationKey: Encapsulate + EncodedSizeUser + Clone + Debug + Eq + PartialEq;
 
     /// Generate a new (decapsulation, encapsulation) key pair.
     fn generate<R: CryptoRng + ?Sized>(

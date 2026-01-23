@@ -683,7 +683,7 @@ dependencies = [
 [[package]]
 name = "kem"
 version = "0.4.0-rc.4"
-source = "git+https://github.com/RustCrypto/traits#55376359fd1375ebd63825a4c1394d3c3ee3e6de"
+source = "git+https://github.com/RustCrypto/traits#ff1cdb671d40f025788eaa0130558010a0258227"
 dependencies = [
  "crypto-common",
  "rand_core",
@@ -1112,8 +1112,9 @@ checksum = "94143f37725109f92c262ed2cf5e59bce7498c01bcc1502d7b9afe439a4e9f49"
 
 [[package]]
 name = "sec1"
-version = "0.8.0-rc.12"
-source = "git+https://github.com/RustCrypto/formats#eb63b10272698f9055b6197c09076dd69acfdc59"
+version = "0.8.0-rc.13"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7a2400ed44a13193820aa528a19f376c3843141a8ce96ff34b11104cc79763f2"
 dependencies = [
  "base16ct",
  "ctutils",
@@ -1568,20 +1569,6 @@ name = "zeroize"
 version = "1.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b97154e67e32c85465826e8bcc1c59429aaaf107c1e4a9e53c8d8ccd5eff88d0"
-dependencies = [
- "zeroize_derive",
-]
-
-[[package]]
-name = "zeroize_derive"
-version = "1.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85a5b4158499876c763cb03bc4e49185d3cccbabb15b33c627f7884f43db852e"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "zmij"
