@@ -1,4 +1,4 @@
-use ::kem::{Decapsulate, Encapsulate, Generate};
+use ::kem::{Decapsulate, Decapsulator, Encapsulate, Generate};
 use criterion::{Criterion, criterion_group, criterion_main};
 use getrandom::SysRng;
 use ml_kem::*;

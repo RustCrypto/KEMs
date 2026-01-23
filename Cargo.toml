@@ -14,4 +14,3 @@ debug = true
 ml-kem = { path = "./ml-kem" }
 
 kem = { git = "https://github.com/RustCrypto/traits" }
-sec1 = { git = "https://github.com/RustCrypto/formats" }
