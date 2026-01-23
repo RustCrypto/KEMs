@@ -130,8 +130,8 @@ pub fn XOF(rho: &B32, i: u8, j: u8) -> impl XofReader {
 #[cfg(test)]
 mod test {
     use super::*;
+    use array::typenum::{U2, U3};
     use hex_literal::hex;
-    use hybrid_array::typenum::{U2, U3};
 
     #[test]
     fn g() {

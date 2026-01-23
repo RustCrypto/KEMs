@@ -1,11 +1,11 @@
 #![cfg(feature = "p256")]
 
 use core::convert::Infallible;
-use dhkem::{DhKem, NistP256Kem};
-use elliptic_curve::sec1::ToEncodedPoint;
+use dhkem::NistP256DecapsulationKey;
+use elliptic_curve::Generate;
 use hex_literal::hex;
 use hkdf::Hkdf;
-use kem::{Decapsulate, Encapsulate};
+use kem::{Decapsulator, Encapsulate, KeyExport, TryDecapsulate};
 use rand_core::{TryCryptoRng, TryRngCore};
 use sha2::Sha256;
 
@@ -60,43 +60,45 @@ fn labeled_expand(prk: &[u8], label: &[u8], info: &[u8], l: u16) -> Vec<u8> {
     out
 }
 
-fn extract_and_expand(dh: <NistP256Kem as DhKem>::SharedSecret, kem_context: &[u8]) -> Vec<u8> {
-    let eae_prk = labeled_extract(b"", b"eae_prk", dh.raw_secret_bytes());
+fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> Vec<u8> {
+    let eae_prk = labeled_extract(b"", b"eae_prk", shared_secret);
     labeled_expand(&eae_prk, b"shared_secret", kem_context, 32)
 }
 
 #[test]
 // section A.3.1 https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.3.1
 fn test_dhkem_p256_hkdf_sha256() {
-    let pke_hex = hex!(
+    let example_pke = hex!(
         "04a92719c6195d5085104f469a8b9814d5838ff72b60501e2c4466e5e67b32\
-                  5ac98536d7b61a1af4b78e5b7f951c0900be863c403ce65c9bfcb9382657222d18c4"
+         5ac98536d7b61a1af4b78e5b7f951c0900be863c403ce65c9bfcb9382657222d18c4"
     );
-    let pkr_hex = hex!(
+    let example_pkr = hex!(
         "04fe8c19ce0905191ebc298a9245792531f26f0cece2460639e8bc39cb7f70\
-                  6a826a779b4cf969b8a0e539c7f62fb3d30ad6aa8f80e30f1d128aafd68a2ce72ea0"
+         6a826a779b4cf969b8a0e539c7f62fb3d30ad6aa8f80e30f1d128aafd68a2ce72ea0"
     );
-    let shared_secret_hex =
+    let example_shared_secret =
         hex!("c0d26aeab536609a572b07695d933b589dcf363ff9d93c93adea537aeabb8cb8");
 
-    let (skr, pkr) = NistP256Kem::random_keypair(&mut ConstantRng(&hex!(
+    let skr = NistP256DecapsulationKey::try_generate_from_rng(&mut ConstantRng(&hex!(
         "f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2"
-    )));
-    assert_eq!(pkr.to_encoded_point(false).as_bytes(), &pkr_hex);
+    )))
+    .unwrap();
+    let pkr = skr.encapsulator();
+    assert_eq!(&pkr.to_bytes(), &example_pkr);
 
     let (pke, ss1) = pkr
         .encapsulate_with_rng(&mut ConstantRng(&hex!(
             "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb"
         )))
         .expect("never fails");
-    assert_eq!(pke.to_encoded_point(false).as_bytes(), &pke_hex);
+    assert_eq!(&pke, &example_pke);
 
-    let ss2 = skr.decapsulate(&pke).expect("never fails");
+    let ss2 = skr.try_decapsulate(&pke).unwrap();
 
-    assert_eq!(ss1.raw_secret_bytes(), ss2.raw_secret_bytes());
+    assert_eq!(ss1, ss2);
 
-    let kem_context = [pke_hex, pkr_hex].concat();
-    let shared_secret = extract_and_expand(ss1, &kem_context);
+    let kem_context = [example_pke, example_pkr].concat();
+    let shared_secret = extract_and_expand(&ss1, &kem_context);
 
-    assert_eq!(&shared_secret, &shared_secret_hex);
+    assert_eq!(&shared_secret, &example_shared_secret);
 }

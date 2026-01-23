@@ -1,10 +1,13 @@
-use core::{convert::Infallible, marker::PhantomData};
-use hybrid_array::typenum::{U32, U64};
-use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
-use subtle::{ConditionallySelectable, ConstantTimeEq};
+//! Key encapsulation mechanism implementation.
+
+// Re-export traits from the `kem` crate
+pub use ::kem::{
+    Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Key, KeyExport, KeyInit,
+    KeySizeUser, TryKeyInit,
+};
 
 use crate::{
-    Encoded, EncodedSizeUser, Error, Seed,
+    Encoded, EncodedSizeUser, KemCore, Seed,
     crypto::{G, H, J},
     param::{
         DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
@@ -13,12 +16,15 @@ use crate::{
     pke::{DecryptionKey, EncryptionKey},
     util::B32,
 };
+use array::typenum::{U32, U64};
+use core::marker::PhantomData;
+use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
+use subtle::{ConditionallySelectable, ConstantTimeEq};
 
+#[cfg(feature = "deterministic")]
+use core::convert::Infallible;
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
-
-// Re-export traits from the `kem` crate
-pub use ::kem::{Decapsulate, Encapsulate, Generate, KeyInit, KeySizeUser};
 
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
@@ -70,20 +76,44 @@ where
     }
 }
 
+impl<P> Decapsulate for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> SharedKey {
+        let mp = self.dk_pke.decrypt(encapsulated_key);
+        let (Kp, rp) = G(&[&mp, &self.ek.h]);
+        let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
+        let cp = self.ek.ek_pke.encrypt(&mp, &rp);
+        B32::conditional_select(&Kbar, &Kp, cp.ct_eq(encapsulated_key))
+    }
+}
+
+impl<P> Decapsulator for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    type Encapsulator = EncapsulationKey<P>;
+
+    fn encapsulator(&self) -> &EncapsulationKey<P> {
+        &self.ek
+    }
+}
+
 impl<P> EncodedSizeUser for DecapsulationKey<P>
 where
     P: KemParams,
 {
     type EncodedSize = DecapsulationKeySize<P>;
 
-    fn from_bytes(expanded: &Encoded<Self>) -> Result<Self, Error> {
+    fn from_encoded_bytes(expanded: &Encoded<Self>) -> Result<Self, InvalidKey> {
         #[allow(deprecated)]
         Self::from_expanded(expanded)
     }
 
-    fn to_bytes(&self) -> Encoded<Self> {
+    fn to_encoded_bytes(&self) -> Encoded<Self> {
         let dk_pke = self.dk_pke.to_bytes();
-        let ek = self.ek.to_bytes();
+        let ek = self.ek.to_encoded_bytes();
         P::concat_dk(dk_pke, ek, self.ek.h.clone(), self.z.clone())
     }
 }
@@ -117,33 +147,6 @@ where
     }
 }
 
-impl<P> Decapsulate<EncodedCiphertext<P>, SharedKey> for DecapsulationKey<P>
-where
-    P: KemParams,
-{
-    type Encapsulator = EncapsulationKey<P>;
-    type Error = Infallible;
-
-    fn decapsulate(
-        &self,
-        encapsulated_key: &EncodedCiphertext<P>,
-    ) -> Result<SharedKey, Self::Error> {
-        let mp = self.dk_pke.decrypt(encapsulated_key);
-        let (Kp, rp) = G(&[&mp, &self.ek.h]);
-        let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
-        let cp = self.ek.ek_pke.encrypt(&mp, &rp);
-        Ok(B32::conditional_select(
-            &Kbar,
-            &Kp,
-            cp.ct_eq(encapsulated_key),
-        ))
-    }
-
-    fn encapsulator(&self) -> EncapsulationKey<P> {
-        self.ek.clone()
-    }
-}
-
 impl<P> DecapsulationKey<P>
 where
     P: KemParams,
@@ -162,9 +165,9 @@ where
     /// [`DecapsulationKey::from_seed`].
     ///
     /// # Errors
-    /// - Returns [`Error`] in the event the expanded key failed validation
+    /// - Returns [`InvalidKey`] in the event the expanded key failed validation
     #[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
-    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, Error> {
+    pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, InvalidKey> {
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
         let ek_pke = EncryptionKey::from_bytes(ek_pke)?;
 
@@ -185,9 +188,11 @@ where
     /// Serialize the [`Seed`] value: 64-bytes which can be used to reconstruct the
     /// [`DecapsulationKey`].
     ///
-    /// # ⚠️Warning!
+    /// <div class="warning">
+    /// <b>Warning!</B>
     ///
     /// This value is key material. Please treat it with care.
+    /// </div>
     ///
     /// # Returns
     /// - `Some` if the [`DecapsulationKey`] was initialized using `from_seed` or `generate`.
@@ -225,7 +230,7 @@ where
 
 /// An `EncapsulationKey` provides the ability to encapsulate a shared key so that it can only be
 /// decapsulated by the holder of the corresponding decapsulation key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct EncapsulationKey<P>
 where
     P: KemParams,
@@ -250,33 +255,77 @@ where
     }
 }
 
+impl<P> Encapsulate for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
+        &self,
+        rng: &mut R,
+    ) -> Result<(EncodedCiphertext<P>, SharedKey), R::Error> {
+        let m = B32::try_generate_from_rng(rng)?;
+        Ok(self.encapsulate_deterministic_inner(&m))
+    }
+}
+
 impl<P> EncodedSizeUser for EncapsulationKey<P>
 where
     P: KemParams,
 {
     type EncodedSize = EncapsulationKeySize<P>;
 
-    fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error> {
+    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, InvalidKey> {
         Ok(Self::new(EncryptionKey::from_bytes(enc)?))
     }
 
-    fn to_bytes(&self) -> Encoded<Self> {
+    fn to_encoded_bytes(&self) -> Encoded<Self> {
         self.ek_pke.to_bytes()
     }
 }
 
-impl<P> Encapsulate<EncodedCiphertext<P>, SharedKey> for EncapsulationKey<P>
+impl<P> ::kem::KemParams for EncapsulationKey<P>
 where
     P: KemParams,
 {
-    type Error = Error;
+    type CiphertextSize = P::CiphertextSize;
+    type SharedSecretSize = U32;
+}
 
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(EncodedCiphertext<P>, SharedKey), Self::Error> {
-        let m = B32::try_generate_from_rng(rng).map_err(|_| Error)?;
-        Ok(self.encapsulate_deterministic_inner(&m))
+impl<P> KeyExport for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn to_bytes(&self) -> Key<Self> {
+        self.ek_pke.to_bytes()
+    }
+}
+
+impl<P> KeySizeUser for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    type KeySize = EncapsulationKeySize<P>;
+}
+
+impl<P> TryKeyInit for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn new(encapsulation_key: &Key<Self>) -> Result<Self, InvalidKey> {
+        EncryptionKey::from_bytes(encapsulation_key)
+            .map(Self::new)
+            .map_err(|_| InvalidKey)
+    }
+}
+
+impl<P> Eq for EncapsulationKey<P> where P: KemParams {}
+impl<P> PartialEq for EncapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        // Handwritten to avoid derive putting `Eq` bounds on `KemParams`
+        self.ek_pke == other.ek_pke && self.h == other.h
     }
 }
 
@@ -305,7 +354,7 @@ where
     _phantom: PhantomData<P>,
 }
 
-impl<P> crate::KemCore for Kem<P>
+impl<P> KemCore for Kem<P>
 where
     P: KemParams,
 {
@@ -348,7 +397,7 @@ mod test {
         let ek = dk.encapsulation_key();
 
         let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
-        let k_recv = dk.decapsulate(&ct).unwrap();
+        let k_recv = dk.decapsulate(&ct);
         assert_eq!(k_send, k_recv);
     }
 
@@ -367,12 +416,12 @@ mod test {
         let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
-        let dk_encoded = dk_original.to_bytes();
-        let dk_decoded = DecapsulationKey::from_bytes(&dk_encoded).unwrap();
+        let dk_encoded = dk_original.to_encoded_bytes();
+        let dk_decoded = DecapsulationKey::from_encoded_bytes(&dk_encoded).unwrap();
         assert_eq!(dk_original, dk_decoded);
 
-        let ek_encoded = ek_original.to_bytes();
-        let ek_decoded = EncapsulationKey::from_bytes(&ek_encoded).unwrap();
+        let ek_encoded = ek_original.to_encoded_bytes();
+        let ek_decoded = EncapsulationKey::from_encoded_bytes(&ek_encoded).unwrap();
         assert_eq!(ek_original, ek_decoded);
     }
 

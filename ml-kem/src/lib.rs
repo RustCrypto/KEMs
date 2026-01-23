@@ -26,7 +26,7 @@
 //!
 //! use ml_kem::{
 //!     ml_kem_768::DecapsulationKey,
-//!     kem::{Decapsulate, Encapsulate, Generate, KeyInit}
+//!     kem::{Decapsulate, Decapsulator, Encapsulate, Generate, KeyInit}
 //! };
 //!
 //! // Generate a decapsulation/encapsulation keypair
@@ -35,10 +35,12 @@
 //!
 //! // Encapsulate a shared key to the holder of the decapsulation key, receive the shared
 //! // secret `k_send` and the encapsulated form `ct`.
-//! let (ct, k_send) = ek.encapsulate().unwrap();
+//! let (ct, k_send) = ek.encapsulate();
 //!
-//! // Decapsulate the shared key and verify that it was faithfully received.
-//! let k_recv = dk.decapsulate(&ct).unwrap();
+//! // Decapsulate the shared key
+//! let k_recv = dk.decapsulate(&ct);
+//!
+//! // We've now established a shared key
 //! assert_eq!(k_send, k_recv);
 //! ```
 //!
@@ -72,28 +74,24 @@ mod param;
 
 pub mod pkcs8;
 
-/// Error type
-mod error;
 /// Trait definitions
 mod traits;
 
-use core::fmt::Debug;
-use hybrid_array::{
-    Array,
-    typenum::{U2, U3, U4, U5, U10, U11, U64},
-};
-
-pub use hybrid_array as array;
-
-#[cfg(feature = "deterministic")]
-pub use util::B32;
-
-pub use error::Error;
+pub use array;
 pub use ml_kem_512::MlKem512Params;
 pub use ml_kem_768::MlKem768Params;
 pub use ml_kem_1024::MlKem1024Params;
 pub use param::{ArraySize, ExpandedDecapsulationKey, ParameterSet};
 pub use traits::*;
+
+#[cfg(feature = "deterministic")]
+pub use util::B32;
+
+use array::{
+    Array,
+    typenum::{U2, U3, U4, U5, U10, U11, U64},
+};
+use core::fmt::Debug;
 
 /// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
 /// security levels, and are the preferred serialization for representing such keys.
@@ -180,6 +178,30 @@ pub mod ml_kem_1024 {
     pub type EncapsulationKey = kem::EncapsulationKey<MlKem1024Params>;
 }
 
+/// An ML-KEM-512 `DecapsulationKey` which provides the ability to generate a new key pair, and
+/// decapsulate an encapsulated shared key.
+pub type DecapsulationKey512 = ml_kem_512::DecapsulationKey;
+
+/// An ML-KEM-512 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
+/// can only be decapsulated by the holder of the corresponding decapsulation key.
+pub type EncapsulationKey512 = ml_kem_512::EncapsulationKey;
+
+/// An ML-KEM-768 `DecapsulationKey` which provides the ability to generate a new key pair, and
+/// decapsulate an encapsulated shared key.
+pub type DecapsulationKey768 = ml_kem_768::DecapsulationKey;
+
+/// An ML-KEM-768 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
+/// can only be decapsulated by the holder of the corresponding decapsulation key.
+pub type EncapsulationKey768 = ml_kem_768::EncapsulationKey;
+
+/// An ML-KEM-1024 `DecapsulationKey` which provides the ability to generate a new key pair, and
+/// decapsulate an encapsulated shared key.
+pub type DecapsulationKey1024 = ml_kem_1024::DecapsulationKey;
+
+/// An ML-KEM-1024 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
+/// can only be decapsulated by the holder of the corresponding decapsulation key.
+pub type EncapsulationKey1024 = ml_kem_1024::EncapsulationKey;
+
 /// A shared key produced by the KEM `K`
 pub type SharedKey<K> = Array<u8, <K as KemCore>::SharedKeySize>;
 
@@ -199,28 +221,26 @@ pub type MlKem768 = kem::Kem<MlKem768Params>;
 pub type MlKem1024 = kem::Kem<MlKem1024Params>;
 
 #[cfg(test)]
+#[cfg(feature = "getrandom")]
 mod test {
     use super::*;
-    use ::kem::{Decapsulate, Encapsulate};
-    use rand_core::TryRngCore;
+    use ::kem::{Decapsulate, Encapsulate, Generate};
 
     fn round_trip_test<K>()
     where
-        K: KemCore,
+        K: Decapsulate + Generate,
     {
-        let mut rng = getrandom::SysRng.unwrap_err();
-
-        let (dk, ek) = K::generate(&mut rng);
-
-        let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
-        let k_recv = dk.decapsulate(&ct).unwrap();
+        let dk = K::generate();
+        let ek = dk.encapsulator();
+        let (ct, k_send) = ek.encapsulate();
+        let k_recv = dk.decapsulate(&ct);
         assert_eq!(k_send, k_recv);
     }
 
     #[test]
     fn round_trip() {
-        round_trip_test::<MlKem512>();
-        round_trip_test::<MlKem768>();
-        round_trip_test::<MlKem1024>();
+        round_trip_test::<DecapsulationKey512>();
+        round_trip_test::<DecapsulationKey768>();
+        round_trip_test::<DecapsulationKey1024>();
     }
 }

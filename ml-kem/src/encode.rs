@@ -1,4 +1,4 @@
-use hybrid_array::{
+use array::{
     Array,
     typenum::{U256, Unsigned},
 };
@@ -144,10 +144,10 @@ where
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
-    use core::{fmt::Debug, ops::Rem};
-    use hybrid_array::typenum::{
+    use array::typenum::{
         U1, U2, U3, U4, U5, U6, U8, U10, U11, U12, marker_traits::Zero, operator_aliases::Mod,
     };
+    use core::{fmt::Debug, ops::Rem};
     use rand_core::{RngCore, TryRngCore};
 
     use crate::param::EncodedPolynomialVector;

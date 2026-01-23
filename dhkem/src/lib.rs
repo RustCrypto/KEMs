@@ -30,68 +30,78 @@
 //! [RFC9180]: https://datatracker.ietf.org/doc/html/rfc9180#name-dh-based-kem-dhkem
 //! [TLS KEM combiner]: https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10
 
+pub use kem::{self, Decapsulator, Encapsulate, Generate, KemParams, TryDecapsulate};
+
 #[cfg(feature = "ecdh")]
 mod ecdh_kem;
 #[cfg(feature = "x25519")]
 mod x25519_kem;
 
 #[cfg(feature = "ecdh")]
-pub use ecdh_kem::EcdhKem;
+pub use ecdh_kem::{EcdhDecapsulationKey, EcdhEncapsulationKey, EcdhKem};
 #[cfg(feature = "x25519")]
-pub use x25519_kem::X25519Kem;
+pub use x25519_kem::{X25519DecapsulationKey, X25519EncapsulationKey, X25519Kem};
 
-use kem::{Decapsulate, Encapsulate};
 use rand_core::CryptoRng;
 
 #[cfg(feature = "ecdh")]
 use elliptic_curve::{
-    CurveArithmetic, PublicKey,
-    sec1::{self, ToEncodedPoint},
+    CurveArithmetic, PublicKey, bigint,
+    sec1::{self, FromEncodedPoint, ToEncodedPoint},
 };
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-/// Newtype for a piece of data that may be encapsulated
-#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
-pub struct DhEncapsulator<X>(X);
-
 /// Newtype for a piece of data that may be decapsulated
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
-pub struct DhDecapsulator<X>(X);
+pub struct DecapsulationKey<DK, EK> {
+    /// Decapsulation key
+    dk: DK,
+    /// Encapsulation key
+    ek: EncapsulationKey<EK>,
+}
 
-impl<X> AsRef<X> for DhEncapsulator<X> {
-    fn as_ref(&self) -> &X {
-        &self.0
+impl<DK, EK> Decapsulator for DecapsulationKey<DK, EK>
+where
+    EncapsulationKey<EK>: Encapsulate + Clone,
+{
+    type Encapsulator = EncapsulationKey<EK>;
+
+    fn encapsulator(&self) -> &EncapsulationKey<EK> {
+        &self.ek
     }
 }
 
-impl<X> From<X> for DhEncapsulator<X> {
-    fn from(value: X) -> Self {
-        Self(value)
+impl<DK, EK> From<DK> for DecapsulationKey<DK, EK>
+where
+    EK: for<'a> From<&'a DK>,
+    EncapsulationKey<EK>: KemParams,
+{
+    fn from(dk: DK) -> Self {
+        let ek = EncapsulationKey(EK::from(&dk));
+        Self { dk, ek }
     }
 }
 
-impl<X> AsRef<X> for DhDecapsulator<X> {
-    fn as_ref(&self) -> &X {
-        &self.0
-    }
-}
-
-impl<X> From<X> for DhDecapsulator<X> {
-    fn from(value: X) -> Self {
-        Self(value)
-    }
-}
-
-impl<X> DhEncapsulator<X> {
+impl<DK, EK> DecapsulationKey<DK, EK> {
     /// Consumes `self` and returns the wrapped value
-    pub fn into_inner(self) -> X {
-        self.0
+    pub fn into_inner(self) -> DK {
+        self.dk
     }
 }
 
-impl<X> DhDecapsulator<X> {
+/// Newtype for a piece of data that may be encapsulated
+#[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
+pub struct EncapsulationKey<EK>(EK);
+
+impl<EK> From<EK> for EncapsulationKey<EK> {
+    fn from(inner: EK) -> Self {
+        Self(inner)
+    }
+}
+
+impl<X> EncapsulationKey<X> {
     /// Consumes `self` and returns the wrapped value
     pub fn into_inner(self) -> X {
         self.0
@@ -99,7 +109,19 @@ impl<X> DhDecapsulator<X> {
 }
 
 #[cfg(feature = "ecdh")]
-impl<C> ToEncodedPoint<C> for DhEncapsulator<PublicKey<C>>
+impl<C> FromEncodedPoint<C> for EcdhEncapsulationKey<C>
+where
+    C: CurveArithmetic,
+    C::FieldBytesSize: sec1::ModulusSize,
+    PublicKey<C>: FromEncodedPoint<C>,
+{
+    fn from_encoded_point(point: &sec1::EncodedPoint<C>) -> bigint::CtOption<Self> {
+        PublicKey::<C>::from_encoded_point(point).map(Into::into)
+    }
+}
+
+#[cfg(feature = "ecdh")]
+impl<C> ToEncodedPoint<C> for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     C::FieldBytesSize: sec1::ModulusSize,
@@ -111,35 +133,25 @@ where
 }
 
 #[cfg(feature = "zeroize")]
-impl<X: Zeroize> Zeroize for DhEncapsulator<X> {
+impl<DK: Zeroize, EK> Zeroize for DecapsulationKey<DK, EK> {
     fn zeroize(&mut self) {
-        self.0.zeroize()
+        self.dk.zeroize()
     }
 }
 
 #[cfg(feature = "zeroize")]
-impl<X: Zeroize> Zeroize for DhDecapsulator<X> {
-    fn zeroize(&mut self) {
-        self.0.zeroize()
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl<X: ZeroizeOnDrop> ZeroizeOnDrop for DhEncapsulator<X> {}
-
-#[cfg(feature = "zeroize")]
-impl<X: ZeroizeOnDrop> ZeroizeOnDrop for DhDecapsulator<X> {}
+impl<DK: ZeroizeOnDrop, EK> ZeroizeOnDrop for DecapsulationKey<DK, EK> {}
 
 /// This is a trait that all KEM models should implement, and should probably be
 /// promoted to the kem crate itself. It specifies the types of encapsulating and
 /// decapsulating keys created by key generation, the shared secret type, and the
 /// encapsulated key type
 pub trait DhKem {
-    /// The type that will implement [`Decapsulate`]
-    type DecapsulatingKey: Decapsulate<Self::EncapsulatedKey, Self::SharedSecret>;
+    /// The type that will implement [`TryDecapsulate`]
+    type DecapsulatingKey: Decapsulator + Generate + TryDecapsulate;
 
     /// The type that will implement [`Encapsulate`]
-    type EncapsulatingKey: Encapsulate<Self::EncapsulatedKey, Self::SharedSecret>;
+    type EncapsulatingKey: Encapsulate;
 
     /// The type of the encapsulated key
     type EncapsulatedKey;
@@ -154,18 +166,30 @@ pub trait DhKem {
     ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey);
 }
 
-/// secp256k1 ECDH KEM.
-#[cfg(feature = "k256")]
-pub type Secp256k1Kem = EcdhKem<k256::Secp256k1>;
-
-/// NIST P-256 ECDH KEM.
+/// NIST P-256 ECDH Decapsulation Key.
 #[cfg(feature = "p256")]
-pub type NistP256Kem = EcdhKem<p256::NistP256>;
+pub type NistP256DecapsulationKey = EcdhDecapsulationKey<p256::NistP256>;
+/// NIST P-256 ECDH Encapsulation Key.
+#[cfg(feature = "p256")]
+pub type NistP256EncapsulationKey = EcdhEncapsulationKey<p256::NistP256>;
 
-/// NIST P-384 ECDH KEM.
+/// NIST P-384 ECDH Decapsulation Key.
 #[cfg(feature = "p384")]
-pub type NistP384Kem = EcdhKem<p384::NistP384>;
+pub type NistP384DecapsulationKey = EcdhDecapsulationKey<p384::NistP384>;
+/// NIST P-384 ECDH Encapsulation Key.
+#[cfg(feature = "p384")]
+pub type NistP384EncapsulationKey = EcdhEncapsulationKey<p384::NistP384>;
 
-/// NIST P-521 ECDH KEM.
+/// NIST P-521 ECDH Decapsulation Key.
 #[cfg(feature = "p521")]
-pub type NistP521Kem = EcdhKem<p521::NistP521>;
+pub type NistP521DecapsulationKey = EcdhDecapsulationKey<p521::NistP521>;
+/// NIST P-521 ECDH Encapsulation Key.
+#[cfg(feature = "p521")]
+pub type NistP521EncapsulationKey = EcdhEncapsulationKey<p521::NistP521>;
+
+/// secp256k1 ECDH Decapsulation Key.
+#[cfg(feature = "k256")]
+pub type Secp256k1DecapsulationKey = EcdhDecapsulationKey<k256::Secp256k1>;
+/// secp256k1 ECDH Encapsulation Key.
+#[cfg(feature = "k256")]
+pub type Secp256k1EncapsulationKey = EcdhEncapsulationKey<k256::Secp256k1>;

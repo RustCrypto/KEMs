@@ -28,7 +28,7 @@ use ::pkcs8::{
     },
     spki,
 };
-use hybrid_array::Array;
+use array::Array;
 
 #[cfg(feature = "alloc")]
 use {
@@ -101,7 +101,7 @@ where
     /// Serialize the given `EncapsulationKey` into DER format.
     /// Returns a `Document` which wraps the DER document in case of success.
     fn to_public_key_der(&self) -> spki::Result<pkcs8::Document> {
-        let public_key = self.to_bytes();
+        let public_key = self.to_encoded_bytes();
         let subject_public_key = BitStringRef::new(0, &public_key)?;
 
         ::pkcs8::SubjectPublicKeyInfo {

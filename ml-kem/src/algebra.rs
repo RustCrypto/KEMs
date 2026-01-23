@@ -1,5 +1,5 @@
+use array::{Array, typenum::U256};
 use core::ops::{Add, Mul, Sub};
-use hybrid_array::{Array, typenum::U256};
 use sha3::digest::XofReader;
 use subtle::{Choice, ConstantTimeEq};
 
@@ -425,7 +425,7 @@ impl NttPolynomial {
 }
 
 /// A vector of K NTT-domain polynomials
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug)]
 pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
 
 impl<K: ArraySize> NttVector<K> {
@@ -441,6 +441,14 @@ impl<K: ArraySize> NttVector<K> {
 impl<K: ArraySize> ConstantTimeEq for NttVector<K> {
     fn ct_eq(&self, other: &Self) -> Choice {
         self.0.ct_eq(&other.0)
+    }
+}
+
+impl<K: ArraySize> Eq for NttVector<K> {}
+impl<K: ArraySize> PartialEq for NttVector<K> {
+    fn eq(&self, other: &Self) -> bool {
+        // Impl `PartialEq` in constant-time, in case this value contains a secret
+        self.0.ct_eq(&other.0).into()
     }
 }
 
@@ -525,7 +533,7 @@ impl<K: ArraySize> NttMatrix<K> {
 mod test {
     use super::*;
     use crate::util::Flatten;
-    use hybrid_array::typenum::{U2, U3, U8};
+    use array::typenum::{U2, U3, U8};
 
     // Multiplication in R_q, modulo X^256 + 1
     impl Mul<&Polynomial> for &Polynomial {

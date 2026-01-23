@@ -3,7 +3,7 @@
 use ml_kem::*;
 
 use ::kem::Decapsulate;
-use hybrid_array::Array;
+use array::Array;
 use std::{fs::read_to_string, path::PathBuf};
 
 #[test]
@@ -42,7 +42,7 @@ where
 {
     let m = Array::try_from(tc.m.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
-    let ek = K::EncapsulationKey::from_bytes(&ek_bytes).unwrap();
+    let ek = K::EncapsulationKey::from_encoded_bytes(&ek_bytes).unwrap();
 
     let (c, k) = ek.encapsulate_deterministic(&m).unwrap();
 
@@ -53,19 +53,19 @@ where
 fn verify_decap_group(tg: &acvp::DecapTestGroup) {
     for tc in tg.tests.iter() {
         match tg.parameter_set {
-            acvp::ParameterSet::MlKem512 => verify_decap::<MlKem512>(tc, &tg.dk),
-            acvp::ParameterSet::MlKem768 => verify_decap::<MlKem768>(tc, &tg.dk),
-            acvp::ParameterSet::MlKem1024 => verify_decap::<MlKem1024>(tc, &tg.dk),
+            acvp::ParameterSet::MlKem512 => verify_decap::<DecapsulationKey512>(tc, &tg.dk),
+            acvp::ParameterSet::MlKem768 => verify_decap::<DecapsulationKey768>(tc, &tg.dk),
+            acvp::ParameterSet::MlKem1024 => verify_decap::<DecapsulationKey1024>(tc, &tg.dk),
         }
     }
 }
 
-fn verify_decap<K: KemCore>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
-    let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(dk_slice).unwrap();
-    let dk = K::DecapsulationKey::from_bytes(&dk_bytes).unwrap();
+fn verify_decap<K: Decapsulate + EncodedSizeUser>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
+    let dk_bytes = Encoded::<K>::try_from(dk_slice).unwrap();
+    let dk = K::from_encoded_bytes(&dk_bytes).unwrap();
 
-    let c = Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
-    let k = dk.decapsulate(&c).unwrap();
+    let c = ::kem::Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
+    let k = dk.decapsulate(&c);
     assert_eq!(k.as_slice(), tc.k.as_slice());
 }
 

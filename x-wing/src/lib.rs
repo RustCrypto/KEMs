@@ -20,17 +20,22 @@
 //! use kem::{Decapsulate, Encapsulate};
 //!
 //! let (sk, pk) = x_wing::generate_key_pair();
-//! let (ct, ss_sender) = pk.encapsulate().unwrap();
-//! let ss_receiver = sk.decapsulate(&ct).unwrap();
+//! let (ct, ss_sender) = pk.encapsulate();
+//! let ss_receiver = sk.decapsulate(&ct);
 //! assert_eq!(ss_sender, ss_receiver);
 //! ```
 
-pub use kem::{self, Decapsulate, Encapsulate, Generate};
+pub use kem::{
+    self, Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, KemParams, Key, KeyExport,
+    KeyInit, KeySizeUser, TryKeyInit,
+};
 
-use core::convert::Infallible;
 use ml_kem::{
-    B32, EncapsulateDeterministic as Foo, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
-    array::{ArrayN, sizes::U1184, typenum::consts::U32},
+    B32, EncapsulateDeterministic, EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    array::{
+        Array, ArrayN, AsArrayRef,
+        sizes::{U32, U1120, U1184, U1216},
+    },
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
 use sha3::{
@@ -56,8 +61,10 @@ pub const CIPHERTEXT_SIZE: usize = 1120;
 /// Number of bytes necessary to encapsulate a key
 pub const ENCAPSULATION_RANDOMNESS_SIZE: usize = 64;
 
+/// Serialized ciphertext.
+pub type Ciphertext = Array<u8, U1120>;
 /// Shared secret key.
-pub type SharedSecret = [u8; 32];
+pub type SharedSecret = Array<u8, U32>;
 
 // The naming convention of variables matches the RFC.
 // ss -> Shared Secret
@@ -70,43 +77,13 @@ pub type SharedSecret = [u8; 32];
 // _x -> x25519 related key
 
 /// X-Wing encapsulation or public key.
-#[derive(Clone, PartialEq)]
+#[derive(Clone, Eq, PartialEq)]
 pub struct EncapsulationKey {
-    pk_mlkem: MlKem768EncapsulationKey,
-    pk_x25519: PublicKey,
-}
-
-impl Encapsulate<Ciphertext, SharedSecret> for EncapsulationKey {
-    type Error = ml_kem::Error;
-
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(Ciphertext, SharedSecret), Self::Error> {
-        let mut randomness = [0u8; ENCAPSULATION_RANDOMNESS_SIZE];
-        rng.try_fill_bytes(&mut randomness)
-            .map_err(|_| ml_kem::Error)?;
-
-        let res = self.encapsulate_deterministic(&randomness);
-
-        #[cfg(feature = "zeroize")]
-        randomness.zeroize();
-
-        Ok(res)
-    }
+    pk_m: MlKem768EncapsulationKey,
+    pk_x: PublicKey,
 }
 
 impl EncapsulationKey {
-    /// Convert the key to the following format:
-    /// ML-KEM-768 public key(1184 bytes) || X25519 public key(32 bytes).
-    #[must_use]
-    pub fn to_bytes(&self) -> [u8; ENCAPSULATION_KEY_SIZE] {
-        let mut buffer = [0u8; ENCAPSULATION_KEY_SIZE];
-        buffer[0..1184].copy_from_slice(&self.pk_mlkem.to_bytes());
-        buffer[1184..1216].copy_from_slice(self.pk_x25519.as_bytes());
-        buffer
-    }
-
     /// Encapsulates with the given randomness. Uses the first 32 bytes for ML-KEM and the last 32
     /// bytes for x25519. This is useful for testing against known vectors.
     ///
@@ -125,116 +102,125 @@ impl EncapsulationKey {
         let (rand_m, rand_x) = randomness.split::<U32>();
 
         // Encapsulate with ML-KEM first. This is infallible
-        let (ct_m, ss_m) = self.pk_mlkem.encapsulate_deterministic(&rand_m).unwrap();
+        let (ct_m, ss_m) = self.pk_m.encapsulate_deterministic(&rand_m).unwrap();
 
         let ek_x = StaticSecret::from(rand_x.0);
         // Equal to ct_x = x25519(ek_x, BASE_POINT)
         let ct_x = PublicKey::from(&ek_x);
         // Equal to ss_x = x25519(ek_x, pk_x)
-        let ss_x = ek_x.diffie_hellman(&self.pk_x25519);
+        let ss_x = ek_x.diffie_hellman(&self.pk_x);
 
-        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x25519);
-        let ct = Ciphertext { ct_m, ct_x };
+        let ss = combiner(&ss_m, &ss_x, &ct_x, &self.pk_x);
+        let ct = CiphertextMessage { ct_m, ct_x };
 
-        (ct, ss)
+        (ct.into(), ss)
     }
 }
 
-impl TryFrom<&[u8; ENCAPSULATION_KEY_SIZE]> for EncapsulationKey {
-    type Error = ml_kem::Error;
+impl Encapsulate for EncapsulationKey {
+    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
+        &self,
+        rng: &mut R,
+    ) -> Result<(Ciphertext, SharedSecret), R::Error> {
+        let mut randomness = [0u8; ENCAPSULATION_RANDOMNESS_SIZE];
+        rng.try_fill_bytes(&mut randomness)?;
 
-    fn try_from(value: &[u8; ENCAPSULATION_KEY_SIZE]) -> Result<Self, ml_kem::Error> {
-        let value: &ArrayN<u8, ENCAPSULATION_KEY_SIZE> = value.into();
+        let res = self.encapsulate_deterministic(&randomness);
 
-        let (pk_mlkem_bytes, pk_x_bytes) = value.split_ref::<U1184>();
-        let pk_mlkem = MlKem768EncapsulationKey::from_bytes(pk_mlkem_bytes)?;
-        let pk_x25519 = PublicKey::from(pk_x_bytes.0);
+        #[cfg(feature = "zeroize")]
+        randomness.zeroize();
 
-        Ok(EncapsulationKey {
-            pk_mlkem,
-            pk_x25519,
-        })
+        Ok(res)
+    }
+}
+
+impl KemParams for EncapsulationKey {
+    type CiphertextSize = U1120;
+    type SharedSecretSize = U32;
+}
+
+impl KeySizeUser for EncapsulationKey {
+    type KeySize = U1216;
+}
+
+impl KeyExport for EncapsulationKey {
+    fn to_bytes(&self) -> Key<Self> {
+        let mut key_bytes = Key::<Self>::default();
+        let (m, x) = key_bytes.split_at_mut(1184);
+        m.copy_from_slice(&self.pk_m.to_encoded_bytes());
+        x.copy_from_slice(self.pk_x.as_bytes());
+        key_bytes
+    }
+}
+
+impl TryKeyInit for EncapsulationKey {
+    fn new(key_bytes: &Key<Self>) -> Result<Self, InvalidKey> {
+        let (pk_m_bytes, pk_x_bytes) = key_bytes.split_ref::<U1184>();
+
+        let pk_m =
+            MlKem768EncapsulationKey::from_encoded_bytes(pk_m_bytes).map_err(|_| InvalidKey)?;
+        let pk_x = PublicKey::from(pk_x_bytes.0);
+
+        Ok(EncapsulationKey { pk_m, pk_x })
+    }
+}
+
+impl TryFrom<&[u8]> for EncapsulationKey {
+    type Error = InvalidKey;
+
+    fn try_from(key_bytes: &[u8]) -> Result<Self, InvalidKey> {
+        Self::new_from_slice(key_bytes)
     }
 }
 
 /// X-Wing decapsulation key or private key.
 #[derive(Clone)]
-#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
-#[cfg_attr(test, derive(PartialEq, Eq))]
 pub struct DecapsulationKey {
     sk: [u8; DECAPSULATION_KEY_SIZE],
-}
-
-impl Decapsulate<Ciphertext, SharedSecret> for DecapsulationKey {
-    type Encapsulator = EncapsulationKey;
-    type Error = Infallible;
-
-    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
-    fn decapsulate(&self, ct: &Ciphertext) -> Result<SharedSecret, Self::Error> {
-        let (sk_m, sk_x, _pk_m, pk_x) = self.expand_key();
-
-        let ss_m = sk_m.decapsulate(&ct.ct_m)?;
-
-        // equal to ss_x = x25519(sk_x, ct_x)
-        let ss_x = sk_x.diffie_hellman(&ct.ct_x);
-
-        let ss = combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x);
-        Ok(ss)
-    }
-
-    fn encapsulator(&self) -> EncapsulationKey {
-        self.encapsulation_key()
-    }
-}
-
-impl ::kem::KeySizeUser for DecapsulationKey {
-    type KeySize = U32;
-}
-
-impl ::kem::KeyInit for DecapsulationKey {
-    fn new(key: &ArrayN<u8, 32>) -> Self {
-        Self { sk: key.0 }
-    }
+    ek: EncapsulationKey,
 }
 
 impl DecapsulationKey {
-    /// Provide the matching `EncapsulationKey`.
-    #[must_use]
-    pub fn encapsulation_key(&self) -> EncapsulationKey {
-        let (_sk_m, _sk_x, pk_mlkem, pk_x25519) = self.expand_key();
-        EncapsulationKey {
-            pk_mlkem,
-            pk_x25519,
-        }
-    }
-
-    fn expand_key(
-        &self,
-    ) -> (
-        MlKem768DecapsulationKey,
-        StaticSecret,
-        MlKem768EncapsulationKey,
-        PublicKey,
-    ) {
-        use sha3::digest::Update;
-        let mut shaker = Shake256::default();
-        shaker.update(&self.sk);
-        let mut expanded: Shake256Reader = shaker.finalize_xof();
-
-        let seed = read_from(&mut expanded).into();
-        let (sk_m, pk_m) = MlKem768::from_seed(seed);
-
-        let sk_x = read_from(&mut expanded);
-        let sk_x = StaticSecret::from(sk_x);
-        let pk_x = PublicKey::from(&sk_x);
-
-        (sk_m, sk_x, pk_m, pk_x)
-    }
-
     /// Private key as bytes.
     #[must_use]
     pub fn as_bytes(&self) -> &[u8; DECAPSULATION_KEY_SIZE] {
         &self.sk
+    }
+}
+
+impl Decapsulate for DecapsulationKey {
+    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
+    fn decapsulate(&self, ct: &Ciphertext) -> SharedSecret {
+        let ct = CiphertextMessage::from(ct);
+        let (sk_m, sk_x, _pk_m, pk_x) = expand_key(&self.sk);
+
+        let ss_m = sk_m.decapsulate(&ct.ct_m);
+
+        // equal to ss_x = x25519(sk_x, ct_x)
+        let ss_x = sk_x.diffie_hellman(&ct.ct_x);
+
+        combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x)
+    }
+}
+
+impl Decapsulator for DecapsulationKey {
+    type Encapsulator = EncapsulationKey;
+
+    fn encapsulator(&self) -> &EncapsulationKey {
+        &self.ek
+    }
+}
+
+impl Drop for DecapsulationKey {
+    fn drop(&mut self) {
+        #[cfg(feature = "zeroize")]
+        self.sk.zeroize();
+    }
+}
+
+impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKey {
+    fn from(sk: [u8; DECAPSULATION_KEY_SIZE]) -> Self {
+        DecapsulationKey::new(sk.as_array_ref())
     }
 }
 
@@ -247,43 +233,88 @@ impl Generate for DecapsulationKey {
     }
 }
 
-impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKey {
-    fn from(sk: [u8; DECAPSULATION_KEY_SIZE]) -> Self {
-        DecapsulationKey { sk }
+impl KeySizeUser for DecapsulationKey {
+    type KeySize = U32;
+}
+
+impl KeyInit for DecapsulationKey {
+    fn new(key: &ArrayN<u8, 32>) -> Self {
+        let (_sk_m, _sk_x, pk_m, pk_x) = expand_key(key.as_ref());
+        let ek = EncapsulationKey { pk_m, pk_x };
+        Self { sk: key.0, ek }
     }
+}
+
+#[cfg(feature = "zeroize")]
+impl ZeroizeOnDrop for DecapsulationKey {}
+
+fn expand_key(
+    sk: &[u8; DECAPSULATION_KEY_SIZE],
+) -> (
+    MlKem768DecapsulationKey,
+    StaticSecret,
+    MlKem768EncapsulationKey,
+    PublicKey,
+) {
+    use sha3::digest::Update;
+    let mut shaker = Shake256::default();
+    shaker.update(sk);
+    let mut expanded: Shake256Reader = shaker.finalize_xof();
+
+    let seed = read_from(&mut expanded).into();
+    let (sk_m, pk_m) = MlKem768::from_seed(seed);
+
+    let sk_x = read_from(&mut expanded);
+    let sk_x = StaticSecret::from(sk_x);
+    let pk_x = PublicKey::from(&sk_x);
+
+    (sk_m, sk_x, pk_m, pk_x)
 }
 
 /// X-Wing ciphertext.
 #[derive(Clone, PartialEq, Eq)]
-#[cfg_attr(feature = "zeroize", derive(Zeroize, ZeroizeOnDrop))]
-pub struct Ciphertext {
+pub struct CiphertextMessage {
     ct_m: ArrayN<u8, 1088>,
     ct_x: PublicKey,
 }
 
-impl Ciphertext {
+impl CiphertextMessage {
     /// Convert the ciphertext to the following format:
     /// ML-KEM-768 ciphertext(1088 bytes) || X25519 ciphertext(32 bytes).
     #[must_use]
-    pub fn to_bytes(&self) -> [u8; CIPHERTEXT_SIZE] {
-        let mut buffer = [0; CIPHERTEXT_SIZE];
+    pub fn to_bytes(&self) -> Ciphertext {
+        let mut buffer = Ciphertext::default();
         buffer[0..1088].copy_from_slice(&self.ct_m);
         buffer[1088..].copy_from_slice(self.ct_x.as_bytes());
         buffer
     }
 }
 
-impl From<&[u8; CIPHERTEXT_SIZE]> for Ciphertext {
-    fn from(value: &[u8; CIPHERTEXT_SIZE]) -> Self {
+impl From<&Ciphertext> for CiphertextMessage {
+    fn from(value: &Ciphertext) -> Self {
         let mut ct_m = [0; 1088];
         ct_m.copy_from_slice(&value[0..1088]);
         let mut ct_x = [0; 32];
         ct_x.copy_from_slice(&value[1088..]);
 
-        Ciphertext {
+        CiphertextMessage {
             ct_m: ct_m.into(),
             ct_x: ct_x.into(),
         }
+    }
+}
+
+impl From<&CiphertextMessage> for Ciphertext {
+    #[inline]
+    fn from(msg: &CiphertextMessage) -> Self {
+        msg.to_bytes()
+    }
+}
+
+impl From<CiphertextMessage> for Ciphertext {
+    #[inline]
+    fn from(msg: CiphertextMessage) -> Self {
+        Self::from(&msg)
     }
 }
 
@@ -292,7 +323,7 @@ impl From<&[u8; CIPHERTEXT_SIZE]> for Ciphertext {
 #[must_use]
 pub fn generate_key_pair() -> (DecapsulationKey, EncapsulationKey) {
     let sk = DecapsulationKey::generate();
-    let pk = sk.encapsulation_key();
+    let pk = sk.encapsulator().clone();
     (sk, pk)
 }
 
@@ -301,7 +332,7 @@ pub fn generate_key_pair_from_rng<R: CryptoRng + ?Sized>(
     rng: &mut R,
 ) -> (DecapsulationKey, EncapsulationKey) {
     let sk = DecapsulationKey::generate_from_rng(rng);
-    let pk = sk.encapsulation_key();
+    let pk = sk.encapsulator().clone();
     (sk, pk)
 }
 
@@ -319,7 +350,7 @@ fn combiner(
     hasher.update(ct_x);
     hasher.update(pk_x.as_bytes());
     hasher.update(X_WING_LABEL);
-    hasher.finalize().into()
+    hasher.finalize()
 }
 
 fn read_from<const N: usize>(reader: &mut Shake256Reader) -> [u8; N] {
@@ -405,15 +436,15 @@ mod tests {
         let (sk, pk) = generate_key_pair_from_rng(&mut seed);
 
         assert_eq!(sk.as_bytes(), &test_vector.sk);
-        assert_eq!(&pk.to_bytes(), test_vector.pk.as_slice());
+        assert_eq!(&*pk.to_bytes(), test_vector.pk.as_slice());
 
         let mut eseed = SeedRng::new(test_vector.eseed);
         let (ct, ss) = pk.encapsulate_with_rng(&mut eseed).unwrap();
 
         assert_eq!(ss, test_vector.ss);
-        assert_eq!(&ct.to_bytes(), test_vector.ct.as_slice());
+        assert_eq!(&*ct, test_vector.ct.as_slice());
 
-        let ss = sk.decapsulate(&ct).unwrap();
+        let ss = sk.decapsulate(&ct);
         assert_eq!(ss, test_vector.ss);
     }
 
@@ -421,13 +452,13 @@ mod tests {
     fn ciphertext_serialize() {
         let mut rng = SysRng.unwrap_err();
 
-        let ct_a = Ciphertext {
+        let ct_a = CiphertextMessage {
             ct_m: Array::generate_from_rng(&mut rng),
             ct_x: <[u8; 32]>::generate_from_rng(&mut rng).into(),
         };
 
         let bytes = ct_a.to_bytes();
-        let ct_b = Ciphertext::from(&bytes);
+        let ct_b = CiphertextMessage::from(&bytes);
 
         assert!(ct_a == ct_b);
     }
@@ -435,15 +466,15 @@ mod tests {
     #[test]
     fn key_serialize() {
         let sk = DecapsulationKey::generate_from_rng(&mut SysRng.unwrap_err());
-        let pk = sk.encapsulation_key();
+        let pk = sk.encapsulator().clone();
 
         let sk_bytes = sk.as_bytes();
         let pk_bytes = pk.to_bytes();
 
         let sk_b = DecapsulationKey::from(*sk_bytes);
-        let pk_b = EncapsulationKey::try_from(&pk_bytes).unwrap();
+        let pk_b = EncapsulationKey::new(&pk_bytes).unwrap();
 
-        assert!(sk == sk_b);
+        assert_eq!(sk.sk, sk_b.sk);
         assert!(pk == pk_b);
     }
 }

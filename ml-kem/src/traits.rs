@@ -1,9 +1,9 @@
 //! Trait definitions
 
-use crate::{ArraySize, Ciphertext, Error, Seed, SharedKey};
+use crate::{ArraySize, Seed};
+use array::Array;
 use core::fmt::Debug;
-use hybrid_array::Array;
-use kem::{Decapsulate, Encapsulate};
+use kem::{Decapsulate, Encapsulate, InvalidKey};
 use rand_core::CryptoRng;
 
 #[cfg(feature = "deterministic")]
@@ -18,10 +18,10 @@ pub trait EncodedSizeUser: Sized {
     ///
     /// # Errors
     /// - If the object failed to decode successfully
-    fn from_bytes(enc: &Encoded<Self>) -> Result<Self, Error>;
+    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, InvalidKey>;
 
     /// Serialize an object to its encoded form
-    fn to_bytes(&self) -> Encoded<Self>;
+    fn to_encoded_bytes(&self) -> Encoded<Self>;
 }
 
 /// A byte array encoding a value the indicated size
@@ -51,17 +51,10 @@ pub trait KemCore: Clone {
     type CiphertextSize: ArraySize;
 
     /// A decapsulation key for this KEM
-    type DecapsulationKey: Decapsulate<Ciphertext<Self>, SharedKey<Self>>
-        + EncodedSizeUser
-        + Debug
-        + PartialEq;
+    type DecapsulationKey: Decapsulate + EncodedSizeUser + Debug + PartialEq;
 
     /// An encapsulation key for this KEM
-    type EncapsulationKey: Encapsulate<Ciphertext<Self>, SharedKey<Self>>
-        + EncodedSizeUser
-        + Clone
-        + Debug
-        + PartialEq;
+    type EncapsulationKey: Encapsulate + EncodedSizeUser + Clone + Debug + Eq + PartialEq;
 
     /// Generate a new (decapsulation, encapsulation) key pair.
     fn generate<R: CryptoRng + ?Sized>(
