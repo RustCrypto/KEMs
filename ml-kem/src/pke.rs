@@ -207,14 +207,13 @@ mod test {
     use super::*;
     use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
     use ::kem::Generate;
-    use getrandom::SysRng;
-    use rand_core::TryRngCore;
+    use getrandom::{SysRng, rand_core::UnwrapErr};
 
     fn round_trip_test<P>()
     where
         P: PkeParams,
     {
-        let mut rng = SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
         let d = B32::generate_from_rng(&mut rng);
         let original = B32::default();
         let randomness = B32::default();
@@ -236,7 +235,7 @@ mod test {
     where
         P: PkeParams,
     {
-        let mut rng = SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
         let d = B32::generate_from_rng(&mut rng);
         let (dk_original, ek_original) = DecryptionKey::<P>::generate(&d);
 

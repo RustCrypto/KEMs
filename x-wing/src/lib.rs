@@ -37,7 +37,7 @@ use ml_kem::{
         sizes::{U32, U1120, U1184, U1216},
     },
 };
-use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
+use rand_core::{CryptoRng, TryCryptoRng, TryRng};
 use sha3::{
     Sha3_256, Shake256, Shake256Reader,
     digest::{ExtendableOutput, XofReader},
@@ -90,6 +90,7 @@ impl EncapsulationKey {
     /// # Warning
     /// Do NOT use this function unless you know what you're doing. If you fail to use all uniform
     /// random bytes even once, you can have catastrophic security failure.
+    #[doc(hidden)]
     #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
     #[expect(clippy::must_use_candidate)]
     pub fn encapsulate_deterministic(
@@ -116,19 +117,18 @@ impl EncapsulationKey {
 }
 
 impl Encapsulate for EncapsulationKey {
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(Ciphertext, SharedSecret), R::Error> {
-        let mut randomness = Array::default();
-        rng.try_fill_bytes(&mut randomness)?;
-
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedSecret)
+    where
+        R: CryptoRng + ?Sized,
+    {
+        #[allow(unused_mut)]
+        let mut randomness = Array::generate_from_rng(rng);
         let res = self.encapsulate_deterministic(&randomness);
 
         #[cfg(feature = "zeroize")]
         randomness.zeroize();
 
-        Ok(res)
+        res
     }
 }
 
@@ -222,7 +222,7 @@ impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKey {
 }
 
 impl Generate for DecapsulationKey {
-    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
+    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRng>::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
@@ -361,7 +361,7 @@ mod tests {
     use core::convert::Infallible;
     use getrandom::SysRng;
     use ml_kem::array::Array;
-    use rand_core::{TryCryptoRng, TryRngCore, utils};
+    use rand_core::{TryCryptoRng, TryRng, UnwrapErr, utils};
     use serde::Deserialize;
 
     use super::*;
@@ -376,7 +376,7 @@ mod tests {
         }
     }
 
-    impl TryRngCore for SeedRng {
+    impl TryRng for SeedRng {
         type Error = Infallible;
 
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
@@ -436,7 +436,7 @@ mod tests {
         assert_eq!(&*pk.to_bytes(), test_vector.pk.as_slice());
 
         let mut eseed = SeedRng::new(test_vector.eseed);
-        let (ct, ss) = pk.encapsulate_with_rng(&mut eseed).unwrap();
+        let (ct, ss) = pk.encapsulate_with_rng(&mut eseed);
 
         assert_eq!(ss, test_vector.ss);
         assert_eq!(&*ct, test_vector.ct.as_slice());
@@ -447,7 +447,7 @@ mod tests {
 
     #[test]
     fn ciphertext_serialize() {
-        let mut rng = SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
 
         let ct_a = CiphertextMessage {
             ct_m: Array::generate_from_rng(&mut rng),
@@ -462,7 +462,7 @@ mod tests {
 
     #[test]
     fn key_serialize() {
-        let sk = DecapsulationKey::generate_from_rng(&mut SysRng.unwrap_err());
+        let sk = DecapsulationKey::generate_from_rng(&mut UnwrapErr(SysRng));
         let pk = sk.encapsulator().clone();
 
         let sk_bytes = sk.as_bytes();

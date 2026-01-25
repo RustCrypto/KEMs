@@ -6,13 +6,13 @@ use elliptic_curve::Generate;
 use hex_literal::hex;
 use hkdf::Hkdf;
 use kem::{Decapsulator, Encapsulate, KeyExport, TryDecapsulate};
-use rand_core::{TryCryptoRng, TryRngCore};
+use rand_core::{TryCryptoRng, TryRng};
 use sha2::Sha256;
 
 /// Constant RNG for testing purposes only.
 struct ConstantRng<'a>(pub &'a [u8]);
 
-impl TryRngCore for ConstantRng<'_> {
+impl TryRng for ConstantRng<'_> {
     type Error = Infallible;
 
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
@@ -86,11 +86,9 @@ fn test_dhkem_p256_hkdf_sha256() {
     let pkr = skr.encapsulator();
     assert_eq!(&pkr.to_bytes(), &example_pkr);
 
-    let (pke, ss1) = pkr
-        .encapsulate_with_rng(&mut ConstantRng(&hex!(
-            "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb"
-        )))
-        .expect("never fails");
+    let (pke, ss1) = pkr.encapsulate_with_rng(&mut ConstantRng(&hex!(
+        "4995788ef4b9d6132b249ce59a77281493eb39af373d236a1fe415cb0c2d7beb"
+    )));
     assert_eq!(&pke, &example_pke);
 
     let ss2 = skr.try_decapsulate(&pke).unwrap();

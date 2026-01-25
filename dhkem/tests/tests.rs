@@ -1,14 +1,17 @@
-use getrandom::SysRng;
+#![cfg(any(
+    feature = "k256",
+    feature = "p256",
+    feature = "p384",
+    feature = "p521",
+    feature = "x25519"
+))]
+
 use kem::{Decapsulator, Encapsulate, Generate, TryDecapsulate};
 
-// we need this because if the crate is compiled with no features this function never
-// gets used
-#[allow(dead_code)]
 fn test_kem<DK: Decapsulator + Generate + TryDecapsulate>() {
-    let mut rng = SysRng;
-    let dk = DK::try_generate_from_rng(&mut SysRng).unwrap();
+    let dk = DK::generate();
     let ek = dk.encapsulator();
-    let (ek, ss1) = ek.encapsulate_with_rng(&mut rng).unwrap();
+    let (ek, ss1) = ek.encapsulate();
     let ss2 = dk.try_decapsulate(&ek).unwrap();
     assert_eq!(ss1.as_slice(), ss2.as_slice());
 }

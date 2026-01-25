@@ -2,6 +2,7 @@
 
 #![cfg(all(feature = "pkcs8", feature = "alloc"))]
 
+use getrandom::SysRng;
 use ml_kem::{EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed};
 use pkcs8::{
     DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, PrivateKeyInfoRef,
@@ -11,7 +12,7 @@ use pkcs8::{
         asn1::{ContextSpecific, OctetStringRef},
     },
 };
-use rand_core::{RngCore, TryCryptoRng, TryRngCore};
+use rand_core::{Rng, TryCryptoRng, UnwrapErr};
 
 /// ML-KEM seed serialized as ASN.1.
 type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
@@ -22,7 +23,7 @@ where
     K::EncapsulationKey: EncodePublicKey + DecodePublicKey,
     K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey + From<Seed> + PartialEq,
 {
-    let mut rng = getrandom::SysRng.unwrap_err();
+    let mut rng = UnwrapErr(SysRng);
     let (decaps_key, encaps_key) = K::generate(&mut rng);
 
     // TEST: (de)serialize encapsulation key into DER document
@@ -111,7 +112,7 @@ where
         seed: [u8; SEED_LEN],
     }
 
-    impl rand_core::TryRngCore for SeedBasedRng {
+    impl rand_core::TryRng for SeedBasedRng {
         type Error = core::convert::Infallible;
 
         fn try_next_u32(&mut self) -> Result<u32, Self::Error> {

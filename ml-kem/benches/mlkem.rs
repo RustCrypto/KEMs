@@ -2,10 +2,10 @@ use ::kem::{Decapsulate, Decapsulator, Encapsulate, Generate};
 use criterion::{Criterion, criterion_group, criterion_main};
 use getrandom::SysRng;
 use ml_kem::*;
-use rand_core::TryRngCore;
+use rand_core::UnwrapErr;
 
 fn criterion_benchmark(c: &mut Criterion) {
-    let mut rng = SysRng.unwrap_err();
+    let mut rng = UnwrapErr(SysRng);
 
     // Key generation
     c.bench_function("keygen", |b| {
@@ -23,9 +23,9 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     // Encapsulation
     c.bench_function("encapsulate", |b| {
-        b.iter(|| ek.encapsulate_with_rng(&mut rng).unwrap())
+        b.iter(|| ek.encapsulate_with_rng(&mut rng))
     });
-    let (ct, _ss) = ek.encapsulate_with_rng(&mut rng).unwrap();
+    let (ct, _ss) = ek.encapsulate_with_rng(&mut rng);
 
     // Decapsulation
     let dk = <MlKem768 as KemCore>::DecapsulationKey::from_encoded_bytes(&dk_bytes).unwrap();
@@ -41,7 +41,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         b.iter(|| {
             let dk = ml_kem_768::DecapsulationKey::generate_from_rng(&mut rng);
             let ek = dk.encapsulator();
-            let (ct, _sk) = ek.encapsulate_with_rng(&mut rng).unwrap();
+            let (ct, _sk) = ek.encapsulate_with_rng(&mut rng);
             dk.decapsulate(&ct);
         })
     });

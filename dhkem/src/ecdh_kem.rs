@@ -103,19 +103,19 @@ where
     FieldBytesSize<C>: ModulusSize,
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
 {
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(Ciphertext<Self>, SharedSecret<Self>), R::Error> {
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext<Self>, SharedSecret<Self>)
+    where
+        R: CryptoRng + ?Sized,
+    {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
-        let sk = EphemeralSecret::try_generate_from_rng(rng)?;
+        let sk = EphemeralSecret::generate_from_rng(rng);
         let ss = sk.diffie_hellman(&self.0);
 
         // TODO(tarcieri): sk.public_key().to_uncompressed_point()
         let mut pk = UncompressedPoint::<C>::default();
         pk.copy_from_slice(sk.public_key().to_encoded_point(false).as_bytes());
 
-        Ok((pk, ss.raw_secret_bytes().clone()))
+        (pk, ss.raw_secret_bytes().clone())
     }
 }
 

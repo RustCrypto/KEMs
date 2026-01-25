@@ -18,7 +18,7 @@ use crate::{
 };
 use array::typenum::{U32, U64};
 use core::marker::PhantomData;
-use rand_core::{CryptoRng, TryCryptoRng, TryRngCore};
+use rand_core::{CryptoRng, TryCryptoRng, TryRng};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 #[cfg(feature = "zeroize")]
@@ -120,7 +120,7 @@ impl<P> Generate for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
+    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRng>::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
@@ -206,7 +206,7 @@ where
     }
 
     #[inline]
-    pub(crate) fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRngCore>::Error>
+    pub(crate) fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRng>::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
@@ -263,12 +263,12 @@ impl<P> Encapsulate for EncapsulationKey<P>
 where
     P: KemParams,
 {
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(EncodedCiphertext<P>, SharedKey), R::Error> {
-        let m = B32::try_generate_from_rng(rng)?;
-        Ok(self.encapsulate_deterministic(&m))
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (EncodedCiphertext<P>, SharedKey)
+    where
+        R: CryptoRng + ?Sized,
+    {
+        let m = B32::generate_from_rng(rng);
+        self.encapsulate_deterministic(&m)
     }
 }
 
@@ -374,18 +374,18 @@ mod test {
     use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
     use ::kem::{Decapsulate, Encapsulate, Generate};
     use getrandom::SysRng;
-    use rand_core::TryRngCore;
+    use rand_core::UnwrapErr;
 
     fn round_trip_test<P>()
     where
         P: KemParams,
     {
-        let mut rng = SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
 
         let dk = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek = dk.encapsulation_key();
 
-        let (ct, k_send) = ek.encapsulate_with_rng(&mut rng).unwrap();
+        let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
         let k_recv = dk.decapsulate(&ct);
         assert_eq!(k_send, k_recv);
     }
@@ -401,7 +401,7 @@ mod test {
     where
         P: KemParams,
     {
-        let mut rng = SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
         let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
         let ek_original = dk_original.encapsulation_key().clone();
 
@@ -425,7 +425,7 @@ mod test {
     where
         P: KemParams,
     {
-        let mut rng = SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
         let mut seed = Seed::default();
         rng.try_fill_bytes(&mut seed).unwrap();
 
