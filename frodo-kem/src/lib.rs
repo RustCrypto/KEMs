@@ -6,10 +6,9 @@
 //!
 //! ```
 //! use frodo_kem::Algorithm;
-//! use getrandom::SysRng;
-//! use rand_core::TryRngCore;
+//! use getrandom::{SysRng, rand_core::UnwrapErr};
 //!
-//! let mut rng = SysRng.unwrap_err();
+//! let mut rng = UnwrapErr(SysRng);
 //! let alg = Algorithm::FrodoKem640Shake;
 //! let (ek, dk) = alg.generate_keypair(&mut rng);
 //! let (ct, enc_ss) = alg.encapsulate_with_rng(&ek, &mut rng).unwrap();
@@ -29,10 +28,9 @@
 //!
 //! ```
 //! use frodo_kem::Algorithm;
-//! use getrandom::SysRng;
-//! use rand_core::{RngCore, TryRngCore};
+//! use getrandom::{SysRng, rand_core::{Rng, UnwrapErr}};
 //!
-//! let mut rng = SysRng.unwrap_err();
+//! let mut rng = UnwrapErr(SysRng);
 //! let alg = Algorithm::FrodoKem1344Shake;
 //! let params = alg.params();
 //! let (ek, dk) = alg.generate_keypair(&mut rng);
@@ -1634,7 +1632,7 @@ fn ct_eq_bytes(lhs: &[u8], rhs: &[u8]) -> Choice {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
-    use rand_core::{RngCore, SeedableRng};
+    use rand_core::{Rng, SeedableRng};
     use rstest::*;
 
     #[rstest]

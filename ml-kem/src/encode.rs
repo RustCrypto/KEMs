@@ -144,13 +144,13 @@ where
 #[cfg(test)]
 pub(crate) mod test {
     use super::*;
+    use crate::param::EncodedPolynomialVector;
     use array::typenum::{
         U1, U2, U3, U4, U5, U6, U8, U10, U11, U12, marker_traits::Zero, operator_aliases::Mod,
     };
     use core::{fmt::Debug, ops::Rem};
-    use rand_core::{RngCore, TryRngCore};
-
-    use crate::param::EncodedPolynomialVector;
+    use getrandom::SysRng;
+    use rand_core::{Rng, UnwrapErr};
 
     // A helper trait to construct larger arrays by repeating smaller ones
     trait Repeat<T: Clone, D: ArraySize> {
@@ -183,7 +183,7 @@ pub(crate) mod test {
         assert_eq!(&actual_decoded, decoded);
 
         // Test random decode/encode and encode/decode round trips
-        let mut rng = getrandom::SysRng.unwrap_err();
+        let mut rng = UnwrapErr(SysRng);
         let decoded = Array::<Integer, U256>::from_fn(|_| (rng.next_u32() & 0xFFFF) as Integer);
         let m = match D::USIZE {
             12 => FieldElement::Q,

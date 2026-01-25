@@ -6,7 +6,7 @@ use aes::{
 };
 use core::convert::Infallible;
 use hybrid_array::{Array, typenum::U48};
-use rand_core::{RngCore, SeedableRng, TryCryptoRng, TryRngCore};
+use rand_core::{Rng, SeedableRng, TryCryptoRng, TryRng};
 
 /// Seed type for the AES-CTR DRBG
 pub type RngSeed = Array<u8, U48>;
@@ -30,7 +30,7 @@ impl SeedableRng for AesCtrDrbg {
     }
 }
 
-impl TryRngCore for AesCtrDrbg {
+impl TryRng for AesCtrDrbg {
     type Error = Infallible;
 
     fn try_next_u32(&mut self) -> Result<u32, Self::Error> {

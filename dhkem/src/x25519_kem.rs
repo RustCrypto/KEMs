@@ -70,16 +70,15 @@ impl KeyExport for X25519EncapsulationKey {
 }
 
 impl Encapsulate for X25519EncapsulationKey {
-    fn encapsulate_with_rng<R: TryCryptoRng + ?Sized>(
-        &self,
-        rng: &mut R,
-    ) -> Result<(Ciphertext, SharedSecret), R::Error> {
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedSecret)
+    where
+        R: CryptoRng + ?Sized,
+    {
         // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
-        // TODO(tarcieri): don't panic! Fallible `ReusableSecret` generation?
-        let sk = ReusableSecret::random_from_rng(&mut UnwrapErr(rng));
+        let sk = ReusableSecret::random_from_rng(rng);
         let pk = PublicKey::from(&sk);
         let ss = sk.diffie_hellman(&self.0);
-        Ok((pk.to_bytes().into(), ss.to_bytes().into()))
+        (pk.to_bytes().into(), ss.to_bytes().into())
     }
 }
 
