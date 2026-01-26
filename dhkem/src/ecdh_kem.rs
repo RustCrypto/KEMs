@@ -1,6 +1,6 @@
 //! Generic Elliptic Curve Diffie-Hellman KEM adapter.
 
-use crate::{DecapsulationKey, DhKem, EncapsulationKey};
+use crate::{DecapsulationKey, EncapsulationKey};
 use core::marker::PhantomData;
 use elliptic_curve::{
     AffinePoint, CurveArithmetic, Error, FieldBytesSize, PublicKey,
@@ -144,27 +144,5 @@ where
         let encapsulated_key = PublicKey::<C>::from_sec1_bytes(encapsulated_key)?;
         let shared_secret = self.dk.diffie_hellman(&encapsulated_key);
         Ok(shared_secret.raw_secret_bytes().clone())
-    }
-}
-
-impl<C> DhKem for EcdhKem<C>
-where
-    C: CurveArithmetic,
-    FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
-{
-    type DecapsulatingKey = EcdhDecapsulationKey<C>;
-    type EncapsulatingKey = EcdhEncapsulationKey<C>;
-    type EncapsulatedKey = Ciphertext<EcdhDecapsulationKey<C>>;
-    type SharedSecret = SharedSecret<EcdhDecapsulationKey<C>>;
-
-    fn random_keypair<R: CryptoRng + ?Sized>(
-        rng: &mut R,
-    ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey) {
-        // TODO(tarcieri): propagate RNG errors
-        let sk = EphemeralSecret::try_generate_from_rng(rng).expect("RNG failure");
-        let pk = PublicKey::from(&sk);
-
-        (DecapsulationKey::from(sk), EncapsulationKey(pk))
     }
 }

@@ -42,8 +42,6 @@ pub use ecdh_kem::{EcdhDecapsulationKey, EcdhEncapsulationKey, EcdhKem};
 #[cfg(feature = "x25519")]
 pub use x25519_kem::{X25519DecapsulationKey, X25519EncapsulationKey, X25519Kem};
 
-use rand_core::CryptoRng;
-
 #[cfg(feature = "ecdh")]
 use elliptic_curve::{
     CurveArithmetic, PublicKey, bigint,
@@ -141,30 +139,6 @@ impl<DK: Zeroize, EK> Zeroize for DecapsulationKey<DK, EK> {
 
 #[cfg(feature = "zeroize")]
 impl<DK: ZeroizeOnDrop, EK> ZeroizeOnDrop for DecapsulationKey<DK, EK> {}
-
-/// This is a trait that all KEM models should implement, and should probably be
-/// promoted to the kem crate itself. It specifies the types of encapsulating and
-/// decapsulating keys created by key generation, the shared secret type, and the
-/// encapsulated key type
-pub trait DhKem {
-    /// The type that will implement [`TryDecapsulate`]
-    type DecapsulatingKey: Decapsulator + Generate + TryDecapsulate;
-
-    /// The type that will implement [`Encapsulate`]
-    type EncapsulatingKey: Encapsulate;
-
-    /// The type of the encapsulated key
-    type EncapsulatedKey;
-
-    /// The type of the shared secret
-    type SharedSecret;
-
-    /// Generates a new (decapsulating key, encapsulating key) keypair for the KEM
-    /// model
-    fn random_keypair<R: CryptoRng + ?Sized>(
-        rng: &mut R,
-    ) -> (Self::DecapsulatingKey, Self::EncapsulatingKey);
-}
 
 /// NIST P-256 ECDH Decapsulation Key.
 #[cfg(feature = "p256")]
