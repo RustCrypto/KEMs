@@ -1,7 +1,7 @@
-use crate::{DecapsulationKey, DhKem, EncapsulationKey};
+use crate::{DecapsulationKey, EncapsulationKey};
 use kem::{
-    Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, KemParams, Key, KeyExport,
-    KeySizeUser, TryKeyInit, common::array::Array, consts::U32,
+    Decapsulate, Encapsulate, Generate, InvalidKey, KemParams, Key, KeyExport, KeySizeUser,
+    TryKeyInit, common::array::Array, consts::U32,
 };
 use rand_core::{CryptoRng, TryCryptoRng, UnwrapErr};
 use x25519::{PublicKey, ReusableSecret};
@@ -95,21 +95,5 @@ impl Decapsulate for X25519DecapsulationKey {
     fn decapsulate(&self, encapsulated_key: &Ciphertext) -> SharedSecret {
         let public_key = PublicKey::from(encapsulated_key.0);
         self.dk.diffie_hellman(&public_key).to_bytes().into()
-    }
-}
-
-impl DhKem for X25519Kem {
-    type DecapsulatingKey = X25519DecapsulationKey;
-    type EncapsulatingKey = X25519EncapsulationKey;
-    type EncapsulatedKey = Ciphertext;
-    type SharedSecret = x25519::SharedSecret;
-
-    fn random_keypair<R>(rng: &mut R) -> (Self::DecapsulatingKey, Self::EncapsulatingKey)
-    where
-        R: CryptoRng + ?Sized,
-    {
-        let dk = Self::DecapsulatingKey::generate_from_rng(rng);
-        let ek = *dk.encapsulator();
-        (dk, ek)
     }
 }
