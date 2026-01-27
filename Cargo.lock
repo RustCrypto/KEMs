@@ -787,6 +787,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "module-lattice"
+version = "0.0.0"
+dependencies = [
+ "hybrid-array",
+ "num-traits",
+ "zeroize",
+]
+
+[[package]]
 name = "num-bigint"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
