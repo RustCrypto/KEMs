@@ -1,0 +1,26 @@
+[package]
+name = "module-lattice"
+description = """
+Functionality shared between the `ml-kem` and `ml-dsa` crates, including linear algebra with degree-256 polynomials over
+a prime-order field, vectors of such polynomials, and NTT polynomials / vectors, as well as packing of polynomials into
+coefficients with a specified number of bits.
+"""
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.85"
+license = "Apache-2.0 OR MIT"
+readme = "README.md"
+homepage = "https://github.com/RustCrypto/KEMs/tree/master/module-lattice"
+repository = "https://github.com/RustCrypto/KEMs"
+categories = ["cryptography", "no-std"]
+keywords = ["crypto", "kyber", "lattice", "post-quantum"]
+
+[dependencies]
+hybrid-array = { version = "0.4", features = ["extra-sizes"] }
+num-traits = { version = "0.2", default-features = false }
+
+# optional dependencies
+zeroize = { version = "1.8.1", optional = true, default-features = false }
+
+[features]
+zeroize = ["hybrid-array/zeroize", "dep:zeroize"]

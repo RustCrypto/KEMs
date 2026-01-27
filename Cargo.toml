@@ -4,6 +4,7 @@ members = [
     "dhkem",
     "frodo-kem",
     "ml-kem",
+    "module-lattice",
     "x-wing"
 ]
 
