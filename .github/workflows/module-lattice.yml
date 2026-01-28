@@ -41,7 +41,7 @@ jobs:
         with:
           toolchain: stable
           targets: thumbv7em-none-eabi
-      - run: cargo check --target thumbv7em-none-eabi --release
+      - run: cargo check --target thumbv7em-none-eabi --all-features --release
 
   test:
     needs: set-msrv
@@ -58,4 +58,5 @@ jobs:
         with:
           toolchain: ${{ matrix.rust }}
       - run: cargo test
-      - run: cargo test --release
+      - run: cargo test --all-features
+      - run: cargo test --all-features --release
