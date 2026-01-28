@@ -1,6 +1,6 @@
 use crate::algebra::{FieldElement, Integer, Polynomial, PolynomialVector};
 use crate::param::{ArraySize, EncodingSize};
-use crate::util::Truncate;
+use module_lattice::util::Truncate;
 
 // A convenience trait to allow us to associate some constants with a typenum
 pub trait CompressionFactor: EncodingSize {
@@ -37,8 +37,8 @@ impl Compress for FieldElement {
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
         const Q_HALF: u64 = (FieldElement::Q64 + 1) >> 1;
         let x = u64::from(self.0);
-        let y = ((((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT).truncate();
-        self.0 = y.truncate() & D::MASK;
+        let y = (((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT;
+        self.0 = u16::truncate(y) & D::MASK;
         self
     }
 
@@ -46,7 +46,7 @@ impl Compress for FieldElement {
     fn decompress<D: CompressionFactor>(&mut self) -> &Self {
         let x = u32::from(self.0);
         let y = ((x * FieldElement::Q32) + D::POW2_HALF) >> D::USIZE;
-        self.0 = y.truncate();
+        self.0 = Truncate::truncate(y);
         self
     }
 }

@@ -2,12 +2,12 @@ use array::{
     Array,
     typenum::{U256, Unsigned},
 };
+use module_lattice::util::Truncate;
 
 use crate::algebra::{
     FieldElement, Integer, NttPolynomial, NttVector, Polynomial, PolynomialVector,
 };
 use crate::param::{ArraySize, EncodedPolynomial, EncodingSize, VectorEncodingSize};
-use crate::util::Truncate;
 
 type DecodedValue = Array<FieldElement, U256>;
 
@@ -53,7 +53,7 @@ fn byte_decode<D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> DecodedValue {
 
         let x = u128::from_le_bytes(xb);
         for (j, vj) in v.iter_mut().enumerate() {
-            let val: Integer = (x >> (D::USIZE * j)).truncate();
+            let val: Integer = Truncate::truncate(x >> (D::USIZE * j));
             vj.0 = val & mask;
 
             if D::USIZE == 12 {
