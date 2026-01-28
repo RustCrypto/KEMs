@@ -13,3 +13,4 @@ debug = true
 
 [patch.crates-io]
 ml-kem = { path = "./ml-kem" }
+module-lattice = { path = "./module-lattice" }

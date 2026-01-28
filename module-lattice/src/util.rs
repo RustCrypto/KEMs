@@ -29,6 +29,7 @@ macro_rules! define_truncate {
 }
 
 define_truncate!(u32, u16);
+define_truncate!(u64, u16);
 define_truncate!(u64, u32);
 define_truncate!(u128, u8);
 define_truncate!(u128, u16);

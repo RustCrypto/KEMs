@@ -1,12 +1,13 @@
 use array::{Array, typenum::U256};
 use core::ops::{Add, Mul, Sub};
+use module_lattice::util::Truncate;
 use sha3::digest::XofReader;
 use subtle::{Choice, ConstantTimeEq};
 
 use crate::crypto::{PRF, PrfOutput, XOF};
 use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
-use crate::util::{B32, Truncate};
+use crate::util::B32;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -46,9 +47,9 @@ impl FieldElement {
 
     fn barrett_reduce(x: u32) -> u16 {
         let product = u64::from(x) * Self::BARRETT_MULTIPLIER;
-        let quotient = (product >> Self::BARRETT_SHIFT).truncate();
+        let quotient: u32 = Truncate::truncate(product >> Self::BARRETT_SHIFT);
         let remainder = x - quotient * Self::Q32;
-        Self::small_reduce(remainder.truncate())
+        Self::small_reduce(Truncate::truncate(remainder))
     }
 
     // Algorithm 11. BaseCaseMultiply
@@ -176,7 +177,7 @@ impl<K: ArraySize> PolynomialVector<K> {
         Eta: CbdSamplingSize,
     {
         Self(Array::from_fn(|i| {
-            let N = start_n + i.truncate();
+            let N = start_n + u8::truncate(i);
             let prf_output = PRF::<Eta>(sigma, N);
             Polynomial::sample_cbd::<Eta>(&prf_output)
         }))
@@ -432,7 +433,7 @@ impl<K: ArraySize> NttVector<K> {
     pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {
         Self(Array::from_fn(|j| {
             let (i, j) = if transpose { (j, i) } else { (i, j) };
-            let mut xof = XOF(rho, j.truncate(), i.truncate());
+            let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
             NttPolynomial::sample_uniform(&mut xof)
         }))
     }

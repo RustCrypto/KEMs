@@ -776,6 +776,7 @@ dependencies = [
  "hex-literal",
  "hybrid-array",
  "kem",
+ "module-lattice",
  "num-rational",
  "pkcs8",
  "rand_core",
