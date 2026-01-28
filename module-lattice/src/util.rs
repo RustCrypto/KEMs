@@ -14,19 +14,25 @@ pub trait Truncate<T> {
 macro_rules! define_truncate {
     ($from:ident, $to:ident) => {
         impl Truncate<$from> for $to {
+            // Truncation should always function as intended here:
+            // - we ensure `$to` is small enough to infallibly convert to `$from` via the
+            //   `$from::from($to::MAX)` conversion, which will fail if not widening.
+            // - we are deliberately masking to the smaller size, i.e. truncation is intentional
+            //   (though that's not enough for `clippy` for some reason). Arguably the truncation
+            //   of the `as` cast is sufficient, but this makes it explicit
+            #[allow(clippy::cast_possible_truncation)]
             fn truncate(x: $from) -> $to {
-                // This line is marked unsafe because the `unwrap_unchecked` call is UB when its
-                // `self` argument is `Err`.  It never will be, because we explicitly zeroize the
-                // high-order bits before converting.  We could have used `unwrap()`, but chose to
-                // avoid the possibility of panic.
-                unsafe { (x & $from::from($to::MAX)).try_into().unwrap_unchecked() }
+                (x & $from::from($to::MAX)) as $to
             }
         }
     };
 }
 
-define_truncate!(u128, u32);
+define_truncate!(u32, u16);
 define_truncate!(u64, u32);
+define_truncate!(u128, u8);
+define_truncate!(u128, u16);
+define_truncate!(u128, u32);
 define_truncate!(usize, u8);
 define_truncate!(usize, u16);
 
