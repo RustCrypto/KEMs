@@ -57,6 +57,9 @@ where
 {
     fn drop(&mut self) {
         self.dk_pke.zeroize();
+        if let Some(d) = self.d.as_mut() {
+            d.zeroize();
+        }
         self.z.zeroize();
     }
 }
