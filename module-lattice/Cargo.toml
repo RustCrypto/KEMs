@@ -20,7 +20,9 @@ hybrid-array = { version = "0.4", features = ["extra-sizes"] }
 num-traits = { version = "0.2", default-features = false }
 
 # optional dependencies
+subtle = { version = "2", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [features]
+subtle = ["dep:subtle"]
 zeroize = ["hybrid-array/zeroize", "dep:zeroize"]

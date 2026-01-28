@@ -1,6 +1,6 @@
-use crate::algebra::{FieldElement, Integer, Polynomial, PolynomialVector};
+use crate::algebra::{BaseField, FieldElement, Integer, Polynomial, PolynomialVector};
 use crate::param::{ArraySize, EncodingSize};
-use module_lattice::util::Truncate;
+use module_lattice::{algebra::Field, util::Truncate};
 
 // A convenience trait to allow us to associate some constants with a typenum
 pub trait CompressionFactor: EncodingSize {
@@ -18,7 +18,7 @@ where
     const MASK: Integer = ((1 as Integer) << T::USIZE) - 1;
     const DIV_SHIFT: usize = 34;
     #[allow(clippy::integer_division_remainder_used)]
-    const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / FieldElement::Q64;
+    const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / BaseField::QLL;
 }
 
 // Traits for objects that allow compression / decompression
@@ -35,7 +35,7 @@ impl Compress for FieldElement {
     //   round(a / b) = floor((a + b/2) / b)
     //   a / q ~= (a * x) >> s where x >> s ~= 1/q
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
-        const Q_HALF: u64 = (FieldElement::Q64 + 1) >> 1;
+        const Q_HALF: u64 = (BaseField::QLL + 1) >> 1;
         let x = u64::from(self.0);
         let y = (((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT;
         self.0 = u16::truncate(y) & D::MASK;
@@ -45,7 +45,7 @@ impl Compress for FieldElement {
     // Equation 4.6: Decompress_d(x) = round((q / 2^d) x)
     fn decompress<D: CompressionFactor>(&mut self) -> &Self {
         let x = u32::from(self.0);
-        let y = ((x * FieldElement::Q32) + D::POW2_HALF) >> D::USIZE;
+        let y = ((x * BaseField::QL) + D::POW2_HALF) >> D::USIZE;
         self.0 = Truncate::truncate(y);
         self
     }
@@ -90,28 +90,29 @@ impl<K: ArraySize> Compress for PolynomialVector<K> {
 pub(crate) mod test {
     use super::*;
     use array::typenum::{U1, U4, U5, U6, U10, U11, U12};
+    use module_lattice::algebra::Elem;
     use num_rational::Ratio;
 
     #[allow(clippy::cast_possible_truncation)]
     fn rational_compress<D: CompressionFactor>(input: u16) -> u16 {
-        let fraction = Ratio::new(u32::from(input) * (1 << D::USIZE), FieldElement::Q32);
+        let fraction = Ratio::new(u32::from(input) * (1 << D::USIZE), BaseField::QL);
         (fraction.round().to_integer() as u16) & D::MASK
     }
 
     #[allow(clippy::cast_possible_truncation)]
     fn rational_decompress<D: CompressionFactor>(input: u16) -> u16 {
-        let fraction = Ratio::new(u32::from(input) * FieldElement::Q32, 1 << D::USIZE);
+        let fraction = Ratio::new(u32::from(input) * BaseField::QL, 1 << D::USIZE);
         fraction.round().to_integer() as u16
     }
 
     // Verify against inequality 4.7
     #[allow(clippy::integer_division_remainder_used)]
     fn compression_decompression_inequality<D: CompressionFactor>() {
-        const QI32: i32 = FieldElement::Q as i32;
-        let error_threshold = i32::from(Ratio::new(FieldElement::Q, 1 << D::USIZE).to_integer());
+        const QI32: i32 = BaseField::Q as i32;
+        let error_threshold = i32::from(Ratio::new(BaseField::Q, 1 << D::USIZE).to_integer());
 
-        for x in 0..FieldElement::Q {
-            let mut y = FieldElement(x);
+        for x in 0..BaseField::Q {
+            let mut y = Elem(x);
             y.compress::<D>();
             y.decompress::<D>();
 
@@ -131,7 +132,7 @@ pub(crate) mod test {
 
     fn decompression_compression_equality<D: CompressionFactor>() {
         for x in 0..(1 << D::USIZE) {
-            let mut y = FieldElement(x);
+            let mut y = Elem(x);
             y.decompress::<D>();
             y.compress::<D>();
 
@@ -142,7 +143,7 @@ pub(crate) mod test {
     fn decompress_KAT<D: CompressionFactor>() {
         for y in 0..(1 << D::USIZE) {
             let x_expected = rational_decompress::<D>(y);
-            let mut x_actual = FieldElement(y);
+            let mut x_actual = Elem(y);
             x_actual.decompress::<D>();
 
             assert_eq!(x_expected, x_actual.0);
@@ -150,9 +151,9 @@ pub(crate) mod test {
     }
 
     fn compress_KAT<D: CompressionFactor>() {
-        for x in 0..FieldElement::Q {
+        for x in 0..BaseField::Q {
             let y_expected = rational_compress::<D>(x);
-            let mut y_actual = FieldElement(x);
+            let mut y_actual = Elem(x);
             y_actual.compress::<D>();
 
             assert_eq!(y_expected, y_actual.0, "for x: {}, D: {}", x, D::USIZE);

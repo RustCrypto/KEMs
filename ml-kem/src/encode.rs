@@ -1,13 +1,14 @@
+use crate::{
+    algebra::{
+        BaseField, FieldElement, Integer, NttPolynomial, NttVector, Polynomial, PolynomialVector,
+    },
+    param::{ArraySize, EncodedPolynomial, EncodingSize, VectorEncodingSize},
+};
 use array::{
     Array,
     typenum::{U256, Unsigned},
 };
-use module_lattice::util::Truncate;
-
-use crate::algebra::{
-    FieldElement, Integer, NttPolynomial, NttVector, Polynomial, PolynomialVector,
-};
-use crate::param::{ArraySize, EncodedPolynomial, EncodingSize, VectorEncodingSize};
+use module_lattice::{algebra::Field, util::Truncate};
 
 type DecodedValue = Array<FieldElement, U256>;
 
@@ -57,7 +58,7 @@ fn byte_decode<D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> DecodedValue {
             vj.0 = val & mask;
 
             if D::USIZE == 12 {
-                vj.0 %= FieldElement::Q;
+                vj.0 %= BaseField::Q;
             }
         }
     }
@@ -150,6 +151,8 @@ pub(crate) mod test {
     };
     use core::{fmt::Debug, ops::Rem};
     use getrandom::SysRng;
+    use module_lattice::algebra::Elem;
+    use module_lattice::algebra::Field;
     use rand_core::{Rng, UnwrapErr};
 
     // A helper trait to construct larger arrays by repeating smaller ones
@@ -186,10 +189,10 @@ pub(crate) mod test {
         let mut rng = UnwrapErr(SysRng);
         let decoded = Array::<Integer, U256>::from_fn(|_| (rng.next_u32() & 0xFFFF) as Integer);
         let m = match D::USIZE {
-            12 => FieldElement::Q,
+            12 => BaseField::Q,
             d => (1 as Integer) << d,
         };
-        let decoded = decoded.iter().map(|x| FieldElement(x % m)).collect();
+        let decoded = decoded.iter().map(|x| Elem(x % m)).collect();
 
         let actual_encoded = byte_encode::<D>(&decoded);
         let actual_decoded = byte_decode::<D>(&actual_encoded);
@@ -202,20 +205,20 @@ pub(crate) mod test {
     #[test]
     fn byte_codec() {
         // The 1-bit can only represent decoded values equal to 0 or 1.
-        let decoded: DecodedValue = Array::<_, U2>([FieldElement(0), FieldElement(1)]).repeat();
+        let decoded: DecodedValue = Array::<_, U2>([Elem(0), Elem(1)]).repeat();
         let encoded: EncodedPolynomial<U1> = Array([0xaa; 32]);
         byte_codec_test::<U1>(&decoded, &encoded);
 
         // For other codec widths, we use a standard sequence
         let decoded: DecodedValue = Array::<_, U8>([
-            FieldElement(0),
-            FieldElement(1),
-            FieldElement(2),
-            FieldElement(3),
-            FieldElement(4),
-            FieldElement(5),
-            FieldElement(6),
-            FieldElement(7),
+            Elem(0),
+            Elem(1),
+            Elem(2),
+            Elem(3),
+            Elem(4),
+            Elem(5),
+            Elem(6),
+            Elem(7),
         ])
         .repeat();
 
@@ -252,7 +255,7 @@ pub(crate) mod test {
     fn byte_codec_12_mod() {
         // DecodeBytes_12 is required to reduce mod q
         let encoded: EncodedPolynomial<U12> = Array([0xff; 384]);
-        let decoded: DecodedValue = Array([FieldElement(0xfff % FieldElement::Q); 256]);
+        let decoded: DecodedValue = Array([Elem(0xfff % BaseField::Q); 256]);
 
         let actual_decoded = byte_decode::<U12>(&encoded);
         assert_eq!(actual_decoded, decoded);
@@ -274,14 +277,14 @@ pub(crate) mod test {
     fn vector_codec() {
         let poly = Polynomial(
             Array::<_, U8>([
-                FieldElement(0),
-                FieldElement(1),
-                FieldElement(2),
-                FieldElement(3),
-                FieldElement(4),
-                FieldElement(5),
-                FieldElement(6),
-                FieldElement(7),
+                Elem(0),
+                Elem(1),
+                Elem(2),
+                Elem(3),
+                Elem(4),
+                Elem(5),
+                Elem(6),
+                Elem(7),
             ])
             .repeat(),
         );

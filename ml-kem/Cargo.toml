@@ -21,12 +21,12 @@ alloc = ["pkcs8?/alloc"]
 getrandom = ["kem/getrandom"]
 pem = ["pkcs8/pem"]
 pkcs8 = ["dep:const-oid", "dep:pkcs8"]
-zeroize = ["dep:zeroize"]
+zeroize = ["module-lattice/zeroize", "dep:zeroize"]
 hazmat = []
 
 [dependencies]
 array = { package = "hybrid-array", version = "0.4.4", features = ["extra-sizes", "subtle"] }
-module-lattice = "0.1.0-pre.0"
+module-lattice = { version = "0.1.0-pre.0", features = ["subtle"] }
 kem = "0.3.0-rc.2"
 rand_core = "0.10.0-rc-6"
 sha3 = { version = "0.11.0-rc.3", default-features = false }
