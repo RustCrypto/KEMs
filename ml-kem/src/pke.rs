@@ -1,9 +1,9 @@
+use crate::B32;
 use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
 use crate::encode::Encode;
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
-use crate::util::B32;
 use array::typenum::{U1, Unsigned};
 use kem::InvalidKey;
 use subtle::{Choice, ConstantTimeEq};

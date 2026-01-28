@@ -7,14 +7,13 @@ pub use ::kem::{
 };
 
 use crate::{
-    Encoded, EncodedSizeUser, KemCore, Seed,
+    B32, Encoded, EncodedSizeUser, KemCore, Seed,
     crypto::{G, H, J},
     param::{
         DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
         KemParams,
     },
     pke::{DecryptionKey, EncryptionKey},
-    util::B32,
 };
 use array::typenum::{U32, U64};
 use core::marker::PhantomData;

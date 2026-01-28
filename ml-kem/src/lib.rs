@@ -46,9 +46,6 @@
 //!
 //! [RFC 9180]: https://www.rfc-editor.org/info/rfc9180
 
-/// The inevitable utility module
-mod util;
-
 /// Section 2.4. Interpreting the Pseudocode
 /// Section 4.2.2. Sampling algorithms
 /// Section 4.3. The Number-Theoretic Transform
@@ -86,9 +83,12 @@ pub use traits::*;
 
 use array::{
     Array,
-    typenum::{U2, U3, U4, U5, U10, U11, U64},
+    sizes::{U2, U3, U4, U5, U10, U11, U32, U64},
 };
 use core::fmt::Debug;
+
+/// A 32-byte array, defined here for brevity because it is used several times
+pub type B32 = Array<u8, U32>;
 
 /// ML-KEM seeds are decapsulation (private) keys, which are consistently 64-bytes across all
 /// security levels, and are the preferred serialization for representing such keys.
