@@ -793,6 +793,7 @@ version = "0.1.0-pre.0"
 dependencies = [
  "hybrid-array",
  "num-traits",
+ "subtle",
  "zeroize",
 ]
 

@@ -5,6 +5,8 @@ use core::ops::{Add, Mul, Neg, Sub};
 use hybrid_array::{Array, ArraySize, typenum::U256};
 use num_traits::PrimInt;
 
+#[cfg(feature = "subtle")]
+use subtle::{Choice, ConstantTimeEq};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
@@ -80,6 +82,16 @@ pub struct Elem<F: Field>(pub F::Int);
 impl<F: Field> Elem<F> {
     pub const fn new(x: F::Int) -> Self {
         Self(x)
+    }
+}
+
+#[cfg(feature = "subtle")]
+impl<F: Field> ConstantTimeEq for Elem<F>
+where
+    F::Int: ConstantTimeEq,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
     }
 }
 

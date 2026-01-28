@@ -10,9 +10,11 @@
 //! know any details about object sizes.  For example, `VectorEncodingSize::flatten` needs to know
 //! that the size of an encoded vector is `K` times the size of an encoded polynomial.
 
-use core::fmt::Debug;
-use core::ops::{Add, Div, Mul, Rem, Sub};
-
+use crate::{
+    B32,
+    algebra::{BaseField, FieldElement, NttVector},
+    encode::Encode,
+};
 use array::{
     Array,
     typenum::{
@@ -21,13 +23,14 @@ use array::{
         type_operators::Gcd,
     },
 };
-
-use crate::{
-    B32,
-    algebra::{FieldElement, NttVector},
-    encode::Encode,
+use core::{
+    fmt::Debug,
+    ops::{Add, Div, Mul, Rem, Sub},
 };
-use module_lattice::util::{Flatten, Unflatten};
+use module_lattice::{
+    algebra::{Elem, Field},
+    util::{Flatten, Unflatten},
+};
 
 #[cfg(doc)]
 use crate::Seed;
@@ -119,7 +122,7 @@ where
     Const<N>: ToUInt<Output = U>,
 {
     let max = 1 << B;
-    let mut out = [FieldElement(0); N];
+    let mut out = [Elem(0); N];
     let mut x = 0usize;
     while x < max {
         let mut y = 0usize;
@@ -128,7 +131,7 @@ where
             let x_ones = x.count_ones() as u16;
             let y_ones = y.count_ones() as u16;
             let i = x + (y << B);
-            out[i] = FieldElement((x_ones + FieldElement::Q - y_ones) % FieldElement::Q);
+            out[i] = Elem((x_ones + BaseField::Q - y_ones) % BaseField::Q);
 
             y += 1;
         }
