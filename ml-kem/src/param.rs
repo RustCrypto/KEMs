@@ -22,9 +22,12 @@ use array::{
     },
 };
 
-use crate::algebra::{FieldElement, NttVector};
-use crate::encode::Encode;
-use crate::util::{B32, Flatten, Unflatten};
+use crate::{
+    B32,
+    algebra::{FieldElement, NttVector},
+    encode::Encode,
+};
+use module_lattice::util::{Flatten, Unflatten};
 
 #[cfg(doc)]
 use crate::Seed;

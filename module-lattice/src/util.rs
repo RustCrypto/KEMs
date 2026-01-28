@@ -38,7 +38,7 @@ define_truncate!(usize, u8);
 define_truncate!(usize, u16);
 
 /// Defines a sequence of sequences that can be merged into a bigger overall seequence
-pub(crate) trait Flatten<T, M: ArraySize> {
+pub trait Flatten<T, M: ArraySize> {
     type OutputSize: ArraySize;
 
     fn flatten(self) -> Array<T, Self::OutputSize>;
@@ -61,7 +61,7 @@ where
 }
 
 /// Defines a sequence that can be split into a sequence of smaller sequences of uniform size
-pub(crate) trait Unflatten<M>
+pub trait Unflatten<M>
 where
     M: ArraySize,
 {

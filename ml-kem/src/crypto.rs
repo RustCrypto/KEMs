@@ -6,8 +6,8 @@ use sha3::{
 };
 
 use crate::{
+    B32,
     param::{CbdSamplingSize, EncodedPolynomial},
-    util::B32,
 };
 
 pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {

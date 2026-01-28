@@ -4,10 +4,10 @@ use module_lattice::util::Truncate;
 use sha3::digest::XofReader;
 use subtle::{Choice, ConstantTimeEq};
 
+use crate::B32;
 use crate::crypto::{PRF, PrfOutput, XOF};
 use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
-use crate::util::B32;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -533,8 +533,8 @@ impl<K: ArraySize> NttMatrix<K> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::util::Flatten;
     use array::typenum::{U2, U3, U8};
+    use module_lattice::util::Flatten;
 
     // Multiplication in R_q, modulo X^256 + 1
     impl Mul<&Polynomial> for &Polynomial {
