@@ -1,5 +1,8 @@
 use crate::B32;
-use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
+use crate::algebra::{
+    NttMatrix, NttVector, Polynomial, PolynomialVector, ntt_vector, sample_poly_cbd,
+    sample_poly_vec_cbd,
+};
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
 use crate::encode::Encode;
@@ -64,12 +67,12 @@ where
 
         // Sample pseudo-random matrix and vectors
         let A_hat: NttMatrix<P::K> = NttMatrix::sample_uniform(&rho, false);
-        let s: PolynomialVector<P::K> = PolynomialVector::sample_cbd::<P::Eta1>(&sigma, 0);
-        let e: PolynomialVector<P::K> = PolynomialVector::sample_cbd::<P::Eta1>(&sigma, P::K::U8);
+        let s: PolynomialVector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, 0);
+        let e: PolynomialVector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, P::K::U8);
 
         // NTT the vectors
-        let s_hat = s.ntt();
-        let e_hat = e.ntt();
+        let s_hat = ntt_vector(&s);
+        let e_hat = ntt_vector(&e);
 
         // Compute the public value
         let t_hat = &(&A_hat * &s_hat) + &e_hat;
@@ -91,7 +94,7 @@ where
         let mut v: Polynomial = Encode::<P::Dv>::decode(c2);
         v.decompress::<P::Dv>();
 
-        let u_hat = u.ntt();
+        let u_hat = ntt_vector(&u);
         let sTu = (&self.s_hat * &u_hat).ntt_inverse();
         let mut w = &v - &sTu;
         Encode::<U1>::encode(w.compress::<U1>())
@@ -127,14 +130,14 @@ where
     /// Encrypt the specified message for the holder of the corresponding decryption key, using the
     /// provided randomness, according the `K-PKE.Encrypt` procedure.
     pub fn encrypt(&self, message: &B32, randomness: &B32) -> EncodedCiphertext<P> {
-        let r = PolynomialVector::<P::K>::sample_cbd::<P::Eta1>(randomness, 0);
-        let e1 = PolynomialVector::<P::K>::sample_cbd::<P::Eta2>(randomness, P::K::U8);
+        let r = sample_poly_vec_cbd::<P::Eta1, P::K>(randomness, 0);
+        let e1 = sample_poly_vec_cbd::<P::Eta2, P::K>(randomness, P::K::U8);
 
         let prf_output = PRF::<P::Eta2>(randomness, 2 * P::K::U8);
-        let e2: Polynomial = Polynomial::sample_cbd::<P::Eta2>(&prf_output);
+        let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
 
         let A_hat_t = NttMatrix::<P::K>::sample_uniform(&self.rho, true);
-        let r_hat: NttVector<P::K> = r.ntt();
+        let r_hat: NttVector<P::K> = ntt_vector(&r);
         let ATr: PolynomialVector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
         let mut u = ATr + e1;
 
