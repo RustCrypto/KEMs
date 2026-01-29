@@ -25,7 +25,7 @@ pkcs8 = ["dep:const-oid", "dep:pkcs8"]
 zeroize = ["module-lattice/zeroize", "dep:zeroize"]
 
 [dependencies]
-array = { package = "hybrid-array", version = "0.4.4", features = ["extra-sizes", "subtle"] }
+array = { version = "0.4.4", package = "hybrid-array", features = ["extra-sizes", "subtle"] }
 module-lattice = { version = "0.1.0-pre.0", features = ["subtle"] }
 kem = "0.3.0-rc.2"
 rand_core = "0.10.0-rc-6"

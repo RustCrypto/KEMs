@@ -1,8 +1,8 @@
 use super::util::Truncate;
 
+use array::{Array, ArraySize, typenum::U256};
 use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
-use hybrid_array::{Array, ArraySize, typenum::U256};
 use num_traits::PrimInt;
 
 #[cfg(feature = "subtle")]

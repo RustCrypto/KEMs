@@ -5,10 +5,10 @@ use crate::algebra::{
 };
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
-use crate::encode::Encode;
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use array::typenum::{U1, Unsigned};
 use kem::InvalidKey;
+use module_lattice::encode::Encode;
 use subtle::{Choice, ConstantTimeEq};
 
 #[cfg(feature = "zeroize")]

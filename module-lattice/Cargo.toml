@@ -16,13 +16,16 @@ categories = ["cryptography", "no-std"]
 keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 
 [dependencies]
-hybrid-array = { version = "0.4", features = ["extra-sizes"] }
+array = { version = "0.4", package = "hybrid-array", features = ["extra-sizes"] }
 num-traits = { version = "0.2", default-features = false }
 
 # optional dependencies
 subtle = { version = "2", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
+[dev-dependencies]
+getrandom = { version = "0.4.0-rc.1", features = ["sys_rng"] }
+
 [features]
-subtle = ["dep:subtle"]
-zeroize = ["hybrid-array/zeroize", "dep:zeroize"]
+subtle = ["dep:subtle", "array/subtle"]
+zeroize = ["array/zeroize", "dep:zeroize"]
