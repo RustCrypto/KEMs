@@ -1,6 +1,6 @@
 use crate::B32;
 use crate::algebra::{
-    NttMatrix, NttVector, Polynomial, PolynomialVector, ntt_vector, sample_poly_cbd,
+    NttMatrix, NttVector, Polynomial, PolynomialVector, ntt_inverse, ntt_vector, sample_poly_cbd,
     sample_poly_vec_cbd,
 };
 use crate::compress::Compress;
@@ -95,7 +95,7 @@ where
         v.decompress::<P::Dv>();
 
         let u_hat = ntt_vector(&u);
-        let sTu = (&self.s_hat * &u_hat).ntt_inverse();
+        let sTu = ntt_inverse(&(&self.s_hat * &u_hat));
         let mut w = &v - &sTu;
         Encode::<U1>::encode(w.compress::<U1>())
     }
@@ -144,7 +144,7 @@ where
         let mut mu: Polynomial = Encode::<U1>::decode(message);
         mu.decompress::<U1>();
 
-        let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
+        let tTr: Polynomial = ntt_inverse(&(&self.t_hat * &r_hat));
         let mut v = &(&tTr + &e2) + &mu;
 
         let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());
