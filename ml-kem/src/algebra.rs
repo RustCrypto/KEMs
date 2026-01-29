@@ -1,9 +1,6 @@
 use array::{Array, typenum::U256};
 use core::ops::{Add, Mul, Sub};
-use module_lattice::{
-    algebra::{Elem, Field},
-    util::Truncate,
-};
+use module_lattice::{algebra::Field, util::Truncate};
 use sha3::digest::XofReader;
 use subtle::{Choice, ConstantTimeEq};
 
@@ -20,7 +17,7 @@ pub type Integer = u16;
 module_lattice::define_field!(BaseField, Integer, u32, u64, 3329);
 
 /// An element of GF(q).
-pub type FieldElement = Elem<BaseField>;
+pub type FieldElement = module_lattice::algebra::Elem<BaseField>;
 
 // Algorithm 11. BaseCaseMultiply
 //
@@ -43,7 +40,7 @@ fn base_case_multiply(
 
     let c0 = BaseField::barrett_reduce(a0 * b0 + a1 * b1g);
     let c1 = BaseField::barrett_reduce(a0 * b1 + a1 * b0);
-    (Elem(c0), Elem(c1))
+    (FieldElement::new(c0), FieldElement::new(c1))
 }
 
 /// An element of the ring `R_q`, i.e., a polynomial over `Z_q` of degree 255
@@ -191,7 +188,7 @@ impl<'a> FieldElementReader<'a> {
     fn next(&mut self) -> FieldElement {
         if let Some(val) = self.next {
             self.next = None;
-            return Elem(val);
+            return FieldElement::new(val);
         }
 
         loop {
@@ -211,11 +208,11 @@ impl<'a> FieldElementReader<'a> {
                 if d2 < BaseField::Q {
                     self.next = Some(d2);
                 }
-                return Elem(d1);
+                return FieldElement::new(d1);
             }
 
             if d2 < BaseField::Q {
-                return Elem(d2);
+                return FieldElement::new(d2);
             }
         }
     }
@@ -256,18 +253,18 @@ const ZETA_POW_BITREV: [FieldElement; 128] = {
     }
 
     // Compute the powers of zeta
-    let mut pow = [Elem(0); 128];
+    let mut pow = [FieldElement::new(0); 128];
     let mut i = 0;
     let mut curr = 1u64;
     #[allow(clippy::integer_division_remainder_used)]
     while i < 128 {
-        pow[i] = Elem(curr as u16);
+        pow[i] = FieldElement::new(curr as u16);
         i += 1;
         curr = (curr * ZETA) % BaseField::QLL;
     }
 
     // Reorder the powers according to bitrev7
-    let mut pow_bitrev = [Elem(0); 128];
+    let mut pow_bitrev = [FieldElement::new(0); 128];
     let mut i = 0;
     while i < 128 {
         pow_bitrev[i] = pow[bitrev7(i)];
@@ -279,13 +276,13 @@ const ZETA_POW_BITREV: [FieldElement; 128] = {
 #[allow(clippy::cast_possible_truncation)]
 const GAMMA: [FieldElement; 128] = {
     const ZETA: u64 = 17;
-    let mut gamma = [Elem(0); 128];
+    let mut gamma = [FieldElement::new(0); 128];
     let mut i = 0;
     while i < 128 {
         let zpr = ZETA_POW_BITREV[i].0 as u64;
         #[allow(clippy::integer_division_remainder_used)]
         let g = (zpr * zpr * ZETA) % BaseField::QLL;
-        gamma[i] = Elem(g as u16);
+        gamma[i] = FieldElement::new(g as u16);
         i += 1;
     }
     gamma
@@ -369,7 +366,7 @@ impl NttPolynomial {
             }
         }
 
-        Elem(3303) * &Polynomial(f)
+        FieldElement::new(3303) * &Polynomial(f)
     }
 }
 
@@ -493,9 +490,9 @@ mod test {
             for (i, x) in self.0.iter().enumerate() {
                 for (j, y) in rhs.0.iter().enumerate() {
                     let (sign, index) = if i + j < 256 {
-                        (Elem(1), i + j)
+                        (FieldElement::new(1), i + j)
                     } else {
-                        (Elem(BaseField::Q - 1), i + j - 256)
+                        (FieldElement::new(BaseField::Q - 1), i + j - 256)
                     };
 
                     out.0[index] = out.0[index] + (sign * *x * *y);
@@ -508,26 +505,26 @@ mod test {
     // A polynomial with only a scalar component, to make simple test cases
     fn const_ntt(x: Integer) -> NttPolynomial {
         let mut p = Polynomial::default();
-        p.0[0] = Elem(x);
+        p.0[0] = FieldElement::new(x);
         p.ntt()
     }
 
     #[test]
     #[allow(clippy::cast_possible_truncation)]
     fn polynomial_ops() {
-        let f = Polynomial(Array::from_fn(|i| Elem(i as Integer)));
-        let g = Polynomial(Array::from_fn(|i| Elem(2 * i as Integer)));
-        let sum = Polynomial(Array::from_fn(|i| Elem(3 * i as Integer)));
+        let f = Polynomial(Array::from_fn(|i| FieldElement::new(i as Integer)));
+        let g = Polynomial(Array::from_fn(|i| FieldElement::new(2 * i as Integer)));
+        let sum = Polynomial(Array::from_fn(|i| FieldElement::new(3 * i as Integer)));
         assert_eq!((&f + &g), sum);
         assert_eq!((&sum - &g), f);
-        assert_eq!(Elem(3) * &f, sum);
+        assert_eq!(FieldElement::new(3) * &f, sum);
     }
 
     #[test]
     #[allow(clippy::cast_possible_truncation, clippy::similar_names)]
     fn ntt() {
-        let f = Polynomial(Array::from_fn(|i| Elem(i as Integer)));
-        let g = Polynomial(Array::from_fn(|i| Elem(2 * i as Integer)));
+        let f = Polynomial(Array::from_fn(|i| FieldElement::new(i as Integer)));
+        let g = Polynomial(Array::from_fn(|i| FieldElement::new(2 * i as Integer)));
         let f_hat = f.ntt();
         let g_hat = g.ntt();
 

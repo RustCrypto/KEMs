@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/workflows/ml-kem.yml"
       - "ml-kem/**"
+      - "module-lattice/**"
       - "Cargo.*"
   push:
     branches: master
