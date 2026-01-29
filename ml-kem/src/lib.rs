@@ -75,7 +75,7 @@ pub use array;
 pub use ml_kem_512::MlKem512Params;
 pub use ml_kem_768::MlKem768Params;
 pub use ml_kem_1024::MlKem1024Params;
-pub use module_lattice::encode::ArraySize;
+pub use module_lattice::encoding::ArraySize;
 pub use param::{ExpandedDecapsulationKey, ParameterSet};
 pub use traits::*;
 

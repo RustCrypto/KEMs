@@ -12,10 +12,10 @@ use getrandom::{
     SysRng,
     rand_core::{Rng, UnwrapErr},
 };
-use module_lattice::encode::EncodedVector;
+use module_lattice::encoding::EncodedVector;
 use module_lattice::{
     algebra::{Elem, Field, NttPolynomial, NttVector, Polynomial, Vector},
-    encode::{ArraySize, Encode, EncodedPolynomial, EncodingSize, byte_decode, byte_encode},
+    encoding::{ArraySize, Encode, EncodedPolynomial, EncodingSize, byte_decode, byte_encode},
 };
 use std::fmt::Debug;
 use std::ops::Rem;
@@ -24,7 +24,7 @@ use std::ops::Rem;
 module_lattice::define_field!(KyberField, u16, u32, u64, 3329);
 
 type Int = u16;
-type DecodedValue = module_lattice::encode::DecodedValue<KyberField>;
+type DecodedValue = module_lattice::encoding::DecodedValue<KyberField>;
 
 /// A helper trait to construct larger arrays by repeating smaller ones
 trait Repeat<T: Clone, D: ArraySize> {

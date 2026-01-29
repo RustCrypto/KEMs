@@ -8,7 +8,7 @@ use crate::crypto::{G, PRF};
 use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use array::typenum::{U1, Unsigned};
 use kem::InvalidKey;
-use module_lattice::encode::Encode;
+use module_lattice::encoding::Encode;
 use subtle::{Choice, ConstantTimeEq};
 
 #[cfg(feature = "zeroize")]

@@ -10,7 +10,7 @@
 //! know any details about object sizes.  For example, `VectorEncodingSize::flatten` needs to know
 //! that the size of an encoded vector is `K` times the size of an encoded polynomial.
 
-pub(crate) use module_lattice::encode::{
+pub(crate) use module_lattice::encoding::{
     ArraySize, Encode, EncodedPolynomial, EncodedPolynomialSize, EncodedVectorSize, EncodingSize,
     VectorEncodingSize,
 };

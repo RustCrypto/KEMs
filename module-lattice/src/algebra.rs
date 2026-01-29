@@ -1,4 +1,4 @@
-use super::util::Truncate;
+use super::utils::Truncate;
 
 use array::{Array, ArraySize, typenum::U256};
 use core::fmt::Debug;
@@ -65,7 +65,7 @@ macro_rules! define_field {
                 let product = x * Self::BARRETT_MULTIPLIER;
                 let quotient = product >> Self::BARRETT_SHIFT;
                 let remainder = x - quotient * Self::QLL;
-                Self::small_reduce($crate::util::Truncate::truncate(remainder))
+                Self::small_reduce($crate::utils::Truncate::truncate(remainder))
             }
         }
     };
