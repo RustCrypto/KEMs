@@ -12,7 +12,7 @@
 
 use crate::{
     B32,
-    algebra::{BaseField, FieldElement, NttVector},
+    algebra::{BaseField, Elem, NttVector},
     encode::Encode,
 };
 use array::{
@@ -104,7 +104,7 @@ where
 pub trait CbdSamplingSize: ArraySize {
     type SampleSize: EncodingSize;
     type OnesSize: ArraySize;
-    const ONES: Array<FieldElement, Self::OnesSize>;
+    const ONES: Array<Elem, Self::OnesSize>;
 }
 
 // To speed up CBD sampling, we pre-compute all the bit-manipulations:
@@ -116,13 +116,13 @@ pub trait CbdSamplingSize: ArraySize {
 // We have to allow the use of `as` here because we can't use our nice Truncate trait, because
 // const functions don't support traits.
 #[allow(clippy::cast_possible_truncation)]
-const fn ones_array<const B: usize, const N: usize, U>() -> Array<FieldElement, U>
+const fn ones_array<const B: usize, const N: usize, U>() -> Array<Elem, U>
 where
-    U: ArraySize<ArrayType<FieldElement> = [FieldElement; N]>,
+    U: ArraySize<ArrayType<Elem> = [Elem; N]>,
     Const<N>: ToUInt<Output = U>,
 {
     let max = 1 << B;
-    let mut out = [FieldElement::new(0); N];
+    let mut out = [Elem::new(0); N];
     let mut x = 0usize;
     while x < max {
         let mut y = 0usize;
@@ -131,7 +131,7 @@ where
             let x_ones = x.count_ones() as u16;
             let y_ones = y.count_ones() as u16;
             let i = x + (y << B);
-            out[i] = FieldElement::new((x_ones + BaseField::Q - y_ones) % BaseField::Q);
+            out[i] = Elem::new((x_ones + BaseField::Q - y_ones) % BaseField::Q);
 
             y += 1;
         }
@@ -143,13 +143,13 @@ where
 impl CbdSamplingSize for U2 {
     type SampleSize = U4;
     type OnesSize = U16;
-    const ONES: Array<FieldElement, U16> = ones_array::<2, 16, U16>();
+    const ONES: Array<Elem, U16> = ones_array::<2, 16, U16>();
 }
 
 impl CbdSamplingSize for U3 {
     type SampleSize = U6;
     type OnesSize = U64;
-    const ONES: Array<FieldElement, U64> = ones_array::<3, 64, U64>();
+    const ONES: Array<Elem, U64> = ones_array::<3, 64, U64>();
 }
 
 /// A `ParameterSet` captures the parameters that describe a particular instance of ML-KEM.  There

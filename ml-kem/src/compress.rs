@@ -1,11 +1,11 @@
-use crate::algebra::{BaseField, FieldElement, Integer, Polynomial, PolynomialVector};
+use crate::algebra::{BaseField, Elem, Int, Polynomial, Vector};
 use crate::param::{ArraySize, EncodingSize};
 use module_lattice::{algebra::Field, util::Truncate};
 
 // A convenience trait to allow us to associate some constants with a typenum
 pub trait CompressionFactor: EncodingSize {
     const POW2_HALF: u32;
-    const MASK: Integer;
+    const MASK: Int;
     const DIV_SHIFT: usize;
     const DIV_MUL: u64;
 }
@@ -15,7 +15,7 @@ where
     T: EncodingSize,
 {
     const POW2_HALF: u32 = 1 << (T::USIZE - 1);
-    const MASK: Integer = ((1 as Integer) << T::USIZE) - 1;
+    const MASK: Int = ((1 as Int) << T::USIZE) - 1;
     const DIV_SHIFT: usize = 34;
     #[allow(clippy::integer_division_remainder_used)]
     const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / BaseField::QLL;
@@ -27,7 +27,7 @@ pub trait Compress {
     fn decompress<D: CompressionFactor>(&mut self) -> &Self;
 }
 
-impl Compress for FieldElement {
+impl Compress for Elem {
     // Equation 4.5: Compress_d(x) = round((2^d / q) x)
     //
     // Here and in decompression, we leverage the following facts:
@@ -68,7 +68,7 @@ impl Compress for Polynomial {
     }
 }
 
-impl<K: ArraySize> Compress for PolynomialVector<K> {
+impl<K: ArraySize> Compress for Vector<K> {
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
         for x in &mut self.0 {
             x.compress::<D>();
@@ -111,7 +111,7 @@ pub(crate) mod test {
         let error_threshold = i32::from(Ratio::new(BaseField::Q, 1 << D::USIZE).to_integer());
 
         for x in 0..BaseField::Q {
-            let mut y = FieldElement::new(x);
+            let mut y = Elem::new(x);
             y.compress::<D>();
             y.decompress::<D>();
 
@@ -131,7 +131,7 @@ pub(crate) mod test {
 
     fn decompression_compression_equality<D: CompressionFactor>() {
         for x in 0..(1 << D::USIZE) {
-            let mut y = FieldElement::new(x);
+            let mut y = Elem::new(x);
             y.decompress::<D>();
             y.compress::<D>();
 
@@ -142,7 +142,7 @@ pub(crate) mod test {
     fn decompress_KAT<D: CompressionFactor>() {
         for y in 0..(1 << D::USIZE) {
             let x_expected = rational_decompress::<D>(y);
-            let mut x_actual = FieldElement::new(y);
+            let mut x_actual = Elem::new(y);
             x_actual.decompress::<D>();
 
             assert_eq!(x_expected, x_actual.0);
@@ -152,7 +152,7 @@ pub(crate) mod test {
     fn compress_KAT<D: CompressionFactor>() {
         for x in 0..BaseField::Q {
             let y_expected = rational_compress::<D>(x);
-            let mut y_actual = FieldElement::new(x);
+            let mut y_actual = Elem::new(x);
             y_actual.compress::<D>();
 
             assert_eq!(y_expected, y_actual.0, "for x: {}, D: {}", x, D::USIZE);
