@@ -90,7 +90,6 @@ impl<K: ArraySize> Compress for PolynomialVector<K> {
 pub(crate) mod test {
     use super::*;
     use array::typenum::{U1, U4, U5, U6, U10, U11, U12};
-    use module_lattice::algebra::Elem;
     use num_rational::Ratio;
 
     #[allow(clippy::cast_possible_truncation)]
@@ -112,7 +111,7 @@ pub(crate) mod test {
         let error_threshold = i32::from(Ratio::new(BaseField::Q, 1 << D::USIZE).to_integer());
 
         for x in 0..BaseField::Q {
-            let mut y = Elem(x);
+            let mut y = FieldElement::new(x);
             y.compress::<D>();
             y.decompress::<D>();
 
@@ -132,7 +131,7 @@ pub(crate) mod test {
 
     fn decompression_compression_equality<D: CompressionFactor>() {
         for x in 0..(1 << D::USIZE) {
-            let mut y = Elem(x);
+            let mut y = FieldElement::new(x);
             y.decompress::<D>();
             y.compress::<D>();
 
@@ -143,7 +142,7 @@ pub(crate) mod test {
     fn decompress_KAT<D: CompressionFactor>() {
         for y in 0..(1 << D::USIZE) {
             let x_expected = rational_decompress::<D>(y);
-            let mut x_actual = Elem(y);
+            let mut x_actual = FieldElement::new(y);
             x_actual.decompress::<D>();
 
             assert_eq!(x_expected, x_actual.0);
@@ -153,7 +152,7 @@ pub(crate) mod test {
     fn compress_KAT<D: CompressionFactor>() {
         for x in 0..BaseField::Q {
             let y_expected = rational_compress::<D>(x);
-            let mut y_actual = Elem(x);
+            let mut y_actual = FieldElement::new(x);
             y_actual.compress::<D>();
 
             assert_eq!(y_expected, y_actual.0, "for x: {}, D: {}", x, D::USIZE);

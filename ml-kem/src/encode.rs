@@ -151,7 +151,6 @@ pub(crate) mod test {
     };
     use core::{fmt::Debug, ops::Rem};
     use getrandom::SysRng;
-    use module_lattice::algebra::Elem;
     use module_lattice::algebra::Field;
     use rand_core::{Rng, UnwrapErr};
 
@@ -192,7 +191,7 @@ pub(crate) mod test {
             12 => BaseField::Q,
             d => (1 as Integer) << d,
         };
-        let decoded = decoded.iter().map(|x| Elem(x % m)).collect();
+        let decoded = decoded.iter().map(|x| FieldElement::new(x % m)).collect();
 
         let actual_encoded = byte_encode::<D>(&decoded);
         let actual_decoded = byte_decode::<D>(&actual_encoded);
@@ -205,20 +204,21 @@ pub(crate) mod test {
     #[test]
     fn byte_codec() {
         // The 1-bit can only represent decoded values equal to 0 or 1.
-        let decoded: DecodedValue = Array::<_, U2>([Elem(0), Elem(1)]).repeat();
+        let decoded: DecodedValue =
+            Array::<_, U2>([FieldElement::new(0), FieldElement::new(1)]).repeat();
         let encoded: EncodedPolynomial<U1> = Array([0xaa; 32]);
         byte_codec_test::<U1>(&decoded, &encoded);
 
         // For other codec widths, we use a standard sequence
         let decoded: DecodedValue = Array::<_, U8>([
-            Elem(0),
-            Elem(1),
-            Elem(2),
-            Elem(3),
-            Elem(4),
-            Elem(5),
-            Elem(6),
-            Elem(7),
+            FieldElement::new(0),
+            FieldElement::new(1),
+            FieldElement::new(2),
+            FieldElement::new(3),
+            FieldElement::new(4),
+            FieldElement::new(5),
+            FieldElement::new(6),
+            FieldElement::new(7),
         ])
         .repeat();
 
@@ -255,7 +255,7 @@ pub(crate) mod test {
     fn byte_codec_12_mod() {
         // DecodeBytes_12 is required to reduce mod q
         let encoded: EncodedPolynomial<U12> = Array([0xff; 384]);
-        let decoded: DecodedValue = Array([Elem(0xfff % BaseField::Q); 256]);
+        let decoded: DecodedValue = Array([FieldElement::new(0xfff % BaseField::Q); 256]);
 
         let actual_decoded = byte_decode::<U12>(&encoded);
         assert_eq!(actual_decoded, decoded);
@@ -277,14 +277,14 @@ pub(crate) mod test {
     fn vector_codec() {
         let poly = Polynomial(
             Array::<_, U8>([
-                Elem(0),
-                Elem(1),
-                Elem(2),
-                Elem(3),
-                Elem(4),
-                Elem(5),
-                Elem(6),
-                Elem(7),
+                FieldElement::new(0),
+                FieldElement::new(1),
+                FieldElement::new(2),
+                FieldElement::new(3),
+                FieldElement::new(4),
+                FieldElement::new(5),
+                FieldElement::new(6),
+                FieldElement::new(7),
             ])
             .repeat(),
         );

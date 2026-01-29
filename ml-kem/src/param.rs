@@ -28,7 +28,7 @@ use core::{
     ops::{Add, Div, Mul, Rem, Sub},
 };
 use module_lattice::{
-    algebra::{Elem, Field},
+    algebra::Field,
     util::{Flatten, Unflatten},
 };
 
@@ -122,7 +122,7 @@ where
     Const<N>: ToUInt<Output = U>,
 {
     let max = 1 << B;
-    let mut out = [Elem(0); N];
+    let mut out = [FieldElement::new(0); N];
     let mut x = 0usize;
     while x < max {
         let mut y = 0usize;
@@ -131,7 +131,7 @@ where
             let x_ones = x.count_ones() as u16;
             let y_ones = y.count_ones() as u16;
             let i = x + (y << B);
-            out[i] = Elem((x_ones + BaseField::Q - y_ones) % BaseField::Q);
+            out[i] = FieldElement::new((x_ones + BaseField::Q - y_ones) % BaseField::Q);
 
             y += 1;
         }
