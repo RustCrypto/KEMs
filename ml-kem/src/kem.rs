@@ -57,6 +57,7 @@ where
 {
     fn drop(&mut self) {
         self.dk_pke.zeroize();
+        self.d.zeroize();
         self.z.zeroize();
     }
 }
