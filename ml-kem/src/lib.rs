@@ -98,6 +98,7 @@ pub type Seed = Array<u8, U64>;
 /// cipher with a 128-bit key.
 pub mod ml_kem_512 {
     use super::{Debug, ParameterSet, U2, U3, U4, U10, kem};
+    use crate::param;
 
     /// `MlKem512` is the parameter set for security category 1, corresponding to key search on a
     /// block cipher with a 128-bit key.
@@ -119,12 +120,21 @@ pub mod ml_kem_512 {
     /// An ML-KEM-512 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
     /// can only be decapsulated by the holder of the corresponding decapsulation key.
     pub type EncapsulationKey = kem::EncapsulationKey<MlKem512Params>;
+
+    /// Encoded ML-KEM-512 ciphertexts.
+    pub type EncodedCiphertext = param::EncodedCiphertext<MlKem512Params>;
+
+    /// Legacy expanded decapsulation keys. Prefer seeds instead.
+    #[doc(hidden)]
+    #[deprecated(since = "0.3.0", note = "use `Seed` instead")]
+    pub type ExpandedDecapsulationKey = param::ExpandedDecapsulationKey<MlKem512Params>;
 }
 
 /// ML-KEM-768 is the parameter set for security category 3, corresponding to key search on a block
 /// cipher with a 192-bit key.
 pub mod ml_kem_768 {
     use super::{Debug, ParameterSet, U2, U3, U4, U10, kem};
+    use crate::param;
 
     /// `MlKem768` is the parameter set for security category 3, corresponding to key search on a
     /// block cipher with a 192-bit key.
@@ -146,12 +156,20 @@ pub mod ml_kem_768 {
     /// An ML-KEM-768 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
     /// can only be decapsulated by the holder of the corresponding decapsulation key.
     pub type EncapsulationKey = kem::EncapsulationKey<MlKem768Params>;
+
+    /// Encoded ML-KEM-512 ciphertexts.
+    pub type EncodedCiphertext = param::EncodedCiphertext<MlKem768Params>;
+
+    /// Legacy expanded decapsulation keys. Prefer seeds instead.
+    #[doc(hidden)]
+    #[deprecated(since = "0.3.0", note = "use `Seed` instead")]
+    pub type ExpandedDecapsulationKey = param::ExpandedDecapsulationKey<MlKem768Params>;
 }
 
 /// ML-KEM-1024 is the parameter set for security category 5, corresponding to key search on a block
 /// cipher with a 256-bit key.
 pub mod ml_kem_1024 {
-    use super::{Debug, ParameterSet, U2, U4, U5, U11, kem};
+    use super::{Debug, ParameterSet, U2, U4, U5, U11, kem, param};
 
     /// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a
     /// block cipher with a 256-bit key.
@@ -173,6 +191,14 @@ pub mod ml_kem_1024 {
     /// An ML-KEM-1024 `EncapsulationKey` provides the ability to encapsulate a shared key so that
     /// it can only be decapsulated by the holder of the corresponding decapsulation key.
     pub type EncapsulationKey = kem::EncapsulationKey<MlKem1024Params>;
+
+    /// Encoded ML-KEM-512 ciphertexts.
+    pub type EncodedCiphertext = param::EncodedCiphertext<MlKem1024Params>;
+
+    /// Legacy expanded decapsulation keys. Prefer seeds instead.
+    #[doc(hidden)]
+    #[deprecated(since = "0.3.0", note = "use `Seed` instead")]
+    pub type ExpandedDecapsulationKey = param::ExpandedDecapsulationKey<MlKem1024Params>;
 }
 
 /// An ML-KEM-512 `DecapsulationKey` which provides the ability to generate a new key pair, and
