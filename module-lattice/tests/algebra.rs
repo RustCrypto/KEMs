@@ -322,7 +322,7 @@ fn ntt_polynomial_from_array() {
 
     let coeffs: Array<Elem<KyberField>, hybrid_array::typenum::U256> =
         core::array::from_fn(|i| Elem::new((i % 3329) as u16)).into();
-    let p: NttPolynomial<KyberField> = coeffs.clone().into();
+    let p: NttPolynomial<KyberField> = coeffs.into();
 
     assert_eq!(p.0[0].0, 0);
     assert_eq!(p.0[1].0, 1);

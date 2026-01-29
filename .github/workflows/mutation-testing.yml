@@ -43,10 +43,17 @@ jobs:
         package:
           - ml-kem
           - module-lattice
+          - dhkem
+          - frodo-kem
+          - x-wing
         # Only filter if a specific package was requested via workflow_dispatch
+        # For push/pull_request events, inputs.package is undefined, so default to 'all'
         exclude:
-          - package: ${{ github.event.inputs.package != 'all' && github.event.inputs.package != 'ml-kem' && 'ml-kem' || 'NONE' }}
-          - package: ${{ github.event.inputs.package != 'all' && github.event.inputs.package != 'module-lattice' && 'module-lattice' || 'NONE' }}
+          - package: ${{ (github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'ml-kem' && 'ml-kem' || 'NONE' }}
+          - package: ${{ (github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'module-lattice' && 'module-lattice' || 'NONE' }}
+          - package: ${{ (github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'dhkem' && 'dhkem' || 'NONE' }}
+          - package: ${{ (github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'frodo-kem' && 'frodo-kem' || 'NONE' }}
+          - package: ${{ (github.event.inputs.package || 'all') != 'all' && (github.event.inputs.package || 'all') != 'x-wing' && 'x-wing' || 'NONE' }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
