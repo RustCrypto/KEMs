@@ -19,10 +19,10 @@ exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "te
 alloc = ["pkcs8?/alloc"]
 
 getrandom = ["kem/getrandom"]
+hazmat = []
 pem = ["pkcs8/pem"]
 pkcs8 = ["dep:const-oid", "dep:pkcs8"]
 zeroize = ["module-lattice/zeroize", "dep:zeroize"]
-hazmat = []
 
 [dependencies]
 array = { package = "hybrid-array", version = "0.4.4", features = ["extra-sizes", "subtle"] }
