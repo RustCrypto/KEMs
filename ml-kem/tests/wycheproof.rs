@@ -1,8 +1,9 @@
 //! Test against the Wycheproof test vectors.
 
+use array::{Array, ArraySize};
 use ml_kem::{
     EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024,
-    kem::{KeyExport, TryKeyInit},
+    kem::{Decapsulate, KeyExport, TryKeyInit},
 };
 use serde::Deserialize;
 use std::fs::File;
@@ -43,7 +44,6 @@ struct Test {
     dk: Option<String>,
     #[cfg(feature = "hazmat")]
     m: Option<String>,
-    #[cfg(feature = "hazmat")]
     c: Option<String>,
     #[cfg(feature = "hazmat")]
     #[serde(default, rename(deserialize = "K"))]
@@ -73,13 +73,16 @@ macro_rules! load_json_file {
     }};
 }
 
-fn decode_optional_hex(opt: &Option<String>, field: &str) -> Vec<u8> {
-    match opt {
-        Some(h) => {
-            hex::decode(h).unwrap_or_else(|e| panic!("invalid hex for field '{field}': {e}"))
-        }
-        None => panic!("missing field: {field}"),
-    }
+fn decode_optional_hex<U: ArraySize>(opt: &Option<String>, field: &str) -> Option<Array<u8, U>> {
+    opt.as_ref().and_then(|h| {
+        let vec = hex::decode(h).unwrap_or_else(|e| panic!("invalid hex for field '{field}': {e}"));
+        vec.as_slice().try_into().ok()
+    })
+}
+
+fn decode_expected_hex<U: ArraySize>(opt: &Option<String>, field: &str) -> Array<u8, U> {
+    decode_optional_hex(opt, field)
+        .unwrap_or_else(|| panic!("missing or incorrect length field: {field}"))
 }
 
 macro_rules! mlkem_keygen_seed_test {
@@ -101,11 +104,11 @@ macro_rules! mlkem_keygen_seed_test {
                         test.comment.as_ref().unwrap(),
                         &test.result
                     );
-                    let test_seed = decode_optional_hex(&test.seed, "seed");
-                    let test_dk = decode_optional_hex(&test.dk, "dk");
+                    let test_seed = decode_expected_hex(&test.seed, "seed");
+                    let test_dk = decode_expected_hex(&test.dk, "dk");
 
-                    let (dk, ek) = $kem::from_seed(test_seed.as_slice().try_into().unwrap());
-                    assert_eq!(test_dk.as_slice(), dk.to_encoded_bytes().as_slice());
+                    let (dk, ek) = $kem::from_seed(test_seed);
+                    assert_eq!(test_dk, dk.to_encoded_bytes());
                     assert_eq!(test.ek.as_slice(), ek.to_bytes().as_slice());
                 }
             }
@@ -143,15 +146,68 @@ macro_rules! mlkem_encaps_test {
 
                     #[cfg(feature = "hazmat")]
                     {
-                        let test_m = decode_optional_hex(&test.m, "m");
-                        let test_m = test_m.as_slice().try_into().unwrap();
-                        let (c, k) = ek.encapsulate_deterministic(test_m);
+                        let test_m = decode_expected_hex(&test.m, "m");
+                        let (c, k) = ek.encapsulate_deterministic(&test_m);
 
-                        let test_c = decode_optional_hex(&test.c, "c");
-                        let test_k = decode_optional_hex(&test.k, "K");
-                        assert_eq!(test_c.as_slice(), c.as_slice());
-                        assert_eq!(test_k.as_slice(), k.as_slice());
+                        let test_c = decode_expected_hex(&test.c, "c");
+                        let test_k = decode_expected_hex(&test.k, "K");
+                        assert_eq!(test_c, c);
+                        assert_eq!(test_k, k);
                     }
+                }
+            }
+        }
+    };
+}
+
+macro_rules! mlkem_decaps_test {
+    ($name:ident, $json_file:expr, $kem_module:ident) => {
+        #[test]
+        fn $name() {
+            let tests = load_json_file!($json_file);
+
+            for group in tests.groups {
+                println!(
+                    "Parameter set: {} ({} v{})\n",
+                    &group.parameter_set, &group.source.name, &group.source.version
+                );
+
+                for test in &group.tests {
+                    println!("Test #{} ({:?})", test.id, &test.result);
+
+                    #[allow(deprecated)]
+                    use ml_kem::$kem_module::{
+                        DecapsulationKey, EncodedCiphertext, ExpandedDecapsulationKey,
+                    };
+
+                    #[allow(deprecated)]
+                    let test_dk: ExpandedDecapsulationKey =
+                        match decode_optional_hex(&test.dk, "dk") {
+                            Some(dk) => dk,
+                            None => {
+                                if test.result == ExpectedResult::Invalid {
+                                    continue;
+                                } else {
+                                    panic!("failed to decode expanded decapsulation key!")
+                                }
+                            }
+                        };
+
+                    #[allow(deprecated)]
+                    let dk = DecapsulationKey::from_expanded(&test_dk).expect("should be valid");
+
+                    let test_c: EncodedCiphertext = match decode_optional_hex(&test.c, "c") {
+                        Some(dk) => dk,
+                        None => {
+                            if test.result == ExpectedResult::Invalid {
+                                continue;
+                            } else {
+                                panic!("failed to decode ciphertext!")
+                            }
+                        }
+                    };
+
+                    let _ss = dk.decapsulate(&test_c);
                 }
             }
         }
@@ -172,6 +228,22 @@ mlkem_keygen_seed_test!(
     mlkem_1024_keygen_seed_test,
     "mlkem_1024_keygen_seed_test.json",
     MlKem1024
+);
+
+mlkem_decaps_test!(
+    mlkem_512_semi_expanded_decaps_test,
+    "mlkem_512_semi_expanded_decaps_test.json",
+    ml_kem_512
+);
+mlkem_decaps_test!(
+    mlkem_768_semi_expanded_decaps_test,
+    "mlkem_768_semi_expanded_decaps_test.json",
+    ml_kem_768
+);
+mlkem_decaps_test!(
+    mlkem_1024_semi_expanded_decaps_test,
+    "mlkem_1024_semi_expanded_decaps_test.json",
+    ml_kem_1024
 );
 
 mlkem_encaps_test!(
