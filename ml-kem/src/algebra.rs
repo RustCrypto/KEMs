@@ -471,6 +471,11 @@ mod test {
         assert_eq!((&v1 * &v2), const_ntt(6));
         assert_eq!((&v1 * &v3), const_ntt(9));
         assert_eq!((&v2 * &v3), const_ntt(18));
+
+        // Verify inequality (catches PartialEq mutation that returns true unconditionally)
+        assert_ne!(v1, v2);
+        assert_ne!(v1, v3);
+        assert_ne!(v2, v3);
     }
 
     #[test]

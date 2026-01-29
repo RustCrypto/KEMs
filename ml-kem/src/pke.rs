@@ -264,4 +264,26 @@ mod test {
         let invalid_key = [0xFF; 1184];
         assert!(EncryptionKey::<MlKem768Params>::from_bytes(&invalid_key.into()).is_err());
     }
+
+    fn key_inequality_test<P>()
+    where
+        P: PkeParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+        let d1 = B32::generate_from_rng(&mut rng);
+        let d2 = B32::generate_from_rng(&mut rng);
+
+        let (dk1, _) = DecryptionKey::<P>::generate(&d1);
+        let (dk2, _) = DecryptionKey::<P>::generate(&d2);
+
+        // Verify inequality (catches PartialEq mutation that returns true unconditionally)
+        assert_ne!(dk1, dk2);
+    }
+
+    #[test]
+    fn key_inequality() {
+        key_inequality_test::<MlKem512Params>();
+        key_inequality_test::<MlKem768Params>();
+        key_inequality_test::<MlKem1024Params>();
+    }
 }
