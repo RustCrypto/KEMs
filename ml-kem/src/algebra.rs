@@ -1,5 +1,4 @@
 use array::{Array, typenum::U256};
-use core::ops::Mul;
 use module_lattice::{
     algebra::{Field, MultiplyNtt},
     util::Truncate,
@@ -29,6 +28,10 @@ pub type NttPolynomial = module_lattice::algebra::NttPolynomial<BaseField>;
 
 /// A vector of K NTT-domain polynomials.
 pub type NttVector<K> = module_lattice::algebra::NttVector<BaseField, K>;
+
+/// A K x K matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
+/// multiplying on the right just requires iteration.
+pub type NttMatrix<K> = module_lattice::algebra::NttMatrix<BaseField, K, K>;
 
 /// Algorithm 7: `SampleNTT(B)`
 pub fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
@@ -89,6 +92,16 @@ pub fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
 
     let mut reader = FieldElementReader::new(B);
     NttPolynomial::new(Array::from_fn(|_| reader.next()))
+}
+
+pub(crate) fn matrix_sample_ntt<K: ArraySize>(rho: &B32, transpose: bool) -> NttMatrix<K> {
+    NttMatrix::new(Array::from_fn(|i| {
+        NttVector::new(Array::from_fn(|j| {
+            let (i, j) = if transpose { (j, i) } else { (i, j) };
+            let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
+            sample_ntt(&mut xof)
+        }))
+    }))
 }
 
 /// Algorithm 8: `SamplePolyCBD_eta(B)`
@@ -301,42 +314,18 @@ const GAMMA: [Elem; 128] = {
     gamma
 };
 
-/// A K x K matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
-/// multiplying on the right just requires iteration.
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttMatrix<K: ArraySize>(Array<NttVector<K>, K>);
-
-impl<K: ArraySize> Mul<&NttVector<K>> for &NttMatrix<K> {
-    type Output = NttVector<K>;
-
-    fn mul(self, rhs: &NttVector<K>) -> NttVector<K> {
-        NttVector::new(self.0.iter().map(|x| x * rhs).collect())
-    }
-}
-
-impl<K: ArraySize> NttMatrix<K> {
-    pub fn sample_uniform(rho: &B32, transpose: bool) -> Self {
-        Self(Array::from_fn(|i| {
-            NttVector::new(Array::from_fn(|j| {
-                let (i, j) = if transpose { (j, i) } else { (i, j) };
-                let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
-                sample_ntt(&mut xof)
-            }))
-        }))
-    }
-
-    pub fn transpose(&self) -> Self {
-        Self(Array::from_fn(|i| {
-            NttVector::new(Array::from_fn(|j| self.0[j].0[i].clone()))
-        }))
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
     use array::typenum::{U2, U3, U8};
     use module_lattice::util::Flatten;
+
+    /// A polynomial with only a scalar component, to make simple test cases
+    fn const_ntt(x: Int) -> NttPolynomial {
+        let mut p = Polynomial::default();
+        p.0[0] = Elem::new(x);
+        p.ntt()
+    }
 
     /// Multiplication in `R_q`, modulo X^256 + 1
     fn poly_mul(lhs: &Polynomial, rhs: &Polynomial) -> Polynomial {
@@ -355,11 +344,11 @@ mod test {
         out
     }
 
-    // A polynomial with only a scalar component, to make simple test cases
-    fn const_ntt(x: Int) -> NttPolynomial {
-        let mut p = Polynomial::default();
-        p.0[0] = Elem::new(x);
-        p.ntt()
+    /// Transpose `NttMatrix`
+    fn matrix_transpose<K: ArraySize>(matrix: &NttMatrix<K>) -> NttMatrix<K> {
+        NttMatrix::new(Array::from_fn(|i| {
+            NttVector::new(Array::from_fn(|j| matrix.0[j].0[i].clone()))
+        }))
     }
 
     #[test]
@@ -420,7 +409,7 @@ mod test {
     #[test]
     fn ntt_matrix() {
         // Verify matrix multiplication by a vector
-        let a: NttMatrix<U3> = NttMatrix(Array([
+        let a: NttMatrix<U3> = NttMatrix::new(Array([
             NttVector::new(Array([const_ntt(1), const_ntt(2), const_ntt(3)])),
             NttVector::new(Array([const_ntt(4), const_ntt(5), const_ntt(6)])),
             NttVector::new(Array([const_ntt(7), const_ntt(8), const_ntt(9)])),
@@ -431,12 +420,12 @@ mod test {
         assert_eq!(&a * &v_in, v_out);
 
         // Verify transpose
-        let aT = NttMatrix(Array([
+        let aT = NttMatrix::new(Array([
             NttVector::new(Array([const_ntt(1), const_ntt(4), const_ntt(7)])),
             NttVector::new(Array([const_ntt(2), const_ntt(5), const_ntt(8)])),
             NttVector::new(Array([const_ntt(3), const_ntt(6), const_ntt(9)])),
         ]));
-        assert_eq!(a.transpose(), aT);
+        assert_eq!(matrix_transpose(&a), aT);
     }
 
     // To verify the accuracy of sampling, we use a theorem related to the law of large numbers,
