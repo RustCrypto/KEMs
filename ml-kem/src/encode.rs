@@ -1,7 +1,5 @@
 use crate::{
-    algebra::{
-        BaseField, FieldElement, Integer, NttPolynomial, NttVector, Polynomial, PolynomialVector,
-    },
+    algebra::{BaseField, Elem, Int, NttPolynomial, NttVector, Polynomial, Vector},
     param::{ArraySize, EncodedPolynomial, EncodingSize, VectorEncodingSize},
 };
 use array::{
@@ -10,7 +8,7 @@ use array::{
 };
 use module_lattice::{algebra::Field, util::Truncate};
 
-type DecodedValue = Array<FieldElement, U256>;
+type DecodedValue = Array<Elem, U256>;
 
 // Algorithm 4 ByteEncode_d(F)
 //
@@ -54,7 +52,7 @@ fn byte_decode<D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> DecodedValue {
 
         let x = u128::from_le_bytes(xb);
         for (j, vj) in v.iter_mut().enumerate() {
-            let val: Integer = Truncate::truncate(x >> (D::USIZE * j));
+            let val: Int = Truncate::truncate(x >> (D::USIZE * j));
             vj.0 = val & mask;
 
             if D::USIZE == 12 {
@@ -84,7 +82,7 @@ impl<D: EncodingSize> Encode<D> for Polynomial {
     }
 }
 
-impl<D, K> Encode<D> for PolynomialVector<K>
+impl<D, K> Encode<D> for Vector<K>
 where
     K: ArraySize,
     D: VectorEncodingSize<K>,
@@ -186,12 +184,12 @@ pub(crate) mod test {
 
         // Test random decode/encode and encode/decode round trips
         let mut rng = UnwrapErr(SysRng);
-        let decoded = Array::<Integer, U256>::from_fn(|_| (rng.next_u32() & 0xFFFF) as Integer);
+        let decoded = Array::<Int, U256>::from_fn(|_| (rng.next_u32() & 0xFFFF) as Int);
         let m = match D::USIZE {
             12 => BaseField::Q,
-            d => (1 as Integer) << d,
+            d => (1 as Int) << d,
         };
-        let decoded = decoded.iter().map(|x| FieldElement::new(x % m)).collect();
+        let decoded = decoded.iter().map(|x| Elem::new(x % m)).collect();
 
         let actual_encoded = byte_encode::<D>(&decoded);
         let actual_decoded = byte_decode::<D>(&actual_encoded);
@@ -204,21 +202,20 @@ pub(crate) mod test {
     #[test]
     fn byte_codec() {
         // The 1-bit can only represent decoded values equal to 0 or 1.
-        let decoded: DecodedValue =
-            Array::<_, U2>([FieldElement::new(0), FieldElement::new(1)]).repeat();
+        let decoded: DecodedValue = Array::<_, U2>([Elem::new(0), Elem::new(1)]).repeat();
         let encoded: EncodedPolynomial<U1> = Array([0xaa; 32]);
         byte_codec_test::<U1>(&decoded, &encoded);
 
         // For other codec widths, we use a standard sequence
         let decoded: DecodedValue = Array::<_, U8>([
-            FieldElement::new(0),
-            FieldElement::new(1),
-            FieldElement::new(2),
-            FieldElement::new(3),
-            FieldElement::new(4),
-            FieldElement::new(5),
-            FieldElement::new(6),
-            FieldElement::new(7),
+            Elem::new(0),
+            Elem::new(1),
+            Elem::new(2),
+            Elem::new(3),
+            Elem::new(4),
+            Elem::new(5),
+            Elem::new(6),
+            Elem::new(7),
         ])
         .repeat();
 
@@ -255,7 +252,7 @@ pub(crate) mod test {
     fn byte_codec_12_mod() {
         // DecodeBytes_12 is required to reduce mod q
         let encoded: EncodedPolynomial<U12> = Array([0xff; 384]);
-        let decoded: DecodedValue = Array([FieldElement::new(0xfff % BaseField::Q); 256]);
+        let decoded: DecodedValue = Array([Elem::new(0xfff % BaseField::Q); 256]);
 
         let actual_decoded = byte_decode::<U12>(&encoded);
         assert_eq!(actual_decoded, decoded);
@@ -277,32 +274,32 @@ pub(crate) mod test {
     fn vector_codec() {
         let poly = Polynomial::new(
             Array::<_, U8>([
-                FieldElement::new(0),
-                FieldElement::new(1),
-                FieldElement::new(2),
-                FieldElement::new(3),
-                FieldElement::new(4),
-                FieldElement::new(5),
-                FieldElement::new(6),
-                FieldElement::new(7),
+                Elem::new(0),
+                Elem::new(1),
+                Elem::new(2),
+                Elem::new(3),
+                Elem::new(4),
+                Elem::new(5),
+                Elem::new(6),
+                Elem::new(7),
             ])
             .repeat(),
         );
 
         // The required vector sizes are 2, 3, and 4.
-        let decoded: PolynomialVector<U2> = PolynomialVector::new(Array([poly, poly]));
+        let decoded: Vector<U2> = Vector::new(Array([poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U2> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        vector_codec_known_answer_test::<U5, PolynomialVector<U2>>(&decoded, &encoded);
+        vector_codec_known_answer_test::<U5, Vector<U2>>(&decoded, &encoded);
 
-        let decoded: PolynomialVector<U3> = PolynomialVector::new(Array([poly, poly, poly]));
+        let decoded: Vector<U3> = Vector::new(Array([poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U3> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        vector_codec_known_answer_test::<U5, PolynomialVector<U3>>(&decoded, &encoded);
+        vector_codec_known_answer_test::<U5, Vector<U3>>(&decoded, &encoded);
 
-        let decoded: PolynomialVector<U4> = PolynomialVector::new(Array([poly, poly, poly, poly]));
+        let decoded: Vector<U4> = Vector::new(Array([poly, poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U4> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
-        vector_codec_known_answer_test::<U5, PolynomialVector<U4>>(&decoded, &encoded);
+        vector_codec_known_answer_test::<U5, Vector<U4>>(&decoded, &encoded);
     }
 }

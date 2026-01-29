@@ -1,7 +1,6 @@
 use crate::B32;
 use crate::algebra::{
-    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, PolynomialVector, sample_poly_cbd,
-    sample_poly_vec_cbd,
+    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, sample_poly_cbd, sample_poly_vec_cbd,
 };
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
@@ -67,8 +66,8 @@ where
 
         // Sample pseudo-random matrix and vectors
         let A_hat: NttMatrix<P::K> = NttMatrix::sample_uniform(&rho, false);
-        let s: PolynomialVector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, 0);
-        let e: PolynomialVector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, P::K::U8);
+        let s: Vector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, 0);
+        let e: Vector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, P::K::U8);
 
         // NTT the vectors
         let s_hat = s.ntt();
@@ -88,7 +87,7 @@ where
     pub fn decrypt(&self, ciphertext: &EncodedCiphertext<P>) -> B32 {
         let (c1, c2) = P::split_ct(ciphertext);
 
-        let mut u: PolynomialVector<P::K> = Encode::<P::Du>::decode(c1);
+        let mut u: Vector<P::K> = Encode::<P::Du>::decode(c1);
         u.decompress::<P::Du>();
 
         let mut v: Polynomial = Encode::<P::Dv>::decode(c2);
@@ -138,7 +137,7 @@ where
 
         let A_hat_t = NttMatrix::<P::K>::sample_uniform(&self.rho, true);
         let r_hat: NttVector<P::K> = r.ntt();
-        let ATr: PolynomialVector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
+        let ATr: Vector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
         let mut u = ATr + e1;
 
         let mut mu: Polynomial = Encode::<U1>::decode(message);
