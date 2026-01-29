@@ -1,19 +1,15 @@
 use array::{Array, typenum::U256};
-use core::ops::{Add, Mul};
+use core::ops::Mul;
 use module_lattice::{
     algebra::{Field, MultiplyNtt},
     util::Truncate,
 };
 use sha3::digest::XofReader;
-use subtle::{Choice, ConstantTimeEq};
 
 use crate::B32;
 use crate::crypto::{PRF, PrfOutput, XOF};
 use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
-
-#[cfg(feature = "zeroize")]
-use zeroize::Zeroize;
 
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
 
@@ -30,6 +26,9 @@ pub type Vector<K> = module_lattice::algebra::Vector<BaseField, K>;
 
 /// An element of the ring `T_q` i.e. a tuple of 128 elements of the direct sum components of `T_q`.
 pub type NttPolynomial = module_lattice::algebra::NttPolynomial<BaseField>;
+
+/// A vector of K NTT-domain polynomials.
+pub type NttVector<K> = module_lattice::algebra::NttVector<BaseField, K>;
 
 /// Algorithm 7: `SampleNTT(B)`
 pub fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
@@ -154,7 +153,7 @@ impl<K: ArraySize> Ntt for Vector<K> {
     type Output = NttVector<K>;
 
     fn ntt(&self) -> NttVector<K> {
-        NttVector(self.0.iter().map(Ntt::ntt).collect())
+        NttVector::new(self.0.iter().map(Ntt::ntt).collect())
     }
 }
 
@@ -188,6 +187,14 @@ impl NttInverse for NttPolynomial {
         }
 
         Elem::new(3303) * &Polynomial::new(f)
+    }
+}
+
+impl<K: ArraySize> NttInverse for NttVector<K> {
+    type Output = Vector<K>;
+
+    fn ntt_inverse(&self) -> Vector<K> {
+        Vector::new(self.0.iter().map(NttInverse::ntt_inverse).collect())
     }
 }
 
@@ -294,78 +301,6 @@ const GAMMA: [Elem; 128] = {
     gamma
 };
 
-/// A vector of K NTT-domain polynomials
-#[derive(Clone, Default, Debug)]
-pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
-
-impl<K: ArraySize> NttVector<K> {
-    pub fn sample_uniform(rho: &B32, i: usize, transpose: bool) -> Self {
-        Self(Array::from_fn(|j| {
-            let (i, j) = if transpose { (j, i) } else { (i, j) };
-            let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
-            sample_ntt(&mut xof)
-        }))
-    }
-}
-
-impl<K: ArraySize> ConstantTimeEq for NttVector<K> {
-    fn ct_eq(&self, other: &Self) -> Choice {
-        self.0.ct_eq(&other.0)
-    }
-}
-
-impl<K: ArraySize> Eq for NttVector<K> {}
-impl<K: ArraySize> PartialEq for NttVector<K> {
-    fn eq(&self, other: &Self) -> bool {
-        // Impl `PartialEq` in constant-time, in case this value contains a secret
-        self.0.ct_eq(&other.0).into()
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl<K> Zeroize for NttVector<K>
-where
-    K: ArraySize,
-{
-    fn zeroize(&mut self) {
-        for poly in &mut self.0 {
-            poly.zeroize();
-        }
-    }
-}
-
-impl<K: ArraySize> Add<&NttVector<K>> for &NttVector<K> {
-    type Output = NttVector<K>;
-
-    fn add(self, rhs: &NttVector<K>) -> NttVector<K> {
-        NttVector(
-            self.0
-                .iter()
-                .zip(rhs.0.iter())
-                .map(|(x, y)| x + y)
-                .collect(),
-        )
-    }
-}
-
-impl<K: ArraySize> Mul<&NttVector<K>> for &NttVector<K> {
-    type Output = NttPolynomial;
-
-    fn mul(self, rhs: &NttVector<K>) -> NttPolynomial {
-        self.0
-            .iter()
-            .zip(rhs.0.iter())
-            .map(|(x, y)| x * y)
-            .fold(NttPolynomial::default(), |x, y| &x + &y)
-    }
-}
-
-impl<K: ArraySize> NttVector<K> {
-    pub fn ntt_inverse(&self) -> Vector<K> {
-        Vector::new(self.0.iter().map(NttInverse::ntt_inverse).collect())
-    }
-}
-
 /// A K x K matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
 /// multiplying on the right just requires iteration.
 #[derive(Clone, Default, Debug, PartialEq)]
@@ -375,20 +310,24 @@ impl<K: ArraySize> Mul<&NttVector<K>> for &NttMatrix<K> {
     type Output = NttVector<K>;
 
     fn mul(self, rhs: &NttVector<K>) -> NttVector<K> {
-        NttVector(self.0.iter().map(|x| x * rhs).collect())
+        NttVector::new(self.0.iter().map(|x| x * rhs).collect())
     }
 }
 
 impl<K: ArraySize> NttMatrix<K> {
     pub fn sample_uniform(rho: &B32, transpose: bool) -> Self {
         Self(Array::from_fn(|i| {
-            NttVector::sample_uniform(rho, i, transpose)
+            NttVector::new(Array::from_fn(|j| {
+                let (i, j) = if transpose { (j, i) } else { (i, j) };
+                let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
+                sample_ntt(&mut xof)
+            }))
         }))
     }
 
     pub fn transpose(&self) -> Self {
         Self(Array::from_fn(|i| {
-            NttVector(Array::from_fn(|j| self.0[j].0[i].clone()))
+            NttVector::new(Array::from_fn(|j| self.0[j].0[i].clone()))
         }))
     }
 }
@@ -462,9 +401,9 @@ mod test {
     #[test]
     fn ntt_vector() {
         // Verify vector addition
-        let v1: NttVector<U3> = NttVector(Array([const_ntt(1), const_ntt(1), const_ntt(1)]));
-        let v2: NttVector<U3> = NttVector(Array([const_ntt(2), const_ntt(2), const_ntt(2)]));
-        let v3: NttVector<U3> = NttVector(Array([const_ntt(3), const_ntt(3), const_ntt(3)]));
+        let v1: NttVector<U3> = NttVector::new(Array([const_ntt(1), const_ntt(1), const_ntt(1)]));
+        let v2: NttVector<U3> = NttVector::new(Array([const_ntt(2), const_ntt(2), const_ntt(2)]));
+        let v3: NttVector<U3> = NttVector::new(Array([const_ntt(3), const_ntt(3), const_ntt(3)]));
         assert_eq!((&v1 + &v2), v3);
 
         // Verify dot product
@@ -477,19 +416,20 @@ mod test {
     fn ntt_matrix() {
         // Verify matrix multiplication by a vector
         let a: NttMatrix<U3> = NttMatrix(Array([
-            NttVector(Array([const_ntt(1), const_ntt(2), const_ntt(3)])),
-            NttVector(Array([const_ntt(4), const_ntt(5), const_ntt(6)])),
-            NttVector(Array([const_ntt(7), const_ntt(8), const_ntt(9)])),
+            NttVector::new(Array([const_ntt(1), const_ntt(2), const_ntt(3)])),
+            NttVector::new(Array([const_ntt(4), const_ntt(5), const_ntt(6)])),
+            NttVector::new(Array([const_ntt(7), const_ntt(8), const_ntt(9)])),
         ]));
-        let v_in: NttVector<U3> = NttVector(Array([const_ntt(1), const_ntt(2), const_ntt(3)]));
-        let v_out: NttVector<U3> = NttVector(Array([const_ntt(14), const_ntt(32), const_ntt(50)]));
+        let v_in: NttVector<U3> = NttVector::new(Array([const_ntt(1), const_ntt(2), const_ntt(3)]));
+        let v_out: NttVector<U3> =
+            NttVector::new(Array([const_ntt(14), const_ntt(32), const_ntt(50)]));
         assert_eq!(&a * &v_in, v_out);
 
         // Verify transpose
         let aT = NttMatrix(Array([
-            NttVector(Array([const_ntt(1), const_ntt(4), const_ntt(7)])),
-            NttVector(Array([const_ntt(2), const_ntt(5), const_ntt(8)])),
-            NttVector(Array([const_ntt(3), const_ntt(6), const_ntt(9)])),
+            NttVector::new(Array([const_ntt(1), const_ntt(4), const_ntt(7)])),
+            NttVector::new(Array([const_ntt(2), const_ntt(5), const_ntt(8)])),
+            NttVector::new(Array([const_ntt(3), const_ntt(6), const_ntt(9)])),
         ]));
         assert_eq!(a.transpose(), aT);
     }
