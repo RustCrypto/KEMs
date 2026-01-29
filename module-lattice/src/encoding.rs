@@ -7,7 +7,7 @@ use core::ops::{Div, Mul, Rem};
 use num_traits::One;
 
 use super::algebra::{Elem, Field, NttPolynomial, NttVector, Polynomial, Vector};
-use super::util::{Flatten, Truncate, Unflatten};
+use super::utils::{Flatten, Truncate, Unflatten};
 
 /// An array length with other useful properties
 pub trait ArraySize: array::ArraySize + PartialEq + Debug {}

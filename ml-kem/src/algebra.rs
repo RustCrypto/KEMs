@@ -1,8 +1,8 @@
 use array::{Array, typenum::U256};
 use module_lattice::{
     algebra::{Field, MultiplyNtt},
-    encode::Encode,
-    util::Truncate,
+    encoding::Encode,
+    utils::Truncate,
 };
 use sha3::digest::XofReader;
 
@@ -318,7 +318,7 @@ const GAMMA: [Elem; 128] = {
 mod test {
     use super::*;
     use array::typenum::{U2, U3, U8};
-    use module_lattice::util::Flatten;
+    use module_lattice::utils::Flatten;
 
     /// A polynomial with only a scalar component, to make simple test cases
     fn const_ntt(x: Int) -> NttPolynomial {
