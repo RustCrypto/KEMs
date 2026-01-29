@@ -25,10 +25,154 @@ pub type Polynomial = module_lattice::algebra::Polynomial<BaseField>;
 /// A vector of polynomials of length `K`.
 pub type PolynomialVector<K> = module_lattice::algebra::Vector<BaseField, K>;
 
+/// An element of the ring `T_q` i.e. a tuple of 128 elements of the direct sum components of `T_q`.
+pub type NttPolynomial = module_lattice::algebra::NttPolynomial<BaseField>;
+
+// Algorithm 7 SampleNTT(B)
+pub fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
+    struct FieldElementReader<'a> {
+        xof: &'a mut dyn XofReader,
+        data: [u8; 96],
+        start: usize,
+        next: Option<Integer>,
+    }
+
+    impl<'a> FieldElementReader<'a> {
+        fn new(xof: &'a mut impl XofReader) -> Self {
+            let mut out = Self {
+                xof,
+                data: [0u8; 96],
+                start: 0,
+                next: None,
+            };
+
+            // Fill the buffer
+            out.xof.read(&mut out.data);
+
+            out
+        }
+
+        fn next(&mut self) -> FieldElement {
+            if let Some(val) = self.next {
+                self.next = None;
+                return FieldElement::new(val);
+            }
+
+            loop {
+                if self.start == self.data.len() {
+                    self.xof.read(&mut self.data);
+                    self.start = 0;
+                }
+
+                let end = self.start + 3;
+                let b = &self.data[self.start..end];
+                self.start = end;
+
+                let d1 = Integer::from(b[0]) + ((Integer::from(b[1]) & 0xf) << 8);
+                let d2 = (Integer::from(b[1]) >> 4) + ((Integer::from(b[2]) as Integer) << 4);
+
+                if d1 < BaseField::Q {
+                    if d2 < BaseField::Q {
+                        self.next = Some(d2);
+                    }
+                    return FieldElement::new(d1);
+                }
+
+                if d2 < BaseField::Q {
+                    return FieldElement::new(d2);
+                }
+            }
+        }
+    }
+
+    let mut reader = FieldElementReader::new(B);
+    NttPolynomial::new(Array::from_fn(|_| reader.next()))
+}
+
+// Algorithm 8. SamplePolyCBD_eta(B)
+//
+// To avoid all the bitwise manipulation in the algorithm as written, we reuse the logic in
+// ByteDecode.  We decode the PRF output into integers with eta bits, then use
+// `count_ones` to perform the summation described in the algorithm.
+pub(crate) fn sample_poly_cbd<Eta>(B: &PrfOutput<Eta>) -> Polynomial
+where
+    Eta: CbdSamplingSize,
+{
+    let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
+    Polynomial::new(vals.0.iter().map(|val| Eta::ONES[val.0 as usize]).collect())
+}
+
+// Algorithm 9. NTT
+pub(crate) fn ntt(poly: &Polynomial) -> NttPolynomial {
+    let mut k = 1;
+
+    let mut f = poly.0;
+    for len in [128, 64, 32, 16, 8, 4, 2] {
+        for start in (0..256).step_by(2 * len) {
+            let zeta = ZETA_POW_BITREV[k];
+            k += 1;
+
+            for j in start..(start + len) {
+                let t = zeta * f[j + len];
+                f[j + len] = f[j] - t;
+                f[j] = f[j] + t;
+            }
+        }
+    }
+
+    f.into()
+}
+
+pub(crate) fn ntt_vector<K: ArraySize>(poly: &PolynomialVector<K>) -> NttVector<K> {
+    NttVector(poly.0.iter().map(ntt).collect())
+}
+
+// Algorithm 10. NTT^{-1}
+pub(crate) fn ntt_inverse(poly: &NttPolynomial) -> Polynomial {
+    let mut f: Array<FieldElement, U256> = poly.0.clone();
+
+    let mut k = 127;
+    for len in [2, 4, 8, 16, 32, 64, 128] {
+        for start in (0..256).step_by(2 * len) {
+            let zeta = ZETA_POW_BITREV[k];
+            k -= 1;
+
+            for j in start..(start + len) {
+                let t = f[j];
+                f[j] = t + f[j + len];
+                f[j + len] = zeta * (f[j + len] - t);
+            }
+        }
+    }
+
+    FieldElement::new(3303) * &Polynomial::new(f)
+}
+
+// Algorithm 11. MultiplyNTTs
+fn multiply_ntts(lhs: &NttPolynomial, rhs: &NttPolynomial) -> NttPolynomial {
+    let mut out = NttPolynomial::new(Array::default());
+
+    for i in 0..128 {
+        let (c0, c1) = base_case_multiply(
+            lhs.0[2 * i],
+            lhs.0[2 * i + 1],
+            rhs.0[2 * i],
+            rhs.0[2 * i + 1],
+            i,
+        );
+
+        out.0[2 * i] = c0;
+        out.0[2 * i + 1] = c1;
+    }
+
+    out
+}
+
 // Algorithm 12. BaseCaseMultiply
 //
 // This is a hot loop.  We promote to u64 so that we can do the absolute minimum number of
 // modular reductions, since these are the expensive operation.
+#[inline]
 fn base_case_multiply(
     a0: FieldElement,
     a1: FieldElement,
@@ -49,19 +193,6 @@ fn base_case_multiply(
     (FieldElement::new(c0), FieldElement::new(c1))
 }
 
-// Algorithm 8. SamplePolyCBD_eta(B)
-//
-// To avoid all the bitwise manipulation in the algorithm as written, we reuse the logic in
-// ByteDecode.  We decode the PRF output into integers with eta bits, then use
-// `count_ones` to perform the summation described in the algorithm.
-pub(crate) fn sample_poly_cbd<Eta>(B: &PrfOutput<Eta>) -> Polynomial
-where
-    Eta: CbdSamplingSize,
-{
-    let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
-    Polynomial::new(vals.0.iter().map(|val| Eta::ONES[val.0 as usize]).collect())
-}
-
 pub(crate) fn sample_poly_vec_cbd<Eta, K>(sigma: &B32, start_n: u8) -> PolynomialVector<K>
 where
     Eta: CbdSamplingSize,
@@ -72,103 +203,6 @@ where
         let prf_output = PRF::<Eta>(sigma, N);
         sample_poly_cbd::<Eta>(&prf_output)
     }))
-}
-
-/// An element of the ring `T_q`, i.e., a tuple of 128 elements of the direct sum components of `T_q`.
-#[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttPolynomial(pub Array<FieldElement, U256>);
-
-impl ConstantTimeEq for NttPolynomial {
-    fn ct_eq(&self, other: &Self) -> Choice {
-        self.0.ct_eq(&other.0)
-    }
-}
-
-#[cfg(feature = "zeroize")]
-impl Zeroize for NttPolynomial {
-    fn zeroize(&mut self) {
-        for fe in &mut self.0 {
-            fe.zeroize();
-        }
-    }
-}
-
-impl Add<&NttPolynomial> for &NttPolynomial {
-    type Output = NttPolynomial;
-
-    fn add(self, rhs: &NttPolynomial) -> NttPolynomial {
-        NttPolynomial(
-            self.0
-                .iter()
-                .zip(rhs.0.iter())
-                .map(|(&x, &y)| x + y)
-                .collect(),
-        )
-    }
-}
-
-// Algorithm 7. SampleNTT (lines 4-13)
-struct FieldElementReader<'a> {
-    xof: &'a mut dyn XofReader,
-    data: [u8; 96],
-    start: usize,
-    next: Option<Integer>,
-}
-
-impl<'a> FieldElementReader<'a> {
-    fn new(xof: &'a mut impl XofReader) -> Self {
-        let mut out = Self {
-            xof,
-            data: [0u8; 96],
-            start: 0,
-            next: None,
-        };
-
-        // Fill the buffer
-        out.xof.read(&mut out.data);
-
-        out
-    }
-
-    fn next(&mut self) -> FieldElement {
-        if let Some(val) = self.next {
-            self.next = None;
-            return FieldElement::new(val);
-        }
-
-        loop {
-            if self.start == self.data.len() {
-                self.xof.read(&mut self.data);
-                self.start = 0;
-            }
-
-            let end = self.start + 3;
-            let b = &self.data[self.start..end];
-            self.start = end;
-
-            let d1 = Integer::from(b[0]) + ((Integer::from(b[1]) & 0xf) << 8);
-            let d2 = (Integer::from(b[1]) >> 4) + ((Integer::from(b[2]) as Integer) << 4);
-
-            if d1 < BaseField::Q {
-                if d2 < BaseField::Q {
-                    self.next = Some(d2);
-                }
-                return FieldElement::new(d1);
-            }
-
-            if d2 < BaseField::Q {
-                return FieldElement::new(d2);
-            }
-        }
-    }
-}
-
-impl NttPolynomial {
-    // Algorithm 7 SampleNTT(B)
-    pub fn sample_uniform(B: &mut impl XofReader) -> Self {
-        let mut reader = FieldElementReader::new(B);
-        Self(Array::from_fn(|_| reader.next()))
-    }
 }
 
 // Since the powers of zeta used in the NTT and MultiplyNTTs are fixed, we use pre-computed tables
@@ -233,90 +267,6 @@ const GAMMA: [FieldElement; 128] = {
     gamma
 };
 
-// Algorithm 11. MuliplyNTTs
-impl Mul<&NttPolynomial> for &NttPolynomial {
-    type Output = NttPolynomial;
-
-    fn mul(self, rhs: &NttPolynomial) -> NttPolynomial {
-        let mut out = NttPolynomial(Array::default());
-
-        for i in 0..128 {
-            let (c0, c1) = base_case_multiply(
-                self.0[2 * i],
-                self.0[2 * i + 1],
-                rhs.0[2 * i],
-                rhs.0[2 * i + 1],
-                i,
-            );
-
-            out.0[2 * i] = c0;
-            out.0[2 * i + 1] = c1;
-        }
-
-        out
-    }
-}
-
-impl From<Array<FieldElement, U256>> for NttPolynomial {
-    fn from(f: Array<FieldElement, U256>) -> NttPolynomial {
-        NttPolynomial(f)
-    }
-}
-
-impl From<NttPolynomial> for Array<FieldElement, U256> {
-    fn from(f_hat: NttPolynomial) -> Array<FieldElement, U256> {
-        f_hat.0
-    }
-}
-
-// Algorithm 9. NTT
-pub(crate) fn ntt(poly: &Polynomial) -> NttPolynomial {
-    let mut k = 1;
-
-    let mut f = poly.0;
-    for len in [128, 64, 32, 16, 8, 4, 2] {
-        for start in (0..256).step_by(2 * len) {
-            let zeta = ZETA_POW_BITREV[k];
-            k += 1;
-
-            for j in start..(start + len) {
-                let t = zeta * f[j + len];
-                f[j + len] = f[j] - t;
-                f[j] = f[j] + t;
-            }
-        }
-    }
-
-    f.into()
-}
-
-pub(crate) fn ntt_vector<K: ArraySize>(poly: &PolynomialVector<K>) -> NttVector<K> {
-    NttVector(poly.0.iter().map(ntt).collect())
-}
-
-// Algorithm 10. NTT^{-1}
-impl NttPolynomial {
-    pub fn ntt_inverse(&self) -> Polynomial {
-        let mut f: Array<FieldElement, U256> = self.0.clone();
-
-        let mut k = 127;
-        for len in [2, 4, 8, 16, 32, 64, 128] {
-            for start in (0..256).step_by(2 * len) {
-                let zeta = ZETA_POW_BITREV[k];
-                k -= 1;
-
-                for j in start..(start + len) {
-                    let t = f[j];
-                    f[j] = t + f[j + len];
-                    f[j + len] = zeta * (f[j + len] - t);
-                }
-            }
-        }
-
-        FieldElement::new(3303) * &Polynomial::new(f)
-    }
-}
-
 /// A vector of K NTT-domain polynomials
 #[derive(Clone, Default, Debug)]
 pub struct NttVector<K: ArraySize>(pub Array<NttPolynomial, K>);
@@ -326,7 +276,7 @@ impl<K: ArraySize> NttVector<K> {
         Self(Array::from_fn(|j| {
             let (i, j) = if transpose { (j, i) } else { (i, j) };
             let mut xof = XOF(rho, Truncate::truncate(j), Truncate::truncate(i));
-            NttPolynomial::sample_uniform(&mut xof)
+            sample_ntt(&mut xof)
         }))
     }
 }
@@ -378,14 +328,14 @@ impl<K: ArraySize> Mul<&NttVector<K>> for &NttVector<K> {
         self.0
             .iter()
             .zip(rhs.0.iter())
-            .map(|(x, y)| x * y)
+            .map(|(x, y)| multiply_ntts(x, y))
             .fold(NttPolynomial::default(), |x, y| &x + &y)
     }
 }
 
 impl<K: ArraySize> NttVector<K> {
     pub fn ntt_inverse(&self) -> PolynomialVector<K> {
-        PolynomialVector::new(self.0.iter().map(NttPolynomial::ntt_inverse).collect())
+        PolynomialVector::new(self.0.iter().map(ntt_inverse).collect())
     }
 }
 
@@ -466,19 +416,19 @@ mod test {
         let g_hat = super::ntt(&g);
 
         // Verify that NTT and NTT^-1 are actually inverses
-        let f_unhat = f_hat.ntt_inverse();
+        let f_unhat = ntt_inverse(&f_hat);
         assert_eq!(f, f_unhat);
 
         // Verify that NTT is a homomorphism with regard to addition
         let fg = &f + &g;
         let f_hat_g_hat = &f_hat + &g_hat;
-        let fg_unhat = f_hat_g_hat.ntt_inverse();
+        let fg_unhat = ntt_inverse(&f_hat_g_hat);
         assert_eq!(fg, fg_unhat);
 
         // Verify that NTT is a homomorphism with regard to multiplication
         let fg = poly_mul(&f, &g);
-        let f_hat_g_hat = &f_hat * &g_hat;
-        let fg_unhat = f_hat_g_hat.ntt_inverse();
+        let f_hat_g_hat = multiply_ntts(&f_hat, &g_hat);
+        let fg_unhat = ntt_inverse(&f_hat_g_hat);
         assert_eq!(fg, fg_unhat);
     }
 
@@ -609,7 +559,7 @@ mod test {
         let rho = B32::default();
         let sample: Array<Array<FieldElement, U256>, U8> = Array::from_fn(|i| {
             let mut xof = XOF(&rho, 0, i as u8);
-            NttPolynomial::sample_uniform(&mut xof).into()
+            sample_ntt(&mut xof).into()
         });
 
         test_sample(&sample.flatten(), &UNIFORM);

@@ -291,16 +291,6 @@ impl<F: Field> NttPolynomial<F> {
     }
 }
 
-#[cfg(feature = "zeroize")]
-impl<F: Field> Zeroize for NttPolynomial<F>
-where
-    F::Int: Zeroize,
-{
-    fn zeroize(&mut self) {
-        self.0.zeroize();
-    }
-}
-
 impl<F: Field> Add<&NttPolynomial<F>> for &NttPolynomial<F> {
     type Output = NttPolynomial<F>;
 
@@ -357,6 +347,38 @@ impl<F: Field> Neg for &NttPolynomial<F> {
 
     fn neg(self) -> NttPolynomial<F> {
         NttPolynomial(self.0.iter().map(|&x| -x).collect())
+    }
+}
+
+impl<F: Field> From<Array<Elem<F>, U256>> for NttPolynomial<F> {
+    fn from(f: Array<Elem<F>, U256>) -> NttPolynomial<F> {
+        NttPolynomial(f)
+    }
+}
+
+impl<F: Field> From<NttPolynomial<F>> for Array<Elem<F>, U256> {
+    fn from(f_hat: NttPolynomial<F>) -> Array<Elem<F>, U256> {
+        f_hat.0
+    }
+}
+
+#[cfg(feature = "subtle")]
+impl<F: Field> ConstantTimeEq for NttPolynomial<F>
+where
+    F::Int: ConstantTimeEq,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<F: Field> Zeroize for NttPolynomial<F>
+where
+    F::Int: Zeroize,
+{
+    fn zeroize(&mut self) {
+        self.0.zeroize();
     }
 }
 
