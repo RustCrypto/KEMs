@@ -791,6 +791,7 @@ dependencies = [
 name = "module-lattice"
 version = "0.1.0-pre.0"
 dependencies = [
+ "getrandom",
  "hybrid-array",
  "num-traits",
  "subtle",

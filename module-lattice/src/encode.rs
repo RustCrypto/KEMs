@@ -1,18 +1,18 @@
-use core::fmt::Debug;
-use core::ops::{Div, Mul, Rem};
-use hybrid_array::{
+use array::{
     Array,
     typenum::{Gcd, Gcf, Prod, Quot, U0, U8, U32, U256, Unsigned},
 };
+use core::fmt::Debug;
+use core::ops::{Div, Mul, Rem};
 use num_traits::One;
 
 use super::algebra::{Elem, Field, NttPolynomial, NttVector, Polynomial, Vector};
 use super::util::{Flatten, Truncate, Unflatten};
 
 /// An array length with other useful properties
-pub trait ArraySize: hybrid_array::ArraySize + PartialEq + Debug {}
+pub trait ArraySize: array::ArraySize + PartialEq + Debug {}
 
-impl<T> ArraySize for T where T: hybrid_array::ArraySize + PartialEq + Debug {}
+impl<T> ArraySize for T where T: array::ArraySize + PartialEq + Debug {}
 
 /// An integer that can describe encoded polynomials.
 pub trait EncodingSize: ArraySize {

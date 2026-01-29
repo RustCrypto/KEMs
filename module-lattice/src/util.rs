@@ -1,9 +1,11 @@
-use core::mem::ManuallyDrop;
-use core::ops::{Div, Mul, Rem};
-use core::ptr;
-use hybrid_array::{
+use array::{
     Array, ArraySize,
     typenum::{Prod, Quot, U0, Unsigned},
+};
+use core::{
+    mem::ManuallyDrop,
+    ops::{Div, Mul, Rem},
+    ptr,
 };
 
 /// Safely truncate an unsigned integer value to shorter representation
@@ -115,9 +117,9 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use hybrid_array::{
+    use array::{
         Array,
-        typenum::{U2, U5},
+        sizes::{U2, U5},
     };
 
     #[test]

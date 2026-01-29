@@ -9,12 +9,6 @@
 #![warn(clippy::pedantic)] // Be pedantic by default
 #![warn(clippy::integer_division_remainder_used)] // Be judicious about using `/` and `%`
 
-// XXX(RLB) There are no unit tests in this crate right now, because the algebra and encode/decode
-// routines all require a field, and the concrete field definitions are down in the dependent
-// modules.  Maybe we should pull the field definitions up into this module so that we can verify
-// that everything works.  That might also let us make private some of the tools used to build
-// things up.
-
 /// Linear algebra with degree-256 polynomials over a prime-order field, vectors of such
 /// polynomials, and NTT polynomials / vectors
 pub mod algebra;

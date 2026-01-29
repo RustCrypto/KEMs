@@ -1,6 +1,6 @@
 //! Tests for the `algebra` module.
 
-use hybrid_array::typenum::U2;
+use array::typenum::U2;
 use module_lattice::algebra::{
     Elem, Field, NttMatrix, NttPolynomial, NttVector, Polynomial, Vector,
 };
@@ -318,9 +318,9 @@ fn ntt_polynomial_scalar_multiplication() {
 
 #[test]
 fn ntt_polynomial_from_array() {
-    use hybrid_array::Array;
+    use array::Array;
 
-    let coeffs: Array<Elem<KyberField>, hybrid_array::typenum::U256> =
+    let coeffs: Array<Elem<KyberField>, array::typenum::U256> =
         core::array::from_fn(|i| Elem::new((i % 3329) as u16)).into();
     let p: NttPolynomial<KyberField> = coeffs.into();
 
@@ -328,7 +328,7 @@ fn ntt_polynomial_from_array() {
     assert_eq!(p.0[1].0, 1);
 
     // Convert back
-    let arr: Array<Elem<KyberField>, hybrid_array::typenum::U256> = p.into();
+    let arr: Array<Elem<KyberField>, array::typenum::U256> = p.into();
     assert_eq!(arr[0].0, coeffs[0].0);
 }
 
@@ -435,8 +435,8 @@ fn ntt_matrix_equality() {
 
 #[test]
 fn ntt_polynomial_into_array() {
-    use hybrid_array::Array;
-    use hybrid_array::typenum::U256;
+    use array::Array;
+    use array::typenum::U256;
 
     let p = make_test_ntt_polynomial::<KyberField>(100);
 

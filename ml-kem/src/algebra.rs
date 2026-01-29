@@ -1,13 +1,13 @@
 use array::{Array, typenum::U256};
 use module_lattice::{
     algebra::{Field, MultiplyNtt},
+    encode::Encode,
     util::Truncate,
 };
 use sha3::digest::XofReader;
 
 use crate::B32;
 use crate::crypto::{PRF, PrfOutput, XOF};
-use crate::encode::Encode;
 use crate::param::{ArraySize, CbdSamplingSize};
 
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
