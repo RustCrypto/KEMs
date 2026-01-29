@@ -440,4 +440,29 @@ mod test {
         seed_test::<MlKem768Params>();
         seed_test::<MlKem1024Params>();
     }
+
+    fn key_inequality_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+
+        // Generate two different keys
+        let dk1 = DecapsulationKey::<P>::generate_from_rng(&mut rng);
+        let dk2 = DecapsulationKey::<P>::generate_from_rng(&mut rng);
+
+        let ek1 = dk1.encapsulation_key();
+        let ek2 = dk2.encapsulation_key();
+
+        // Verify inequality (catches PartialEq mutation that returns true unconditionally)
+        assert_ne!(dk1, dk2);
+        assert_ne!(ek1, ek2);
+    }
+
+    #[test]
+    fn key_inequality() {
+        key_inequality_test::<MlKem512Params>();
+        key_inequality_test::<MlKem768Params>();
+        key_inequality_test::<MlKem1024Params>();
+    }
 }
