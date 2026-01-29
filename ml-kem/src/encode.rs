@@ -275,7 +275,7 @@ pub(crate) mod test {
 
     #[test]
     fn vector_codec() {
-        let poly = Polynomial(
+        let poly = Polynomial::new(
             Array::<_, U8>([
                 FieldElement::new(0),
                 FieldElement::new(1),
@@ -290,17 +290,17 @@ pub(crate) mod test {
         );
 
         // The required vector sizes are 2, 3, and 4.
-        let decoded: PolynomialVector<U2> = PolynomialVector(Array([poly, poly]));
+        let decoded: PolynomialVector<U2> = PolynomialVector::new(Array([poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U2> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
         vector_codec_known_answer_test::<U5, PolynomialVector<U2>>(&decoded, &encoded);
 
-        let decoded: PolynomialVector<U3> = PolynomialVector(Array([poly, poly, poly]));
+        let decoded: PolynomialVector<U3> = PolynomialVector::new(Array([poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U3> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
         vector_codec_known_answer_test::<U5, PolynomialVector<U3>>(&decoded, &encoded);
 
-        let decoded: PolynomialVector<U4> = PolynomialVector(Array([poly, poly, poly, poly]));
+        let decoded: PolynomialVector<U4> = PolynomialVector::new(Array([poly, poly, poly, poly]));
         let encoded: EncodedPolynomialVector<U5, U4> =
             Array::<_, U5>([0x20, 0x88, 0x41, 0x8a, 0x39]).repeat();
         vector_codec_known_answer_test::<U5, PolynomialVector<U4>>(&decoded, &encoded);

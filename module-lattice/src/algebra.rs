@@ -143,7 +143,7 @@ impl<F: Field> Mul<Elem<F>> for Elem<F> {
 /// A `Polynomial` is a member of the ring `R_q = Z_q[X] / (X^256)` of degree-256 polynomials
 /// over the finite field with prime order `q`.  Polynomials can be added, subtracted, negated,
 /// and multiplied by field elements.  We do not define multiplication of polynomials here.
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct Polynomial<F: Field>(pub Array<Elem<F>, U256>);
 
 impl<F: Field> Polynomial<F> {
@@ -227,6 +227,12 @@ where
     }
 }
 
+impl<F: Field, K: ArraySize> Add<Vector<F, K>> for Vector<F, K> {
+    type Output = Vector<F, K>;
+    fn add(self, rhs: Vector<F, K>) -> Vector<F, K> {
+        Add::add(&self, &rhs)
+    }
+}
 impl<F: Field, K: ArraySize> Add<&Vector<F, K>> for &Vector<F, K> {
     type Output = Vector<F, K>;
 
