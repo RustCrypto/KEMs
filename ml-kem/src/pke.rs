@@ -1,6 +1,6 @@
 use crate::B32;
 use crate::algebra::{
-    NttMatrix, NttVector, Polynomial, PolynomialVector, ntt_inverse, ntt_vector, sample_poly_cbd,
+    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, PolynomialVector, sample_poly_cbd,
     sample_poly_vec_cbd,
 };
 use crate::compress::Compress;
@@ -71,8 +71,8 @@ where
         let e: PolynomialVector<P::K> = sample_poly_vec_cbd::<P::Eta1, P::K>(&sigma, P::K::U8);
 
         // NTT the vectors
-        let s_hat = ntt_vector(&s);
-        let e_hat = ntt_vector(&e);
+        let s_hat = s.ntt();
+        let e_hat = e.ntt();
 
         // Compute the public value
         let t_hat = &(&A_hat * &s_hat) + &e_hat;
@@ -94,8 +94,8 @@ where
         let mut v: Polynomial = Encode::<P::Dv>::decode(c2);
         v.decompress::<P::Dv>();
 
-        let u_hat = ntt_vector(&u);
-        let sTu = ntt_inverse(&(&self.s_hat * &u_hat));
+        let u_hat = u.ntt();
+        let sTu = (&self.s_hat * &u_hat).ntt_inverse();
         let mut w = &v - &sTu;
         Encode::<U1>::encode(w.compress::<U1>())
     }
@@ -137,14 +137,14 @@ where
         let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
 
         let A_hat_t = NttMatrix::<P::K>::sample_uniform(&self.rho, true);
-        let r_hat: NttVector<P::K> = ntt_vector(&r);
+        let r_hat: NttVector<P::K> = r.ntt();
         let ATr: PolynomialVector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
         let mut u = ATr + e1;
 
         let mut mu: Polynomial = Encode::<U1>::decode(message);
         mu.decompress::<U1>();
 
-        let tTr: Polynomial = ntt_inverse(&(&self.t_hat * &r_hat));
+        let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
         let mut v = &(&tTr + &e2) + &mu;
 
         let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());

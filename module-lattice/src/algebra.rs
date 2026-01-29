@@ -327,19 +327,20 @@ impl<F: Field> Mul<&NttPolynomial<F>> for Elem<F> {
     }
 }
 
-impl<F: Field> Mul<&NttPolynomial<F>> for &NttPolynomial<F> {
+impl<F> Mul<&NttPolynomial<F>> for &NttPolynomial<F>
+where
+    F: Field + MultiplyNtt,
+{
     type Output = NttPolynomial<F>;
 
-    // Algorithm 45 MultiplyNTT
     fn mul(self, rhs: &NttPolynomial<F>) -> NttPolynomial<F> {
-        NttPolynomial::new(
-            self.0
-                .iter()
-                .zip(rhs.0.iter())
-                .map(|(&x, &y)| x * y)
-                .collect(),
-        )
+        F::multiply_ntt(self, rhs)
     }
+}
+
+/// Perform multiplication in the NTT domain.
+pub trait MultiplyNtt: Field {
+    fn multiply_ntt(lhs: &NttPolynomial<Self>, rhs: &NttPolynomial<Self>) -> NttPolynomial<Self>;
 }
 
 impl<F: Field> Neg for &NttPolynomial<F> {
