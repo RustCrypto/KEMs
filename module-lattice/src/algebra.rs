@@ -39,7 +39,7 @@ pub trait Field: Copy + Default + Debug + PartialEq {
 #[macro_export]
 macro_rules! define_field {
     ($field:ident, $int:ty, $long:ty, $longlong:ty, $q:literal) => {
-        #[derive(Copy, Clone, Default, Debug, PartialEq)]
+        #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $field;
 
         impl $crate::algebra::Field for $field {
@@ -76,7 +76,7 @@ macro_rules! define_field {
 /// integer values remain in the field, and that the reductions are done efficiently.  For
 /// addition and subtraction, a simple conditional subtraction is used; for multiplication,
 /// Barrett reduction.
-#[derive(Copy, Clone, Default, Debug, PartialEq)]
+#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub struct Elem<F: Field>(pub F::Int);
 
 impl<F: Field> Elem<F> {
@@ -282,7 +282,7 @@ impl<F: Field, K: ArraySize> Neg for &Vector<F, K> {
 /// subtracted, negated, and multiplied by scalars.
 /// We do not define multiplication of NTT polynomials here.  We also do not define the
 /// mappings between normal polynomials and NTT polynomials (i.e., between `R_q` and `T_q`).
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct NttPolynomial<F: Field>(pub Array<Elem<F>, U256>);
 
 impl<F: Field> NttPolynomial<F> {
@@ -387,12 +387,22 @@ where
 /// added and subtracted.  If multiplication is defined for NTT polynomials, then NTT vectors
 /// can be multiplied by NTT polynomials, and "multiplied" with each other to produce a dot
 /// product.
-#[derive(Clone, Default, Debug, PartialEq)]
+#[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct NttVector<F: Field, K: ArraySize>(pub Array<NttPolynomial<F>, K>);
 
 impl<F: Field, K: ArraySize> NttVector<F, K> {
     pub const fn new(x: Array<NttPolynomial<F>, K>) -> Self {
         Self(x)
+    }
+}
+
+#[cfg(feature = "subtle")]
+impl<F: Field, K: ArraySize> ConstantTimeEq for NttVector<F, K>
+where
+    F::Int: ConstantTimeEq,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
     }
 }
 
