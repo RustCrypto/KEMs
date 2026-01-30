@@ -62,8 +62,8 @@ fn verify_encap_group(tg: &acvp::EncapTestGroup) {
 
 fn verify_encap<K>(tc: &acvp::EncapTestCase)
 where
-    K: KemCore,
-    K::EncapsulationKey: EncapsulateDeterministic,
+    K: Kem,
+    K::EncapsulationKey: EncapsulateDeterministic + EncodedSizeUser,
 {
     let m = Array::try_from(tc.m.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
@@ -78,16 +78,20 @@ where
 fn verify_decap_group(tg: &acvp::DecapTestGroup) {
     for tc in tg.tests.iter() {
         match tg.parameter_set {
-            acvp::ParameterSet::MlKem512 => verify_decap::<DecapsulationKey512>(tc, &tg.dk),
-            acvp::ParameterSet::MlKem768 => verify_decap::<DecapsulationKey768>(tc, &tg.dk),
-            acvp::ParameterSet::MlKem1024 => verify_decap::<DecapsulationKey1024>(tc, &tg.dk),
+            acvp::ParameterSet::MlKem512 => verify_decap::<MlKem512>(tc, &tg.dk),
+            acvp::ParameterSet::MlKem768 => verify_decap::<MlKem768>(tc, &tg.dk),
+            acvp::ParameterSet::MlKem1024 => verify_decap::<MlKem1024>(tc, &tg.dk),
         }
     }
 }
 
-fn verify_decap<K: Decapsulate + EncodedSizeUser>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
-    let dk_bytes = Encoded::<K>::try_from(dk_slice).unwrap();
-    let dk = K::from_encoded_bytes(&dk_bytes).unwrap();
+fn verify_decap<K>(tc: &acvp::DecapTestCase, dk_slice: &[u8])
+where
+    K: Kem,
+    K::DecapsulationKey: Decapsulate<K> + EncodedSizeUser,
+{
+    let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(dk_slice).unwrap();
+    let dk = K::DecapsulationKey::from_encoded_bytes(&dk_bytes).unwrap();
 
     let c = ::kem::Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
     let k = dk.decapsulate(&c);

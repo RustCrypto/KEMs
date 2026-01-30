@@ -16,7 +16,7 @@ pub use const_oid::AssociatedOid;
 pub use ::pkcs8::{EncodePrivateKey, EncodePublicKey};
 
 use crate::{
-    MlKem512Params, MlKem768Params, MlKem1024Params,
+    MlKem512, MlKem768, MlKem1024,
     kem::{DecapsulationKey, EncapsulationKey},
     param::{EncapsulationKeySize, KemParams},
     pke::EncryptionKey,
@@ -42,19 +42,19 @@ const SEED_TAG_NUMBER: TagNumber = TagNumber(0);
 /// ML-KEM seed serialized as ASN.1.
 type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
 
-impl AssociatedOid for MlKem512Params {
+impl AssociatedOid for MlKem512 {
     const OID: ::pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_512;
 }
 
-impl AssociatedOid for MlKem768Params {
+impl AssociatedOid for MlKem768 {
     const OID: ::pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_768;
 }
 
-impl AssociatedOid for MlKem1024Params {
+impl AssociatedOid for MlKem1024 {
     const OID: ::pkcs8::ObjectIdentifier = const_oid::db::fips203::ID_ALG_ML_KEM_1024;
 }
 
-impl AssociatedAlgorithmIdentifier for MlKem512Params {
+impl AssociatedAlgorithmIdentifier for MlKem512 {
     type Params = ::pkcs8::der::AnyRef<'static>;
 
     const ALGORITHM_IDENTIFIER: spki::AlgorithmIdentifier<Self::Params> =
@@ -64,7 +64,7 @@ impl AssociatedAlgorithmIdentifier for MlKem512Params {
         };
 }
 
-impl AssociatedAlgorithmIdentifier for MlKem768Params {
+impl AssociatedAlgorithmIdentifier for MlKem768 {
     type Params = ::pkcs8::der::AnyRef<'static>;
 
     const ALGORITHM_IDENTIFIER: spki::AlgorithmIdentifier<Self::Params> =
@@ -74,7 +74,7 @@ impl AssociatedAlgorithmIdentifier for MlKem768Params {
         };
 }
 
-impl AssociatedAlgorithmIdentifier for MlKem1024Params {
+impl AssociatedAlgorithmIdentifier for MlKem1024 {
     type Params = ::pkcs8::der::AnyRef<'static>;
 
     const ALGORITHM_IDENTIFIER: spki::AlgorithmIdentifier<Self::Params> =
@@ -139,7 +139,7 @@ where
             None => return Err(spki::Error::KeyMalformed),
         };
 
-        Ok(Self::new(enc_key))
+        Ok(Self::from_encryption_key(enc_key))
     }
 }
 

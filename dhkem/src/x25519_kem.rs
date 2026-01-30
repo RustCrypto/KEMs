@@ -1,7 +1,7 @@
 use crate::{DecapsulationKey, EncapsulationKey};
 use kem::{
-    Decapsulate, Encapsulate, Generate, InvalidKey, KemParams, Key, KeyExport, KeySizeUser,
-    TryKeyInit, common::array::Array, consts::U32,
+    Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeySizeUser, TryKeyInit,
+    common::array::Array, consts::U32,
 };
 use rand_core::{CryptoRng, TryCryptoRng, UnwrapErr};
 use x25519::{PublicKey, ReusableSecret};
@@ -20,16 +20,19 @@ pub type X25519EncapsulationKey = EncapsulationKey<PublicKey>;
 type Ciphertext = Array<u8, U32>;
 
 /// X25519 shared secrets are also compressed Montgomery x/u-coordinates.
-type SharedSecret = Array<u8, U32>;
+type SharedKey = Array<u8, U32>;
 
 /// X22519 Diffie-Hellman KEM adapter.
 ///
 /// Implements a KEM interface that internally uses X25519 ECDH.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
 pub struct X25519Kem;
 
-impl KemParams for EncapsulationKey<PublicKey> {
+impl Kem for X25519Kem {
+    type DecapsulationKey = X25519DecapsulationKey;
+    type EncapsulationKey = X25519EncapsulationKey;
     type CiphertextSize = U32;
-    type SharedSecretSize = U32;
+    type SharedKeySize = U32;
 }
 
 /// From [RFC9810 §7.1.1]: `SerializePublicKey` and `DeserializePublicKey`:
@@ -69,8 +72,17 @@ impl KeyExport for X25519EncapsulationKey {
     }
 }
 
-impl Encapsulate for X25519EncapsulationKey {
-    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedSecret)
+impl Generate for X25519DecapsulationKey {
+    fn try_generate_from_rng<R: TryCryptoRng + ?Sized>(rng: &mut R) -> Result<Self, R::Error> {
+        // TODO(tarcieri): don't panic! Fallible `ReusableSecret` generation?
+        Ok(Self::from(ReusableSecret::random_from_rng(&mut UnwrapErr(
+            rng,
+        ))))
+    }
+}
+
+impl Encapsulate<X25519Kem> for X25519EncapsulationKey {
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedKey)
     where
         R: CryptoRng + ?Sized,
     {
@@ -82,17 +94,8 @@ impl Encapsulate for X25519EncapsulationKey {
     }
 }
 
-impl Generate for X25519DecapsulationKey {
-    fn try_generate_from_rng<R: TryCryptoRng + ?Sized>(rng: &mut R) -> Result<Self, R::Error> {
-        // TODO(tarcieri): don't panic! Fallible `ReusableSecret` generation?
-        Ok(Self::from(ReusableSecret::random_from_rng(&mut UnwrapErr(
-            rng,
-        ))))
-    }
-}
-
-impl Decapsulate for X25519DecapsulationKey {
-    fn decapsulate(&self, encapsulated_key: &Ciphertext) -> SharedSecret {
+impl Decapsulate<X25519Kem> for X25519DecapsulationKey {
+    fn decapsulate(&self, encapsulated_key: &Ciphertext) -> SharedKey {
         let public_key = PublicKey::from(encapsulated_key.0);
         self.dk.diffie_hellman(&public_key).to_bytes().into()
     }

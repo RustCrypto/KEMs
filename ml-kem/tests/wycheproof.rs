@@ -2,7 +2,7 @@
 
 use array::{Array, ArraySize};
 use ml_kem::{
-    EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024,
+    EncodedSizeUser, FromSeed, MlKem512, MlKem768, MlKem1024,
     kem::{Decapsulate, KeyExport, TryKeyInit},
 };
 use serde::Deserialize;
@@ -106,11 +106,11 @@ macro_rules! mlkem_test {
                         }
                     };
 
-                    let (dk, ek) = $kem::from_seed(test_seed);
+                    let (dk, ek) = $kem::from_seed(&test_seed);
                     assert_eq!(test.ek.as_slice(), ek.to_bytes().as_slice());
 
-                    use ml_kem::$kem_module::EncodedCiphertext;
-                    let test_c: EncodedCiphertext = match decode_optional_hex(&test.c, "c") {
+                    use ml_kem::$kem_module::Ciphertext;
+                    let test_c: Ciphertext = match decode_optional_hex(&test.c, "c") {
                         Some(dk) => dk,
                         None => {
                             assert_eq!(test.result, ExpectedResult::Invalid);
@@ -148,7 +148,7 @@ macro_rules! mlkem_keygen_seed_test {
                     let test_seed = decode_expected_hex(&test.seed, "seed");
                     let test_dk = decode_expected_hex(&test.dk, "dk");
 
-                    let (dk, ek) = $kem::from_seed(test_seed);
+                    let (dk, ek) = $kem::from_seed(&test_seed);
                     assert_eq!(test_dk, dk.to_encoded_bytes());
                     assert_eq!(test.ek.as_slice(), ek.to_bytes().as_slice());
                 }
@@ -218,7 +218,7 @@ macro_rules! mlkem_decaps_test {
 
                     #[allow(deprecated)]
                     use ml_kem::$kem_module::{
-                        DecapsulationKey, EncodedCiphertext, ExpandedDecapsulationKey,
+                        Ciphertext, DecapsulationKey, ExpandedDecapsulationKey,
                     };
 
                     #[allow(deprecated)]
@@ -242,7 +242,7 @@ macro_rules! mlkem_decaps_test {
                     }
                     let dk = dk_result.unwrap();
 
-                    let test_c: EncodedCiphertext = match decode_optional_hex(&test.c, "c") {
+                    let test_c: Ciphertext = match decode_optional_hex(&test.c, "c") {
                         Some(dk) => dk,
                         None => {
                             assert_eq!(test.result, ExpectedResult::Invalid);

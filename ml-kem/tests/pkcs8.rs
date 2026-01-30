@@ -2,8 +2,9 @@
 
 #![cfg(all(feature = "pkcs8", feature = "alloc"))]
 
+use core::fmt::Debug;
 use getrandom::SysRng;
-use ml_kem::{EncodedSizeUser, KemCore, MlKem512, MlKem768, MlKem1024, Seed};
+use ml_kem::{Kem, MlKem512, MlKem768, MlKem1024, Seed, kem::KeyExport};
 use pkcs8::{
     DecodePrivateKey, DecodePublicKey, EncodePrivateKey, EncodePublicKey, PrivateKeyInfoRef,
     SubjectPublicKeyInfoRef,
@@ -19,12 +20,12 @@ type SeedString<'a> = ContextSpecific<&'a OctetStringRef>;
 
 fn der_serialization_and_deserialization<K>(expected_encaps_len: u32)
 where
-    K: KemCore,
+    K: Kem,
     K::EncapsulationKey: EncodePublicKey + DecodePublicKey,
-    K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey + From<Seed> + PartialEq,
+    K::DecapsulationKey: EncodePrivateKey + DecodePrivateKey + Debug + From<Seed> + PartialEq,
 {
     let mut rng = UnwrapErr(SysRng);
-    let (decaps_key, encaps_key) = K::generate(&mut rng);
+    let (decaps_key, encaps_key) = K::generate_keypair_from_rng(&mut rng);
 
     // TEST: (de)serialize encapsulation key into DER document
     {
@@ -38,7 +39,7 @@ where
         // verify that original encapsulation key corresponds to deserialized encapsulation key
         let pub_key = parsed.decode_msg::<SubjectPublicKeyInfoRef>().unwrap();
         assert_eq!(
-            encaps_key.to_encoded_bytes().as_slice(),
+            encaps_key.to_bytes().as_slice(),
             pub_key.subject_public_key.as_bytes().unwrap()
         );
     }
@@ -102,7 +103,7 @@ fn pkcs8_serialize_and_deserialize_round_trip() {
 #[cfg(feature = "pem")]
 fn compare_with_reference_keys<K>(variant: usize, ref_pub_key_pem: &str, ref_priv_key_pem: &str)
 where
-    K: KemCore,
+    K: Kem,
     K::EncapsulationKey: EncodePublicKey,
     K::DecapsulationKey: EncodePrivateKey,
 {
@@ -143,7 +144,7 @@ where
 
     let seed: [u8; SEED_LEN] = core::array::from_fn(|i| u8::try_from(i).unwrap());
     let mut rng = SeedBasedRng { seed, index: 0 };
-    let (decaps_key, encaps_key) = K::generate(&mut rng);
+    let (decaps_key, encaps_key) = K::generate_keypair_from_rng(&mut rng);
 
     let gen_pub_key_pem = encaps_key
         .to_public_key_pem(pkcs8::LineEnding::LF)

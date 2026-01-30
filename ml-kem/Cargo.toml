@@ -27,14 +27,14 @@ zeroize = ["module-lattice/zeroize", "dep:zeroize"]
 [dependencies]
 array = { version = "0.4.4", package = "hybrid-array", features = ["extra-sizes", "subtle"] }
 module-lattice = { version = "0.1.0-rc.0", features = ["subtle"] }
-kem = "0.3.0-rc.2"
+kem = "0.3.0-rc.3"
 rand_core = "0.10.0-rc-6"
 sha3 = { version = "0.11.0-rc.3", default-features = false }
 subtle = { version = "2", default-features = false }
 
 # optional dependencies
 const-oid = { version = "0.10.1", optional = true, default-features = false, features = ["db"] }
-pkcs8 = { version = "0.11.0-rc.8", optional = true, default-features = false }
+pkcs8 = { version = "0.11.0-rc.10", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]

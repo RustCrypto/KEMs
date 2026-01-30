@@ -5,7 +5,7 @@ use dhkem::NistP256DecapsulationKey;
 use elliptic_curve::Generate;
 use hex_literal::hex;
 use hkdf::Hkdf;
-use kem::{Decapsulator, Encapsulate, KeyExport, TryDecapsulate};
+use kem::{Encapsulate, KeyExport, TryDecapsulate};
 use rand_core::{TryCryptoRng, TryRng};
 use sha2::Sha256;
 
@@ -83,7 +83,7 @@ fn test_dhkem_p256_hkdf_sha256() {
         "f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2"
     )))
     .unwrap();
-    let pkr = skr.encapsulator();
+    let pkr = skr.as_ref();
     assert_eq!(&pkr.to_bytes(), &example_pkr);
 
     let (pke, ss1) = pkr.encapsulate_with_rng(&mut ConstantRng(&hex!(
