@@ -235,7 +235,12 @@ macro_rules! mlkem_decaps_test {
                         };
 
                     #[allow(deprecated)]
-                    let dk = DecapsulationKey::from_expanded(&test_dk).expect("should be valid");
+                    let dk_result = DecapsulationKey::from_expanded(&test_dk);
+                    if dk_result.is_err() {
+                        assert_eq!(test.result, ExpectedResult::Invalid);
+                        continue;
+                    }
+                    let dk = dk_result.unwrap();
 
                     let test_c: EncodedCiphertext = match decode_optional_hex(&test.c, "c") {
                         Some(dk) => dk,
