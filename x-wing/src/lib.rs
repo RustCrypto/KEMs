@@ -17,21 +17,24 @@
 #![cfg_attr(feature = "getrandom", doc = "```")]
 #![cfg_attr(not(feature = "getrandom"), doc = "```ignore")]
 //! // NOTE: requires the `getrandom` feature is enabled
-//! use kem::{Decapsulate, Encapsulate};
+//! use x_wing::{
+//!     XWingKem,
+//!     kem::{Decapsulate, Encapsulate, Kem}
+//! };
 //!
-//! let (sk, pk) = x_wing::generate_key_pair();
-//! let (ct, ss_sender) = pk.encapsulate();
-//! let ss_receiver = sk.decapsulate(&ct);
-//! assert_eq!(ss_sender, ss_receiver);
+//! let (sk, pk) = XWingKem::generate_keypair();
+//! let (ct, sk_sender) = pk.encapsulate();
+//! let sk_receiver = sk.decapsulate(&ct);
+//! assert_eq!(sk_sender, sk_receiver);
 //! ```
 
 pub use kem::{
-    self, Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, KemParams, Key, KeyExport,
-    KeyInit, KeySizeUser, TryKeyInit,
+    self, Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
+    KeySizeUser, TryKeyInit,
 };
 
 use ml_kem::{
-    EncodedSizeUser, KemCore, MlKem768, MlKem768Params,
+    EncodedSizeUser, FromSeed, MlKem768,
     array::{
         Array, ArrayN, AsArrayRef,
         sizes::{U32, U1120, U1184, U1216},
@@ -47,8 +50,8 @@ use x25519_dalek::{PublicKey, StaticSecret};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-type MlKem768DecapsulationKey = ml_kem::kem::DecapsulationKey<MlKem768Params>;
-type MlKem768EncapsulationKey = ml_kem::kem::EncapsulationKey<MlKem768Params>;
+type MlKem768DecapsulationKey = ml_kem::kem::DecapsulationKey<MlKem768>;
+type MlKem768EncapsulationKey = ml_kem::kem::EncapsulationKey<MlKem768>;
 
 const X_WING_LABEL: &[u8; 6] = br"\.//^\";
 
@@ -62,9 +65,20 @@ pub const CIPHERTEXT_SIZE: usize = 1120;
 pub const ENCAPSULATION_RANDOMNESS_SIZE: usize = 64;
 
 /// Serialized ciphertext.
-pub type Ciphertext = Array<u8, U1120>;
+pub type Ciphertext = kem::Ciphertext<XWingKem>;
 /// Shared secret key.
-pub type SharedSecret = Array<u8, U32>;
+pub type SharedKey = Array<u8, U32>;
+
+/// X-Wing Key Encapsulation Method (X-Wing-KEM).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
+pub struct XWingKem;
+
+impl Kem for XWingKem {
+    type DecapsulationKey = DecapsulationKey;
+    type EncapsulationKey = EncapsulationKey;
+    type CiphertextSize = U1120;
+    type SharedKeySize = U32;
+}
 
 // The naming convention of variables matches the RFC.
 // ss -> Shared Secret
@@ -96,7 +110,7 @@ impl EncapsulationKey {
     pub fn encapsulate_deterministic(
         &self,
         randomness: &ArrayN<u8, ENCAPSULATION_RANDOMNESS_SIZE>,
-    ) -> (Ciphertext, SharedSecret) {
+    ) -> (Ciphertext, SharedKey) {
         // Split randomness into two 32-byte arrays
         let (rand_m, rand_x) = randomness.split::<U32>();
 
@@ -116,8 +130,8 @@ impl EncapsulationKey {
     }
 }
 
-impl Encapsulate for EncapsulationKey {
-    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedSecret)
+impl Encapsulate<XWingKem> for EncapsulationKey {
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedKey)
     where
         R: CryptoRng + ?Sized,
     {
@@ -130,11 +144,6 @@ impl Encapsulate for EncapsulationKey {
 
         res
     }
-}
-
-impl KemParams for EncapsulationKey {
-    type CiphertextSize = U1120;
-    type SharedSecretSize = U32;
 }
 
 impl KeySizeUser for EncapsulationKey {
@@ -185,9 +194,15 @@ impl DecapsulationKey {
     }
 }
 
-impl Decapsulate for DecapsulationKey {
+impl AsRef<EncapsulationKey> for DecapsulationKey {
+    fn as_ref(&self) -> &EncapsulationKey {
+        &self.ek
+    }
+}
+
+impl Decapsulate<XWingKem> for DecapsulationKey {
     #[allow(clippy::similar_names)] // So we can use the names as in the RFC
-    fn decapsulate(&self, ct: &Ciphertext) -> SharedSecret {
+    fn decapsulate(&self, ct: &Ciphertext) -> SharedKey {
         let ct = CiphertextMessage::from(ct);
         let (sk_m, sk_x, _pk_m, pk_x) = expand_key(&self.sk);
 
@@ -197,14 +212,6 @@ impl Decapsulate for DecapsulationKey {
         let ss_x = sk_x.diffie_hellman(&ct.ct_x);
 
         combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x)
-    }
-}
-
-impl Decapsulator for DecapsulationKey {
-    type Encapsulator = EncapsulationKey;
-
-    fn encapsulator(&self) -> &EncapsulationKey {
-        &self.ek
     }
 }
 
@@ -259,7 +266,7 @@ fn expand_key(
     let mut expanded: Shake256Reader = shaker.finalize_xof();
 
     let seed = read_from(&mut expanded).into();
-    let (sk_m, pk_m) = MlKem768::from_seed(seed);
+    let (sk_m, pk_m) = MlKem768::from_seed(&seed);
 
     let sk_x = read_from(&mut expanded);
     let sk_x = StaticSecret::from(sk_x);
@@ -315,30 +322,12 @@ impl From<CiphertextMessage> for Ciphertext {
     }
 }
 
-/// Generate a X-Wing key pair using `OsRng`.
-#[cfg(feature = "getrandom")]
-#[must_use]
-pub fn generate_key_pair() -> (DecapsulationKey, EncapsulationKey) {
-    let sk = DecapsulationKey::generate();
-    let pk = sk.encapsulator().clone();
-    (sk, pk)
-}
-
-/// Generate a X-Wing key pair using the provided rng.
-pub fn generate_key_pair_from_rng<R: CryptoRng + ?Sized>(
-    rng: &mut R,
-) -> (DecapsulationKey, EncapsulationKey) {
-    let sk = DecapsulationKey::generate_from_rng(rng);
-    let pk = sk.encapsulator().clone();
-    (sk, pk)
-}
-
 fn combiner(
     ss_m: &ArrayN<u8, 32>,
     ss_x: &x25519_dalek::SharedSecret,
     ct_x: &PublicKey,
     pk_x: &PublicKey,
-) -> SharedSecret {
+) -> SharedKey {
     use sha3::Digest;
 
     let mut hasher = Sha3_256::new();
@@ -358,6 +347,7 @@ fn read_from<const N: usize>(reader: &mut Shake256Reader) -> [u8; N] {
 
 #[cfg(test)]
 mod tests {
+    use crate::{Kem, XWingKem};
     use core::convert::Infallible;
     use getrandom::SysRng;
     use ml_kem::array::Array;
@@ -430,7 +420,7 @@ mod tests {
 
     fn run_test(test_vector: TestVector) {
         let mut seed = SeedRng::new(test_vector.seed);
-        let (sk, pk) = generate_key_pair_from_rng(&mut seed);
+        let (sk, pk) = XWingKem::generate_keypair_from_rng(&mut seed);
 
         assert_eq!(sk.as_bytes(), &test_vector.sk);
         assert_eq!(&*pk.to_bytes(), test_vector.pk.as_slice());
@@ -461,9 +451,9 @@ mod tests {
     }
 
     #[test]
+    #[cfg(feature = "getrandom")]
     fn key_serialize() {
-        let sk = DecapsulationKey::generate_from_rng(&mut UnwrapErr(SysRng));
-        let pk = sk.encapsulator().clone();
+        let (sk, pk) = XWingKem::generate_keypair();
 
         let sk_bytes = sk.as_bytes();
         let pk_bytes = pk.to_bytes();

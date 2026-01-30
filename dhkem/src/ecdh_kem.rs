@@ -10,7 +10,7 @@ use elliptic_curve::{
     },
 };
 use kem::{
-    Ciphertext, Encapsulate, Generate, InvalidKey, KemParams, KeyExport, KeySizeUser, SharedSecret,
+    Ciphertext, Encapsulate, Generate, InvalidKey, Kem, KeyExport, KeySizeUser, SharedKey,
     TryDecapsulate, TryKeyInit,
 };
 use rand_core::{CryptoRng, TryCryptoRng};
@@ -29,15 +29,20 @@ pub type EcdhEncapsulationKey<C> = EncapsulationKey<PublicKey<C>>;
 /// traits from the `elliptic-curve` crate.
 ///
 /// Implements a KEM interface that internally uses ECDH.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, PartialOrd, Ord)]
 pub struct EcdhKem<C: CurveArithmetic>(PhantomData<C>);
 
-impl<C> KemParams for EcdhEncapsulationKey<C>
+impl<C> Kem for EcdhKem<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
+    EcdhDecapsulationKey<C>: TryDecapsulate<Self> + Generate,
+    EcdhEncapsulationKey<C>: Encapsulate<Self> + Clone,
 {
+    type DecapsulationKey = EcdhDecapsulationKey<C>;
+    type EncapsulationKey = EcdhEncapsulationKey<C>;
     type CiphertextSize = UncompressedPointSize<C>;
-    type SharedSecretSize = FieldBytesSize<C>;
+    type SharedKeySize = FieldBytesSize<C>;
 }
 
 /// From [RFC9810 §7.1.1]: `SerializePublicKey` and `DeserializePublicKey`:
@@ -97,28 +102,6 @@ where
     }
 }
 
-impl<C> Encapsulate for EcdhEncapsulationKey<C>
-where
-    C: CurveArithmetic,
-    FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
-{
-    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext<Self>, SharedSecret<Self>)
-    where
-        R: CryptoRng + ?Sized,
-    {
-        // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
-        let sk = EphemeralSecret::generate_from_rng(rng);
-        let ss = sk.diffie_hellman(&self.0);
-
-        // TODO(tarcieri): sk.public_key().to_uncompressed_point()
-        let mut pk = UncompressedPoint::<C>::default();
-        pk.copy_from_slice(sk.public_key().to_encoded_point(false).as_bytes());
-
-        (pk, ss.raw_secret_bytes().clone())
-    }
-}
-
 impl<C> Generate for EcdhDecapsulationKey<C>
 where
     C: CurveArithmetic,
@@ -129,7 +112,29 @@ where
     }
 }
 
-impl<C> TryDecapsulate for EcdhDecapsulationKey<C>
+impl<C> Encapsulate<EcdhKem<C>> for EcdhEncapsulationKey<C>
+where
+    C: CurveArithmetic,
+    FieldBytesSize<C>: ModulusSize,
+    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
+{
+    fn encapsulate_with_rng<R>(
+        &self,
+        rng: &mut R,
+    ) -> (Ciphertext<EcdhKem<C>>, SharedKey<EcdhKem<C>>)
+    where
+        R: CryptoRng + ?Sized,
+    {
+        // ECDH encapsulation involves creating a new ephemeral key pair and then doing DH
+        let sk = EphemeralSecret::generate_from_rng(rng);
+        let ss = sk.diffie_hellman(&self.0);
+
+        let pk = sk.public_key().to_uncompressed_point();
+        (pk, ss.raw_secret_bytes().clone())
+    }
+}
+
+impl<C> TryDecapsulate<EcdhKem<C>> for EcdhDecapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
@@ -139,8 +144,8 @@ where
 
     fn try_decapsulate(
         &self,
-        encapsulated_key: &Ciphertext<Self>,
-    ) -> Result<SharedSecret<Self>, Error> {
+        encapsulated_key: &Ciphertext<EcdhKem<C>>,
+    ) -> Result<SharedKey<EcdhKem<C>>, Error> {
         let encapsulated_key = PublicKey::<C>::from_sec1_bytes(encapsulated_key)?;
         let shared_secret = self.dk.diffie_hellman(&encapsulated_key);
         Ok(shared_secret.raw_secret_bytes().clone())

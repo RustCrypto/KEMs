@@ -30,7 +30,7 @@
 //! [RFC9180]: https://datatracker.ietf.org/doc/html/rfc9180#name-dh-based-kem-dhkem
 //! [TLS KEM combiner]: https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10
 
-pub use kem::{self, Decapsulator, Encapsulate, Generate, KemParams, TryDecapsulate};
+pub use kem::{self, Encapsulate, Generate, Kem, TryDecapsulate};
 
 #[cfg(feature = "ecdh")]
 mod ecdh_kem;
@@ -60,13 +60,8 @@ pub struct DecapsulationKey<DK, EK> {
     ek: EncapsulationKey<EK>,
 }
 
-impl<DK, EK> Decapsulator for DecapsulationKey<DK, EK>
-where
-    EncapsulationKey<EK>: Encapsulate + Clone,
-{
-    type Encapsulator = EncapsulationKey<EK>;
-
-    fn encapsulator(&self) -> &EncapsulationKey<EK> {
+impl<DK, EK> AsRef<EncapsulationKey<EK>> for DecapsulationKey<DK, EK> {
+    fn as_ref(&self) -> &EncapsulationKey<EK> {
         &self.ek
     }
 }
@@ -74,7 +69,6 @@ where
 impl<DK, EK> From<DK> for DecapsulationKey<DK, EK>
 where
     EK: for<'a> From<&'a DK>,
-    EncapsulationKey<EK>: KemParams,
 {
     fn from(dk: DK) -> Self {
         let ek = EncapsulationKey(EK::from(&dk));
@@ -140,6 +134,9 @@ impl<DK: Zeroize, EK> Zeroize for DecapsulationKey<DK, EK> {
 #[cfg(feature = "zeroize")]
 impl<DK: ZeroizeOnDrop, EK> ZeroizeOnDrop for DecapsulationKey<DK, EK> {}
 
+/// NIST P-256 DHKEM.
+#[cfg(feature = "p256")]
+pub type NistP256Kem = EcdhKem<p256::NistP256>;
 /// NIST P-256 ECDH Decapsulation Key.
 #[cfg(feature = "p256")]
 pub type NistP256DecapsulationKey = EcdhDecapsulationKey<p256::NistP256>;
@@ -147,6 +144,9 @@ pub type NistP256DecapsulationKey = EcdhDecapsulationKey<p256::NistP256>;
 #[cfg(feature = "p256")]
 pub type NistP256EncapsulationKey = EcdhEncapsulationKey<p256::NistP256>;
 
+/// NIST P-256 DHKEM.
+#[cfg(feature = "p384")]
+pub type NistP384Kem = EcdhKem<p384::NistP384>;
 /// NIST P-384 ECDH Decapsulation Key.
 #[cfg(feature = "p384")]
 pub type NistP384DecapsulationKey = EcdhDecapsulationKey<p384::NistP384>;
@@ -154,6 +154,9 @@ pub type NistP384DecapsulationKey = EcdhDecapsulationKey<p384::NistP384>;
 #[cfg(feature = "p384")]
 pub type NistP384EncapsulationKey = EcdhEncapsulationKey<p384::NistP384>;
 
+/// NIST P-521 DHKEM.
+#[cfg(feature = "p521")]
+pub type NistP521Kem = EcdhKem<p521::NistP521>;
 /// NIST P-521 ECDH Decapsulation Key.
 #[cfg(feature = "p521")]
 pub type NistP521DecapsulationKey = EcdhDecapsulationKey<p521::NistP521>;
@@ -161,6 +164,9 @@ pub type NistP521DecapsulationKey = EcdhDecapsulationKey<p521::NistP521>;
 #[cfg(feature = "p521")]
 pub type NistP521EncapsulationKey = EcdhEncapsulationKey<p521::NistP521>;
 
+/// secp256k1 DHKEM.
+#[cfg(feature = "p521")]
+pub type Secp256k1Kem = EcdhKem<k256::Secp256k1>;
 /// secp256k1 ECDH Decapsulation Key.
 #[cfg(feature = "k256")]
 pub type Secp256k1DecapsulationKey = EcdhDecapsulationKey<k256::Secp256k1>;

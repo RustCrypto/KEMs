@@ -5,9 +5,9 @@ use crate::algebra::{
 };
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
-use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
+use crate::param::{EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use array::typenum::{U1, Unsigned};
-use kem::InvalidKey;
+use kem::{Ciphertext, InvalidKey};
 use module_lattice::encoding::Encode;
 use subtle::{Choice, ConstantTimeEq};
 
@@ -85,7 +85,7 @@ where
 
     /// Decrypt ciphertext to obtain the encrypted value, according to the K-PKE.Decrypt procedure.
     // Algorithm 14. kK-PKE.Decrypt(dk_PKE, c)
-    pub fn decrypt(&self, ciphertext: &EncodedCiphertext<P>) -> B32 {
+    pub fn decrypt(&self, ciphertext: &Ciphertext<P>) -> B32 {
         let (c1, c2) = P::split_ct(ciphertext);
 
         let mut u: Vector<P::K> = Encode::<P::Du>::decode(c1);
@@ -129,7 +129,7 @@ where
 {
     /// Encrypt the specified message for the holder of the corresponding decryption key, using the
     /// provided randomness, according the `K-PKE.Encrypt` procedure.
-    pub fn encrypt(&self, message: &B32, randomness: &B32) -> EncodedCiphertext<P> {
+    pub fn encrypt(&self, message: &B32, randomness: &B32) -> Ciphertext<P> {
         let r = sample_poly_vec_cbd::<P::Eta1, P::K>(randomness, 0);
         let e1 = sample_poly_vec_cbd::<P::Eta2, P::K>(randomness, P::K::U8);
 
@@ -208,7 +208,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
+    use crate::{MlKem512, MlKem768, MlKem1024};
     use ::kem::Generate;
     use getrandom::{SysRng, rand_core::UnwrapErr};
 
@@ -229,9 +229,9 @@ mod test {
 
     #[test]
     fn round_trip() {
-        round_trip_test::<MlKem512Params>();
-        round_trip_test::<MlKem768Params>();
-        round_trip_test::<MlKem1024Params>();
+        round_trip_test::<MlKem512>();
+        round_trip_test::<MlKem768>();
+        round_trip_test::<MlKem1024>();
     }
 
     fn codec_test<P>()
@@ -253,9 +253,9 @@ mod test {
 
     #[test]
     fn codec() {
-        codec_test::<MlKem512Params>();
-        codec_test::<MlKem768Params>();
-        codec_test::<MlKem1024Params>();
+        codec_test::<MlKem512>();
+        codec_test::<MlKem768>();
+        codec_test::<MlKem1024>();
     }
 
     #[test]
@@ -263,7 +263,7 @@ mod test {
         // Create an invalid key: all bytes set to 0xFF
         // When decoded as 12-bit coefficients, this produces values of 0xFFF = 4095 > 3329
         let invalid_key = [0xFF; 1184];
-        assert!(EncryptionKey::<MlKem768Params>::from_bytes(&invalid_key.into()).is_err());
+        assert!(EncryptionKey::<MlKem768>::from_bytes(&invalid_key.into()).is_err());
     }
 
     fn key_inequality_test<P>()
@@ -283,8 +283,8 @@ mod test {
 
     #[test]
     fn key_inequality() {
-        key_inequality_test::<MlKem512Params>();
-        key_inequality_test::<MlKem768Params>();
-        key_inequality_test::<MlKem1024Params>();
+        key_inequality_test::<MlKem512>();
+        key_inequality_test::<MlKem768>();
+        key_inequality_test::<MlKem1024>();
     }
 }

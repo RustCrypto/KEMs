@@ -16,7 +16,7 @@ pub(crate) use module_lattice::encoding::{
 };
 
 use crate::{
-    B32,
+    B32, Ciphertext, Kem,
     algebra::{BaseField, Elem, NttVector},
 };
 use array::{
@@ -108,23 +108,23 @@ pub trait ParameterSet: Default + Clone + Debug + PartialEq {
     type Dv: EncodingSize;
 }
 
-type EncodedUSize<P> = EncodedVectorSize<<P as ParameterSet>::Du, <P as ParameterSet>::K>;
-type EncodedVSize<P> = EncodedPolynomialSize<<P as ParameterSet>::Dv>;
+pub(crate) type EncodedUSize<P> =
+    EncodedVectorSize<<P as ParameterSet>::Du, <P as ParameterSet>::K>;
+pub(crate) type EncodedVSize<P> = EncodedPolynomialSize<<P as ParameterSet>::Dv>;
 
 type EncodedU<P> = Array<u8, EncodedUSize<P>>;
 type EncodedV<P> = Array<u8, EncodedVSize<P>>;
 
 /// Derived parameter relevant to K-PKE
-pub trait PkeParams: ParameterSet {
+pub trait PkeParams: Kem<SharedKeySize = U32> + ParameterSet {
     type NttVectorSize: ArraySize;
     type EncryptionKeySize: ArraySize;
-    type CiphertextSize: ArraySize;
 
     fn encode_u12(p: &NttVector<Self::K>) -> EncodedNttVector<Self>;
     fn decode_u12(v: &EncodedNttVector<Self>) -> NttVector<Self::K>;
 
-    fn concat_ct(u: EncodedU<Self>, v: EncodedV<Self>) -> EncodedCiphertext<Self>;
-    fn split_ct(ct: &EncodedCiphertext<Self>) -> (&EncodedU<Self>, &EncodedV<Self>);
+    fn concat_ct(u: EncodedU<Self>, v: EncodedV<Self>) -> Ciphertext<Self>;
+    fn split_ct(ct: &Ciphertext<Self>) -> (&EncodedU<Self>, &EncodedV<Self>);
 
     fn concat_ek(t_hat: EncodedNttVector<Self>, rho: B32) -> EncodedEncryptionKey<Self>;
     fn split_ek(ek: &EncodedEncryptionKey<Self>) -> (&EncodedNttVector<Self>, &B32);
@@ -133,11 +133,11 @@ pub trait PkeParams: ParameterSet {
 pub type EncodedNttVector<P> = Array<u8, <P as PkeParams>::NttVectorSize>;
 pub type EncodedDecryptionKey<P> = Array<u8, <P as PkeParams>::NttVectorSize>;
 pub type EncodedEncryptionKey<P> = Array<u8, <P as PkeParams>::EncryptionKeySize>;
-pub type EncodedCiphertext<P> = Array<u8, <P as PkeParams>::CiphertextSize>;
 
 impl<P> PkeParams for P
 where
-    P: ParameterSet,
+    P: Kem<CiphertextSize = Sum<EncodedUSize<P>, EncodedVSize<P>>, SharedKeySize = U32>
+        + ParameterSet,
     U384: Mul<P::K>,
     Prod<U384, P::K>: ArraySize + Add<U32> + Div<P::K, Output = U384> + Rem<P::K, Output = U0>,
     EncodedUSize<P>: Add<EncodedVSize<P>>,
@@ -149,7 +149,6 @@ where
 {
     type NttVectorSize = EncodedVectorSize<U12, P::K>;
     type EncryptionKeySize = Sum<Self::NttVectorSize, U32>;
-    type CiphertextSize = Sum<EncodedUSize<P>, EncodedVSize<P>>;
 
     fn encode_u12(p: &NttVector<Self::K>) -> EncodedNttVector<Self> {
         Encode::<U12>::encode(p)
@@ -159,11 +158,11 @@ where
         Encode::<U12>::decode(v)
     }
 
-    fn concat_ct(u: EncodedU<Self>, v: EncodedV<Self>) -> EncodedCiphertext<Self> {
+    fn concat_ct(u: EncodedU<Self>, v: EncodedV<Self>) -> Ciphertext<Self> {
         u.concat(v)
     }
 
-    fn split_ct(ct: &EncodedCiphertext<Self>) -> (&EncodedU<Self>, &EncodedV<Self>) {
+    fn split_ct(ct: &Ciphertext<Self>) -> (&EncodedU<Self>, &EncodedV<Self>) {
         ct.split_ref()
     }
 

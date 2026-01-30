@@ -2,30 +2,23 @@
 
 // Re-export traits from the `kem` crate
 pub use ::kem::{
-    Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Key, KeyExport, KeyInit,
+    Ciphertext, Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
     KeySizeUser, TryKeyInit,
 };
-use sha3::Digest;
 
 use crate::{
-    B32, Encoded, EncodedSizeUser, KemCore, Seed,
+    B32, Encoded, EncodedSizeUser, Seed, SharedKey,
     crypto::{G, H, J},
-    param::{
-        DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, ExpandedDecapsulationKey,
-        KemParams,
-    },
+    param::{DecapsulationKeySize, EncapsulationKeySize, ExpandedDecapsulationKey, KemParams},
     pke::{DecryptionKey, EncryptionKey},
 };
-use array::typenum::{U32, U64};
-use core::marker::PhantomData;
+use array::sizes::{U32, U64};
 use rand_core::{CryptoRng, TryCryptoRng, TryRng};
+use sha3::Digest;
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
-
-/// A shared key resulting from an ML-KEM transaction
-pub(crate) type SharedKey = B32;
 
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
@@ -75,11 +68,11 @@ where
     }
 }
 
-impl<P> Decapsulate for DecapsulationKey<P>
+impl<P> Decapsulate<P> for DecapsulationKey<P>
 where
-    P: KemParams,
+    P: Kem<EncapsulationKey = EncapsulationKey<P>, SharedKeySize = U32> + KemParams,
 {
-    fn decapsulate(&self, encapsulated_key: &EncodedCiphertext<P>) -> SharedKey {
+    fn decapsulate(&self, encapsulated_key: &Ciphertext<P>) -> SharedKey {
         let mp = self.dk_pke.decrypt(encapsulated_key);
         let (Kp, rp) = G(&[&mp, &self.ek.h]);
         let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
@@ -88,13 +81,11 @@ where
     }
 }
 
-impl<P> Decapsulator for DecapsulationKey<P>
+impl<P> AsRef<EncapsulationKey<P>> for DecapsulationKey<P>
 where
     P: KemParams,
 {
-    type Encapsulator = EncapsulationKey<P>;
-
-    fn encapsulator(&self) -> &EncapsulationKey<P> {
+    fn as_ref(&self) -> &EncapsulationKey<P> {
         &self.ek
     }
 }
@@ -223,7 +214,7 @@ where
     #[allow(clippy::similar_names)] // allow dk_pke, ek_pke, following the spec
     pub(crate) fn generate_deterministic(d: B32, z: B32) -> Self {
         let (dk_pke, ek_pke) = DecryptionKey::generate(&d);
-        let ek = EncapsulationKey::new(ek_pke);
+        let ek = EncapsulationKey::from_encryption_key(ek_pke);
         let d = Some(d);
         Self { dk_pke, ek, d, z }
     }
@@ -242,9 +233,9 @@ where
 
 impl<P> EncapsulationKey<P>
 where
-    P: KemParams,
+    P: Kem<SharedKeySize = U32> + KemParams,
 {
-    pub(crate) fn new(ek_pke: EncryptionKey<P>) -> Self {
+    pub(crate) fn from_encryption_key(ek_pke: EncryptionKey<P>) -> Self {
         let h = H(ek_pke.to_bytes());
         Self { ek_pke, h }
     }
@@ -255,18 +246,18 @@ where
     /// Do NOT use this function unless you know what you're doing. If you fail to use all uniform
     /// random bytes even once, you can have catastrophic security failure.
     #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
-    pub fn encapsulate_deterministic(&self, m: &B32) -> (EncodedCiphertext<P>, SharedKey) {
+    pub fn encapsulate_deterministic(&self, m: &B32) -> (Ciphertext<P>, SharedKey) {
         let (K, r) = G(&[m, &self.h]);
         let c = self.ek_pke.encrypt(m, &r);
         (c, K)
     }
 }
 
-impl<P> Encapsulate for EncapsulationKey<P>
+impl<P> Encapsulate<P> for EncapsulationKey<P>
 where
-    P: KemParams,
+    P: Kem + KemParams,
 {
-    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (EncodedCiphertext<P>, SharedKey)
+    fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext<P>, SharedKey)
     where
         R: CryptoRng + ?Sized,
     {
@@ -282,20 +273,12 @@ where
     type EncodedSize = EncapsulationKeySize<P>;
 
     fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, InvalidKey> {
-        Ok(Self::new(EncryptionKey::from_bytes(enc)?))
+        Ok(Self::from_encryption_key(EncryptionKey::from_bytes(enc)?))
     }
 
     fn to_encoded_bytes(&self) -> Encoded<Self> {
         self.ek_pke.to_bytes()
     }
-}
-
-impl<P> ::kem::KemParams for EncapsulationKey<P>
-where
-    P: KemParams,
-{
-    type CiphertextSize = P::CiphertextSize;
-    type SharedSecretSize = U32;
 }
 
 impl<P> KeyExport for EncapsulationKey<P>
@@ -320,7 +303,7 @@ where
 {
     fn new(encapsulation_key: &Key<Self>) -> Result<Self, InvalidKey> {
         EncryptionKey::from_bytes(encapsulation_key)
-            .map(Self::new)
+            .map(Self::from_encryption_key)
             .map_err(|_| InvalidKey)
     }
 }
@@ -336,69 +319,34 @@ where
     }
 }
 
-/// An implementation of overall ML-KEM functionality.  Generic over parameter sets, but then ties
-/// together all of the other related types and sizes.
-#[derive(Clone)]
-pub struct Kem<P>
-where
-    P: KemParams,
-{
-    _phantom: PhantomData<P>,
-}
-
-impl<P> KemCore for Kem<P>
-where
-    P: KemParams,
-{
-    type SharedKeySize = U32;
-    type CiphertextSize = P::CiphertextSize;
-    type DecapsulationKey = DecapsulationKey<P>;
-    type EncapsulationKey = EncapsulationKey<P>;
-
-    /// Generate a new (decapsulation, encapsulation) key pair
-    fn generate<R: CryptoRng + ?Sized>(
-        rng: &mut R,
-    ) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
-        let dk = Self::DecapsulationKey::generate_from_rng(rng);
-        let ek = dk.encapsulation_key().clone();
-        (dk, ek)
-    }
-
-    fn from_seed(seed: Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey) {
-        let dk = Self::DecapsulationKey::from_seed(seed);
-        let ek = dk.encapsulation_key().clone();
-        (dk, ek)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
-    use ::kem::{Decapsulate, Encapsulate, Generate};
+    use crate::{MlKem512, MlKem768, MlKem1024};
+    use ::kem::{Encapsulate, Generate, TryDecapsulate};
     use array::typenum::Unsigned;
     use getrandom::SysRng;
     use rand_core::UnwrapErr;
 
     fn round_trip_test<P>()
     where
-        P: KemParams,
+        P: Kem,
     {
         let mut rng = UnwrapErr(SysRng);
 
-        let dk = DecapsulationKey::<P>::generate_from_rng(&mut rng);
-        let ek = dk.encapsulation_key();
+        let dk = P::DecapsulationKey::generate_from_rng(&mut rng);
+        let ek = dk.as_ref().clone();
 
         let (ct, k_send) = ek.encapsulate_with_rng(&mut rng);
-        let k_recv = dk.decapsulate(&ct);
+        let k_recv = dk.try_decapsulate(&ct).unwrap();
         assert_eq!(k_send, k_recv);
     }
 
     #[test]
     fn round_trip() {
-        round_trip_test::<MlKem512Params>();
-        round_trip_test::<MlKem768Params>();
-        round_trip_test::<MlKem1024Params>();
+        round_trip_test::<MlKem512>();
+        round_trip_test::<MlKem768>();
+        round_trip_test::<MlKem1024>();
     }
 
     fn expanded_key_test<P>()
@@ -420,9 +368,9 @@ mod test {
 
     #[test]
     fn expanded_key() {
-        expanded_key_test::<MlKem512Params>();
-        expanded_key_test::<MlKem768Params>();
-        expanded_key_test::<MlKem1024Params>();
+        expanded_key_test::<MlKem512>();
+        expanded_key_test::<MlKem768>();
+        expanded_key_test::<MlKem1024>();
     }
 
     fn invalid_hash_expanded_key_test<P>()
@@ -444,9 +392,9 @@ mod test {
 
     #[test]
     fn invalid_hash_expanded_key() {
-        invalid_hash_expanded_key_test::<MlKem512Params>();
-        invalid_hash_expanded_key_test::<MlKem768Params>();
-        invalid_hash_expanded_key_test::<MlKem1024Params>();
+        invalid_hash_expanded_key_test::<MlKem512>();
+        invalid_hash_expanded_key_test::<MlKem768>();
+        invalid_hash_expanded_key_test::<MlKem1024>();
     }
 
     fn seed_test<P>()
@@ -464,9 +412,9 @@ mod test {
 
     #[test]
     fn seed() {
-        seed_test::<MlKem512Params>();
-        seed_test::<MlKem768Params>();
-        seed_test::<MlKem1024Params>();
+        seed_test::<MlKem512>();
+        seed_test::<MlKem768>();
+        seed_test::<MlKem1024>();
     }
 
     fn key_inequality_test<P>()
@@ -489,8 +437,8 @@ mod test {
 
     #[test]
     fn key_inequality() {
-        key_inequality_test::<MlKem512Params>();
-        key_inequality_test::<MlKem768Params>();
-        key_inequality_test::<MlKem1024Params>();
+        key_inequality_test::<MlKem512>();
+        key_inequality_test::<MlKem768>();
+        key_inequality_test::<MlKem1024>();
     }
 }

@@ -19,7 +19,7 @@ zeroize = ["dep:zeroize", "ml-kem/zeroize", "x25519-dalek/zeroize"]
 hazmat = []
 
 [dependencies]
-kem = "0.3.0-rc.2"
+kem = "0.3.0-rc.3"
 ml-kem = { version = "=0.3.0-pre.5", default-features = false, features = ["hazmat"] }
 rand_core = { version = "0.10.0-rc-6", default-features = false }
 sha3 = { version = "0.11.0-rc.4", default-features = false }

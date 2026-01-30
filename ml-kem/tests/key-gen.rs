@@ -1,6 +1,6 @@
-use ml_kem::*;
-
 use array::ArrayN;
+use core::fmt::Debug;
+use ml_kem::*;
 use std::{fs::read_to_string, path::PathBuf};
 
 #[test]
@@ -25,14 +25,19 @@ fn acvp_key_gen() {
     }
 }
 
-fn verify<K: KemCore>(tc: &acvp::TestCase) {
+fn verify<K>(tc: &acvp::TestCase)
+where
+    K: Kem + FromSeed,
+    K::DecapsulationKey: EncodedSizeUser + Debug + PartialEq,
+    K::EncapsulationKey: EncodedSizeUser,
+{
     // Import test data into the relevant array structures
     let d = ArrayN::<u8, 32>::try_from(tc.d.as_slice()).unwrap();
     let z = ArrayN::<u8, 32>::try_from(tc.z.as_slice()).unwrap();
     let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(tc.dk.as_slice()).unwrap();
     let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
 
-    let (dk, ek) = K::from_seed(d.concat(z));
+    let (dk, ek) = K::from_seed(&d.concat(z));
 
     // Verify correctness via serialization
     assert_eq!(dk.to_encoded_bytes().as_slice(), tc.dk.as_slice());
