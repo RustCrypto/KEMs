@@ -56,11 +56,14 @@ mod crypto;
 /// Section 4.2.1. Conversion and Compression Algorithms, Compression and decompression
 mod compress;
 
+/// Section 6. The ML-KEM Key-Encapsulation Mechanism (Decapsulation)
+mod decapsulation_key;
+
+/// Section 6. The ML-KEM Key-Encapsulation Mechanism (Encapsulation)
+mod encapsulation_key;
+
 /// Section 5. The K-PKE Component Scheme
 mod pke;
-
-/// Section 6. The ML-KEM Key-Encapsulation Mechanism
-pub mod kem;
 
 /// Section 7. Parameter Sets
 mod param;
@@ -70,8 +73,13 @@ pub mod pkcs8;
 /// Trait definitions
 mod traits;
 
-pub use ::kem::{Ciphertext, Kem};
 pub use array;
+pub use decapsulation_key::DecapsulationKey;
+pub use encapsulation_key::EncapsulationKey;
+pub use kem::{
+    self, Ciphertext, Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
+    KeySizeUser, TryKeyInit,
+};
 pub use ml_kem_512::MlKem512;
 pub use ml_kem_768::MlKem768;
 pub use ml_kem_1024::MlKem1024;
@@ -95,8 +103,11 @@ pub type Seed = Array<u8, U64>;
 /// ML-KEM-512 is the parameter set for security category 1, corresponding to key search on a block
 /// cipher with a 128-bit key.
 pub mod ml_kem_512 {
-    use super::{Debug, ParameterSet, U2, U3, U4, U10, kem};
-    use crate::param::{self, EncodedUSize, EncodedVSize};
+    use crate::{
+        Debug, ParameterSet, U2, U3, U4, U10,
+        kem::Kem,
+        param::{self, EncodedUSize, EncodedVSize},
+    };
     use array::{sizes::U32, typenum::Sum};
 
     /// `MlKem512` is the parameter set for security category 1, corresponding to key search on a
@@ -112,7 +123,7 @@ pub mod ml_kem_512 {
         type Dv = U4;
     }
 
-    impl kem::Kem for MlKem512 {
+    impl Kem for MlKem512 {
         type DecapsulationKey = DecapsulationKey;
         type EncapsulationKey = EncapsulationKey;
         type CiphertextSize = Sum<EncodedUSize<Self>, EncodedVSize<Self>>;
@@ -121,11 +132,11 @@ pub mod ml_kem_512 {
 
     /// An ML-KEM-512 `DecapsulationKey` which provides the ability to generate a new key pair, and
     /// decapsulate an encapsulated shared key.
-    pub type DecapsulationKey = kem::DecapsulationKey<MlKem512>;
+    pub type DecapsulationKey = crate::DecapsulationKey<MlKem512>;
 
     /// An ML-KEM-512 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
     /// can only be decapsulated by the holder of the corresponding decapsulation key.
-    pub type EncapsulationKey = kem::EncapsulationKey<MlKem512>;
+    pub type EncapsulationKey = crate::EncapsulationKey<MlKem512>;
 
     /// Encoded ML-KEM-512 ciphertexts.
     pub type Ciphertext = kem::Ciphertext<MlKem512>;
@@ -139,8 +150,11 @@ pub mod ml_kem_512 {
 /// ML-KEM-768 is the parameter set for security category 3, corresponding to key search on a block
 /// cipher with a 192-bit key.
 pub mod ml_kem_768 {
-    use super::{Debug, ParameterSet, U2, U3, U4, U10, kem};
-    use crate::param::{self, EncodedUSize, EncodedVSize};
+    use crate::{
+        Debug, ParameterSet, U2, U3, U4, U10,
+        kem::Kem,
+        param::{self, EncodedUSize, EncodedVSize},
+    };
     use array::sizes::U32;
     use array::typenum::Sum;
 
@@ -157,7 +171,7 @@ pub mod ml_kem_768 {
         type Dv = U4;
     }
 
-    impl kem::Kem for MlKem768 {
+    impl Kem for MlKem768 {
         type DecapsulationKey = DecapsulationKey;
         type EncapsulationKey = EncapsulationKey;
         type CiphertextSize = Sum<EncodedUSize<Self>, EncodedVSize<Self>>;
@@ -166,11 +180,11 @@ pub mod ml_kem_768 {
 
     /// An ML-KEM-768 `DecapsulationKey` which provides the ability to generate a new key pair, and
     /// decapsulate an encapsulated shared key.
-    pub type DecapsulationKey = kem::DecapsulationKey<MlKem768>;
+    pub type DecapsulationKey = crate::DecapsulationKey<MlKem768>;
 
     /// An ML-KEM-768 `EncapsulationKey` provides the ability to encapsulate a shared key so that it
     /// can only be decapsulated by the holder of the corresponding decapsulation key.
-    pub type EncapsulationKey = kem::EncapsulationKey<MlKem768>;
+    pub type EncapsulationKey = crate::EncapsulationKey<MlKem768>;
 
     /// Encoded ML-KEM-512 ciphertexts.
     pub type Ciphertext = kem::Ciphertext<MlKem768>;
@@ -184,8 +198,11 @@ pub mod ml_kem_768 {
 /// ML-KEM-1024 is the parameter set for security category 5, corresponding to key search on a block
 /// cipher with a 256-bit key.
 pub mod ml_kem_1024 {
-    use super::{Debug, ParameterSet, U2, U4, U5, U11, kem, param};
-    use crate::param::{EncodedUSize, EncodedVSize};
+    use crate::{
+        Debug, ParameterSet, U2, U4, U5, U11,
+        kem::Kem,
+        param::{self, EncodedUSize, EncodedVSize},
+    };
     use array::{sizes::U32, typenum::Sum};
 
     /// `MlKem1024` is the parameter set for security category 5, corresponding to key search on a
@@ -201,7 +218,7 @@ pub mod ml_kem_1024 {
         type Dv = U5;
     }
 
-    impl kem::Kem for MlKem1024 {
+    impl Kem for MlKem1024 {
         type DecapsulationKey = DecapsulationKey;
         type EncapsulationKey = EncapsulationKey;
         type CiphertextSize = Sum<EncodedUSize<Self>, EncodedVSize<Self>>;
@@ -210,11 +227,11 @@ pub mod ml_kem_1024 {
 
     /// An ML-KEM-1024 `DecapsulationKey` which provides the ability to generate a new key pair, and
     /// decapsulate an encapsulated shared key.
-    pub type DecapsulationKey = kem::DecapsulationKey<MlKem1024>;
+    pub type DecapsulationKey = crate::DecapsulationKey<MlKem1024>;
 
     /// An ML-KEM-1024 `EncapsulationKey` provides the ability to encapsulate a shared key so that
     /// it can only be decapsulated by the holder of the corresponding decapsulation key.
-    pub type EncapsulationKey = kem::EncapsulationKey<MlKem1024>;
+    pub type EncapsulationKey = crate::EncapsulationKey<MlKem1024>;
 
     /// Encoded ML-KEM-512 ciphertexts.
     pub type Ciphertext = kem::Ciphertext<MlKem1024>;
@@ -256,7 +273,11 @@ pub type SharedKey = Array<u8, U32>;
 #[cfg(feature = "getrandom")]
 mod test {
     use super::*;
-    use ::kem::{Encapsulate, Generate, TryDecapsulate};
+    use crate::{MlKem512, MlKem768, MlKem1024, param::KemParams};
+    use ::kem::{Encapsulate, Generate, InvalidKey, TryDecapsulate};
+    use array::typenum::Unsigned;
+    use getrandom::SysRng;
+    use rand_core::{TryRng, UnwrapErr};
 
     fn round_trip_test<K>()
     where
@@ -274,5 +295,98 @@ mod test {
         round_trip_test::<MlKem512>();
         round_trip_test::<MlKem768>();
         round_trip_test::<MlKem1024>();
+    }
+
+    fn expanded_key_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+        let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
+        let ek_original = dk_original.encapsulation_key().clone();
+
+        let dk_encoded = dk_original.to_encoded_bytes();
+        let dk_decoded = DecapsulationKey::from_encoded_bytes(&dk_encoded).unwrap();
+        assert_eq!(dk_original, dk_decoded);
+
+        let ek_encoded = ek_original.to_encoded_bytes();
+        let ek_decoded = EncapsulationKey::from_encoded_bytes(&ek_encoded).unwrap();
+        assert_eq!(ek_original, ek_decoded);
+    }
+
+    #[test]
+    fn expanded_key() {
+        expanded_key_test::<MlKem512>();
+        expanded_key_test::<MlKem768>();
+        expanded_key_test::<MlKem1024>();
+    }
+
+    fn invalid_hash_expanded_key_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+        let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
+
+        let mut dk_encoded = dk_original.to_encoded_bytes();
+        // Corrupt the hash value
+        let hash_offset = P::NttVectorSize::USIZE + P::EncryptionKeySize::USIZE;
+        dk_encoded[hash_offset] ^= 0xFF;
+
+        let dk_decoded: Result<DecapsulationKey<P>, InvalidKey> =
+            DecapsulationKey::from_encoded_bytes(&dk_encoded);
+        assert!(dk_decoded.is_err());
+    }
+
+    #[test]
+    fn invalid_hash_expanded_key() {
+        invalid_hash_expanded_key_test::<MlKem512>();
+        invalid_hash_expanded_key_test::<MlKem768>();
+        invalid_hash_expanded_key_test::<MlKem1024>();
+    }
+
+    fn seed_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+        let mut seed = Seed::default();
+        rng.try_fill_bytes(&mut seed).unwrap();
+
+        let dk = DecapsulationKey::<P>::from_seed(seed.clone());
+        let seed_encoded = dk.to_seed().unwrap();
+        assert_eq!(seed, seed_encoded);
+    }
+
+    #[test]
+    fn seed() {
+        seed_test::<MlKem512>();
+        seed_test::<MlKem768>();
+        seed_test::<MlKem1024>();
+    }
+
+    fn key_inequality_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+
+        // Generate two different keys
+        let dk1 = DecapsulationKey::<P>::generate_from_rng(&mut rng);
+        let dk2 = DecapsulationKey::<P>::generate_from_rng(&mut rng);
+
+        let ek1 = dk1.encapsulation_key();
+        let ek2 = dk2.encapsulation_key();
+
+        // Verify inequality (catches PartialEq mutation that returns true unconditionally)
+        assert_ne!(dk1, dk2);
+        assert_ne!(ek1, ek2);
+    }
+
+    #[test]
+    fn key_inequality() {
+        key_inequality_test::<MlKem512>();
+        key_inequality_test::<MlKem768>();
+        key_inequality_test::<MlKem1024>();
     }
 }

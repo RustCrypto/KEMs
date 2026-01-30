@@ -16,8 +16,7 @@ pub use const_oid::AssociatedOid;
 pub use ::pkcs8::{EncodePrivateKey, EncodePublicKey};
 
 use crate::{
-    MlKem512, MlKem768, MlKem1024,
-    kem::{DecapsulationKey, EncapsulationKey},
+    DecapsulationKey, EncapsulationKey, MlKem512, MlKem768, MlKem1024,
     param::{EncapsulationKeySize, KemParams},
     pke::EncryptionKey,
 };
