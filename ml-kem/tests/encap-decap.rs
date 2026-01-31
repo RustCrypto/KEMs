@@ -63,11 +63,10 @@ fn verify_encap_group(tg: &acvp::EncapTestGroup) {
 fn verify_encap<K>(tc: &acvp::EncapTestCase)
 where
     K: Kem,
-    K::EncapsulationKey: EncapsulateDeterministic + EncodedSizeUser,
+    K::EncapsulationKey: EncapsulateDeterministic + TryKeyInit,
 {
     let m = Array::try_from(tc.m.as_slice()).unwrap();
-    let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
-    let ek = K::EncapsulationKey::from_encoded_bytes(&ek_bytes).unwrap();
+    let ek = K::EncapsulationKey::new_from_slice(&tc.ek).unwrap();
 
     let (c, k) = ek.encapsulate_deterministic(&m);
 
@@ -85,13 +84,13 @@ fn verify_decap_group(tg: &acvp::DecapTestGroup) {
     }
 }
 
+#[allow(deprecated)]
 fn verify_decap<K>(tc: &acvp::DecapTestCase, dk_slice: &[u8])
 where
     K: Kem,
-    K::DecapsulationKey: Decapsulate<K> + EncodedSizeUser,
+    K::DecapsulationKey: Decapsulate<K> + ExpandedKeyEncoding,
 {
-    let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(dk_slice).unwrap();
-    let dk = K::DecapsulationKey::from_encoded_bytes(&dk_bytes).unwrap();
+    let dk = K::DecapsulationKey::from_expanded_bytes(dk_slice.try_into().unwrap()).unwrap();
 
     let c = ::kem::Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
     let k = dk.decapsulate(&c);

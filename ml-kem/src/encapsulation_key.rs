@@ -1,5 +1,5 @@
 use crate::{
-    B32, Encoded, EncodedSizeUser, SharedKey,
+    B32, SharedKey,
     crypto::{G, H},
     kem::{InvalidKey, Kem, Key, KeyExport, KeySizeUser, TryKeyInit},
     param::{EncapsulationKeySize, KemParams},
@@ -24,6 +24,16 @@ impl<P> EncapsulationKey<P>
 where
     P: Kem<SharedKeySize = U32> + KemParams,
 {
+    /// Create a new [`EncapsulationKey`] from its serialized form.
+    ///
+    /// # Errors
+    /// If the key failed validation during decoding.
+    pub fn new(encapsulation_key: &Key<Self>) -> Result<Self, InvalidKey> {
+        EncryptionKey::from_bytes(encapsulation_key)
+            .map(Self::from_encryption_key)
+            .map_err(|_| InvalidKey)
+    }
+
     /// Encapsulates with the given randomness. This is useful for testing against known vectors.
     ///
     /// # Warning
@@ -66,21 +76,6 @@ where
     }
 }
 
-impl<P> EncodedSizeUser for EncapsulationKey<P>
-where
-    P: KemParams,
-{
-    type EncodedSize = EncapsulationKeySize<P>;
-
-    fn from_encoded_bytes(enc: &Encoded<Self>) -> Result<Self, InvalidKey> {
-        Ok(Self::from_encryption_key(EncryptionKey::from_bytes(enc)?))
-    }
-
-    fn to_encoded_bytes(&self) -> Encoded<Self> {
-        self.ek_pke.to_bytes()
-    }
-}
-
 impl<P> KeyExport for EncapsulationKey<P>
 where
     P: KemParams,
@@ -102,9 +97,7 @@ where
     P: KemParams,
 {
     fn new(encapsulation_key: &Key<Self>) -> Result<Self, InvalidKey> {
-        EncryptionKey::from_bytes(encapsulation_key)
-            .map(Self::from_encryption_key)
-            .map_err(|_| InvalidKey)
+        Self::new(encapsulation_key)
     }
 }
 

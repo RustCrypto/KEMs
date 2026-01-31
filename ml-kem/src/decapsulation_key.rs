@@ -1,11 +1,14 @@
 use crate::{
-    B32, EncapsulationKey, Encoded, EncodedSizeUser, ExpandedDecapsulationKey, Seed, SharedKey,
+    B32, EncapsulationKey, Seed, SharedKey,
     crypto::{G, J},
-    kem::{Generate, InvalidKey, Kem, KeyInit, KeySizeUser},
-    param::{DecapsulationKeySize, KemParams},
+    kem::{Generate, InvalidKey, Kem, KeyExport, KeyInit, KeySizeUser},
+    param::{DecapsulationKeySize, ExpandedDecapsulationKey, KemParams},
     pke::{DecryptionKey, EncryptionKey},
 };
-use array::sizes::{U32, U64};
+use array::{
+    Array, ArraySize,
+    sizes::{U32, U64},
+};
 use kem::{Ciphertext, Decapsulate};
 use rand_core::{TryCryptoRng, TryRng};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
@@ -41,7 +44,7 @@ where
     /// Initialize a [`DecapsulationKey`] from the serialized expanded key form.
     ///
     /// Note that this form is deprecated in practice; prefer to use
-    /// [`DecapsulationKey::from_seed`].
+    /// [`DecapsulationKey::from_seed`]. See [`ExpandedKeyEncoding`] for more information.
     ///
     /// # Errors
     /// - Returns [`InvalidKey`] in the event the expanded key failed validation
@@ -164,24 +167,6 @@ where
     }
 }
 
-impl<P> EncodedSizeUser for DecapsulationKey<P>
-where
-    P: KemParams,
-{
-    type EncodedSize = DecapsulationKeySize<P>;
-
-    fn from_encoded_bytes(expanded: &Encoded<Self>) -> Result<Self, InvalidKey> {
-        #[allow(deprecated)]
-        Self::from_expanded(expanded)
-    }
-
-    fn to_encoded_bytes(&self) -> Encoded<Self> {
-        let dk_pke = self.dk_pke.to_bytes();
-        let ek = self.ek.to_encoded_bytes();
-        P::concat_dk(dk_pke, ek, self.ek.h(), self.z.clone())
-    }
-}
-
 impl<P> Generate for DecapsulationKey<P>
 where
     P: KemParams,
@@ -208,5 +193,70 @@ where
     #[inline]
     fn new(seed: &Seed) -> Self {
         Self::from_seed(*seed)
+    }
+}
+
+/// DEPRECATED: support for encoding and decoding [`DecapsulationKey`]s in the legacy expanded form,
+/// as opposed to the more widely adopted [`Seed`] form.
+///
+/// The expanded encoding format is problematic for several reasons, notably they need to validated
+/// whereas generation from seeds is always correct, meaning there is no performance advantage to
+/// using them, only additional complexity.
+///
+/// They are significantly larger than seeds (which are 64-bytes) and their sizes vary depending on
+/// security level whereas the size of a seed is constant:
+/// - ML-KEM-512: 1632 bytes
+/// - ML-KEM-768: 2400 bytes
+/// - ML-KEM-1024: 3168 bytes
+///
+/// Many ML-KEM libraries have dropped support for this format entirely.
+#[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
+pub trait ExpandedKeyEncoding: Sized {
+    /// The size of an expanded decapsulation key.
+    type EncodedSize: ArraySize;
+
+    /// Parse a [`DecapsulationKey`] from its legacy expanded form.
+    ///
+    /// # Errors
+    /// - If the key fails to validate successfully.
+    fn from_expanded_bytes(enc: &Array<u8, Self::EncodedSize>) -> Result<Self, InvalidKey>;
+
+    /// Serialize a [`DecapsulationKey`] to its legacy expanded form.
+    fn to_expanded_bytes(&self) -> Array<u8, Self::EncodedSize>;
+}
+
+#[allow(deprecated)]
+impl<P> ExpandedKeyEncoding for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    type EncodedSize = DecapsulationKeySize<P>;
+
+    fn from_expanded_bytes(expanded: &ExpandedDecapsulationKey<P>) -> Result<Self, InvalidKey> {
+        Self::from_expanded(expanded)
+    }
+
+    fn to_expanded_bytes(&self) -> ExpandedDecapsulationKey<P> {
+        let dk_pke = self.dk_pke.to_bytes();
+        let ek = self.ek.to_bytes();
+        P::concat_dk(dk_pke, ek, self.ek.h(), self.z.clone())
+    }
+}
+
+/// Initialize a KEM from a seed.
+pub trait FromSeed: Kem {
+    /// Using the provided [`Seed`] value, create a KEM keypair.
+    fn from_seed(seed: &Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey);
+}
+
+impl<K> FromSeed for K
+where
+    K: Kem,
+    K::DecapsulationKey: KeyInit + KeySizeUser<KeySize = U64>,
+{
+    fn from_seed(seed: &Seed) -> (K::DecapsulationKey, K::EncapsulationKey) {
+        let dk = K::DecapsulationKey::new(seed);
+        let ek = dk.as_ref().clone();
+        (dk, ek)
     }
 }

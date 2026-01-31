@@ -34,7 +34,7 @@ pub use kem::{
 };
 
 use ml_kem::{
-    EncodedSizeUser, FromSeed, MlKem768,
+    FromSeed, MlKem768,
     array::{
         Array, ArrayN, AsArrayRef,
         sizes::{U32, U1120, U1184, U1216},
@@ -154,7 +154,7 @@ impl KeyExport for EncapsulationKey {
     fn to_bytes(&self) -> Key<Self> {
         let mut key_bytes = Key::<Self>::default();
         let (m, x) = key_bytes.split_at_mut(1184);
-        m.copy_from_slice(&self.pk_m.to_encoded_bytes());
+        m.copy_from_slice(&self.pk_m.to_bytes());
         x.copy_from_slice(self.pk_x.as_bytes());
         key_bytes
     }
@@ -164,7 +164,7 @@ impl TryKeyInit for EncapsulationKey {
     fn new(key_bytes: &Key<Self>) -> Result<Self, InvalidKey> {
         let (m_bytes, x_bytes) = key_bytes.split_ref::<U1184>();
 
-        let pk_m = MlKem768EncapsulationKey::from_encoded_bytes(m_bytes).map_err(|_| InvalidKey)?;
+        let pk_m = MlKem768EncapsulationKey::new(m_bytes)?;
         let pk_x = PublicKey::from(x_bytes.0);
 
         Ok(EncapsulationKey { pk_m, pk_x })

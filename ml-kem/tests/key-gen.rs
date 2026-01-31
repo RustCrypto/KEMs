@@ -25,33 +25,28 @@ fn acvp_key_gen() {
     }
 }
 
+#[allow(deprecated)]
 fn verify<K>(tc: &acvp::TestCase)
 where
     K: Kem + FromSeed,
-    K::DecapsulationKey: EncodedSizeUser + Debug + PartialEq,
-    K::EncapsulationKey: EncodedSizeUser,
+    K::DecapsulationKey: ExpandedKeyEncoding + Debug + PartialEq,
+    K::EncapsulationKey: KeySizeUser,
 {
     // Import test data into the relevant array structures
     let d = ArrayN::<u8, 32>::try_from(tc.d.as_slice()).unwrap();
     let z = ArrayN::<u8, 32>::try_from(tc.z.as_slice()).unwrap();
-    let dk_bytes = Encoded::<K::DecapsulationKey>::try_from(tc.dk.as_slice()).unwrap();
-    let ek_bytes = Encoded::<K::EncapsulationKey>::try_from(tc.ek.as_slice()).unwrap();
-
     let (dk, ek) = K::from_seed(&d.concat(z));
 
     // Verify correctness via serialization
-    assert_eq!(dk.to_encoded_bytes().as_slice(), tc.dk.as_slice());
-    assert_eq!(ek.to_encoded_bytes().as_slice(), tc.ek.as_slice());
+    assert_eq!(dk.to_expanded_bytes().as_slice(), tc.dk.as_slice());
+    assert_eq!(ek.to_bytes().as_slice(), tc.ek.as_slice());
 
     // Verify correctness via deserialization
     assert_eq!(
         dk,
-        K::DecapsulationKey::from_encoded_bytes(&dk_bytes).unwrap()
+        K::DecapsulationKey::from_expanded_bytes(tc.dk.as_slice().try_into().unwrap()).unwrap()
     );
-    assert_eq!(
-        ek,
-        K::EncapsulationKey::from_encoded_bytes(&ek_bytes).unwrap()
-    );
+    assert_eq!(ek, K::EncapsulationKey::new_from_slice(&tc.ek).unwrap());
 }
 
 mod acvp {
