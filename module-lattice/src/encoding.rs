@@ -16,14 +16,19 @@ impl<T> ArraySize for T where T: array::ArraySize + PartialEq + Debug {}
 
 /// An integer that can describe encoded polynomials.
 pub trait EncodingSize: ArraySize {
+    /// Size of an encoded polynomial.
     type EncodedPolynomialSize: ArraySize;
+    /// Value step.
     type ValueStep: ArraySize;
+    /// Byte step.
     type ByteStep: ArraySize;
 }
 
 type EncodingUnit<D> = Quot<Prod<D, U8>, Gcf<D, U8>>;
 
+/// Size of an encoded polynomial.
 pub type EncodedPolynomialSize<D> = <D as EncodingSize>::EncodedPolynomialSize;
+/// Encoded polynomial.
 pub type EncodedPolynomial<D> = Array<u8, EncodedPolynomialSize<D>>;
 
 impl<D> EncodingSize for D
@@ -40,6 +45,7 @@ where
     type ByteStep = Quot<EncodingUnit<D>, U8>;
 }
 
+/// Decoded value.
 pub type DecodedValue<F> = Array<Elem<F>, U256>;
 
 /// An integer that can describe encoded vectors.
@@ -47,13 +53,18 @@ pub trait VectorEncodingSize<K>: EncodingSize
 where
     K: ArraySize,
 {
+    /// Size of an encoded vector.
     type EncodedVectorSize: ArraySize;
 
+    /// Flatten encoded polynomial array into encoded vector.
     fn flatten(polys: Array<EncodedPolynomial<Self>, K>) -> EncodedVector<Self, K>;
+    /// Unflatten encoded vector into encoded polynomial array.
     fn unflatten(vec: &EncodedVector<Self, K>) -> Array<&EncodedPolynomial<Self>, K>;
 }
 
+/// Size of an encoded vector.
 pub type EncodedVectorSize<D, K> = <D as VectorEncodingSize<K>>::EncodedVectorSize;
+/// Encoded vector.
 pub type EncodedVector<D, K> = Array<u8, EncodedVectorSize<D, K>>;
 
 impl<D, K> VectorEncodingSize<K> for D
@@ -75,8 +86,8 @@ where
     }
 }
 
-// FIPS 203: Algorithm 4 ByteEncode_d
-// FIPS 204: Algorithm 16 SimpleBitPack
+/// FIPS 203: Algorithm 4 `ByteEncode_d`.
+/// FIPS 204: Algorithm 16 `SimpleBitPack`.
 pub fn byte_encode<F: Field, D: EncodingSize>(vals: &DecodedValue<F>) -> EncodedPolynomial<D> {
     let val_step = D::ValueStep::USIZE;
     let byte_step = D::ByteStep::USIZE;
@@ -99,8 +110,8 @@ pub fn byte_encode<F: Field, D: EncodingSize>(vals: &DecodedValue<F>) -> Encoded
     bytes
 }
 
-// FIPS 203: Algorithm 5 ByteDecode_d(F)
-// FIPS 204: Algorithm 18 SimpleBitUnpack
+/// FIPS 203: Algorithm 5 `ByteDecode_d(F)`
+/// FIPS 204: Algorithm 18 `SimpleBitUnpack`
 pub fn byte_decode<F: Field, D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> DecodedValue<F> {
     let val_step = D::ValueStep::USIZE;
     let byte_step = D::ByteStep::USIZE;
@@ -129,9 +140,13 @@ pub fn byte_decode<F: Field, D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> D
     vals
 }
 
+/// Encoding trait.
 pub trait Encode<D: EncodingSize> {
+    /// Size of the encoded object.
     type EncodedSize: ArraySize;
+    /// Encode object.
     fn encode(&self) -> Array<u8, Self::EncodedSize>;
+    /// Decode object.
     fn decode(enc: &Array<u8, Self::EncodedSize>) -> Self;
 }
 

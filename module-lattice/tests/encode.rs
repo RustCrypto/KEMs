@@ -1,6 +1,7 @@
 //! Tests for the `encode` module.
 
-#![allow(clippy::integer_division_remainder_used)]
+#![allow(clippy::cast_possible_truncation, reason = "tests")]
+#![allow(clippy::integer_division_remainder_used, reason = "tests")]
 
 use array::sizes::U3;
 use array::typenum::{Mod, Zero};
@@ -8,6 +9,7 @@ use array::{
     Array,
     sizes::{U1, U2, U4, U5, U6, U8, U10, U11, U12, U256},
 };
+use core::{fmt::Debug, ops::Rem};
 use getrandom::{
     SysRng,
     rand_core::{Rng, UnwrapErr},
@@ -17,8 +19,6 @@ use module_lattice::{
     algebra::{Elem, Field, NttPolynomial, NttVector, Polynomial, Vector},
     encoding::{ArraySize, Encode, EncodedPolynomial, EncodingSize, byte_decode, byte_encode},
 };
-use std::fmt::Debug;
-use std::ops::Rem;
 
 // Field used by ML-KEM.
 module_lattice::define_field!(KyberField, u16, u32, u64, 3329);
@@ -65,7 +65,7 @@ where
     let decoded = Array::<Int, U256>::from_fn(|_| (rng.next_u32() & 0xFFFF) as Int);
     let m = match D::USIZE {
         12 => KyberField::Q,
-        d => (1 as Int) << d,
+        d => 1 << d,
     };
     let decoded = decoded.iter().map(|x| Elem::new(x % m)).collect();
 

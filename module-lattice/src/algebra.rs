@@ -10,24 +10,35 @@ use subtle::{Choice, ConstantTimeEq};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
+/// Finite field with efficient modular reduction for lattice-based cryptography.
 pub trait Field: Copy + Default + Debug + PartialEq {
+    /// Base integer type used to represent field elements
     type Int: PrimInt + Default + Debug + From<u8> + Into<u128> + Into<Self::Long> + Truncate<u128>;
+    /// Double-width integer type used for intermediate computations.
     type Long: PrimInt + From<Self::Int>;
+    /// Quadruple-width integer type used for Barrett reduction.
     type LongLong: PrimInt;
 
+    /// Field modulus.
     const Q: Self::Int;
+    /// Field modulus as [`Self::Long`].
     const QL: Self::Long;
+    /// Field modulus as [`Self::LongLong`].
     const QLL: Self::LongLong;
 
+    /// Bit shift used in Barrett reduction.
     const BARRETT_SHIFT: usize;
+    /// Precomputed multiplier for Barrett reduction.
     const BARRETT_MULTIPLIER: Self::LongLong;
 
+    /// Reduce a value that's already close to the modulus range.
     fn small_reduce(x: Self::Int) -> Self::Int;
+    /// Reduce a wider value to a field element using Barrett reduction.
     fn barrett_reduce(x: Self::Long) -> Self::Int;
 }
 
-/// The `define_field` macro creates a zero-sized struct and an implementation of the Field trait
-/// for that struct.  The caller must specify:
+/// The `define_field` macro creates a zero-sized struct and an implementation of the [`Field`]
+/// trait for that struct.  The caller must specify:
 ///
 /// * `$field`: The name of the zero-sized struct to be created
 /// * `$q`: The prime number that defines the field.
@@ -39,6 +50,10 @@ pub trait Field: Copy + Default + Debug + PartialEq {
 #[macro_export]
 macro_rules! define_field {
     ($field:ident, $int:ty, $long:ty, $longlong:ty, $q:literal) => {
+        $crate::define_field!($field, $int, $long, $longlong, $q, "Finite field");
+    };
+    ($field:ident, $int:ty, $long:ty, $longlong:ty, $q:literal, $doc:expr) => {
+        #[doc = $doc]
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $field;
 
@@ -71,15 +86,19 @@ macro_rules! define_field {
     };
 }
 
-/// An `Elem` is a member of the specified prime-order field.  Elements can be added,
-/// subtracted, multiplied, and negated, and the overloaded operators will ensure both that the
-/// integer values remain in the field, and that the reductions are done efficiently.  For
-/// addition and subtraction, a simple conditional subtraction is used; for multiplication,
+/// An [`Elem`] is a member of the specified prime-order field.
+///
+/// Elements can be added, subtracted, multiplied, and negated, and the overloaded operators will
+/// ensure both that the integer values remain in the field, and that the reductions are done
+/// efficiently.
+///
+/// For addition and subtraction, a simple conditional subtraction is used; for multiplication,
 /// Barrett reduction.
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub struct Elem<F: Field>(pub F::Int);
 
 impl<F: Field> Elem<F> {
+    /// Create a new field element.
     pub const fn new(x: F::Int) -> Self {
         Self(x)
     }
@@ -141,12 +160,14 @@ impl<F: Field> Mul<Elem<F>> for Elem<F> {
 }
 
 /// A `Polynomial` is a member of the ring `R_q = Z_q[X] / (X^256)` of degree-256 polynomials
-/// over the finite field with prime order `q`.  Polynomials can be added, subtracted, negated,
-/// and multiplied by field elements.  We do not define multiplication of polynomials here.
+/// over the finite field with prime order `q`.
+///
+/// Polynomials can be added, subtracted, negated, and multiplied by field elements.
 #[derive(Clone, Copy, Default, Debug, PartialEq)]
 pub struct Polynomial<F: Field>(pub Array<Elem<F>, U256>);
 
 impl<F: Field> Polynomial<F> {
+    /// Create a new polynomial.
     pub const fn new(x: Array<Elem<F>, U256>) -> Self {
         Self(x)
     }
@@ -206,12 +227,14 @@ impl<F: Field> Neg for &Polynomial<F> {
     }
 }
 
-/// A `Vector` is a vector of polynomials from `R_q` of length `K`.  Vectors can be
-/// added, subtracted, negated, and multiplied by field elements.
+/// A `Vector` is a vector of polynomials from `R_q` of length `K`.
+///
+/// Vectors can be added, subtracted, negated, and multiplied by field elements.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct Vector<F: Field, K: ArraySize>(pub Array<Polynomial<F>, K>);
 
 impl<F: Field, K: ArraySize> Vector<F, K> {
+    /// Create a new vector.
     pub const fn new(x: Array<Polynomial<F>, K>) -> Self {
         Self(x)
     }
@@ -278,14 +301,19 @@ impl<F: Field, K: ArraySize> Neg for &Vector<F, K> {
 }
 
 /// An `NttPolynomial` is a member of the NTT algebra `T_q = Z_q[X]^256` of 256-tuples of field
-/// elements.  NTT polynomials can be added and
-/// subtracted, negated, and multiplied by scalars.
-/// We do not define multiplication of NTT polynomials here.  We also do not define the
-/// mappings between normal polynomials and NTT polynomials (i.e., between `R_q` and `T_q`).
+/// elements.
+///
+/// NTT polynomials can be added and subtracted, negated, and multiplied by scalars.
+/// We do not define multiplication of NTT polynomials here: that is defined by the downstream
+/// crate using the [`MultiplyNtt`] trait.
+///
+/// We also do not define the mappings between normal polynomials and NTT polynomials (i.e., between
+/// `R_q` and `T_q`).
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct NttPolynomial<F: Field>(pub Array<Elem<F>, U256>);
 
 impl<F: Field> NttPolynomial<F> {
+    /// Create a new NTT polynomial.
     pub const fn new(x: Array<Elem<F>, U256>) -> Self {
         Self(x)
     }
@@ -340,6 +368,7 @@ where
 
 /// Perform multiplication in the NTT domain.
 pub trait MultiplyNtt: Field {
+    /// Multiply two NTT polynomials.
     fn multiply_ntt(lhs: &NttPolynomial<Self>, rhs: &NttPolynomial<Self>) -> NttPolynomial<Self>;
 }
 
@@ -383,14 +412,16 @@ where
     }
 }
 
-/// An `NttVector` is a vector of polynomials from `T_q` of length `K`.  NTT vectors can be
-/// added and subtracted.  If multiplication is defined for NTT polynomials, then NTT vectors
-/// can be multiplied by NTT polynomials, and "multiplied" with each other to produce a dot
-/// product.
+/// An [`NttVector`] is a vector of polynomials from `T_q` of length `K`.
+///
+/// NTT vectors can be added and subtracted.  If multiplication is defined for NTT polynomials, then
+/// NTT vectors can be multiplied by NTT polynomials, and "multiplied" with each other to produce a
+/// dot product.
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
 pub struct NttVector<F: Field, K: ArraySize>(pub Array<NttPolynomial<F>, K>);
 
 impl<F: Field, K: ArraySize> NttVector<F, K> {
+    /// Create a new NTT vector.
     pub const fn new(x: Array<NttPolynomial<F>, K>) -> Self {
         Self(x)
     }
@@ -470,14 +501,18 @@ where
     }
 }
 
-/// A K x L matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
-/// multiplying on the right just requires iteration.  Multiplication on the right by vectors
-/// is the only defined operation, and is only defined when multiplication of NTT polynomials
-/// is defined.
+/// A `K x L` matrix of NTT-domain polynomials.
+///
+/// Each vector represents a row of the matrix, so that multiplying on the right just requires
+/// iteration.
+///
+/// Multiplication on the right by vectors is the only defined operation, and is only defined when
+/// multiplication of NTT polynomials is defined.
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct NttMatrix<F: Field, K: ArraySize, L: ArraySize>(pub Array<NttVector<F, L>, K>);
 
 impl<F: Field, K: ArraySize, L: ArraySize> NttMatrix<F, K, L> {
+    /// Create a new NTT matrix.
     pub const fn new(x: Array<NttVector<F, L>, K>) -> Self {
         Self(x)
     }
