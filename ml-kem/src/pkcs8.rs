@@ -93,7 +93,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
-impl<P> pkcs8::EncodePublicKey for EncapsulationKey<P>
+impl<P> EncodePublicKey for EncapsulationKey<P>
 where
     P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
 {
@@ -152,7 +152,7 @@ where
 }
 
 #[cfg(feature = "alloc")]
-impl<P> pkcs8::EncodePrivateKey for DecapsulationKey<P>
+impl<P> EncodePrivateKey for DecapsulationKey<P>
 where
     P: KemParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
 {

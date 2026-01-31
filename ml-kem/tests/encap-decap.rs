@@ -1,12 +1,15 @@
-use ml_kem::*;
+//! Encapsulation/decapsulation tests, including ones against the NIST ACVP test vectors.
+
+#![allow(clippy::unwrap_used)]
 
 use ::kem::Decapsulate;
 use array::{Array, ArrayN};
+use ml_kem::*;
 use std::{fs::read_to_string, path::PathBuf};
 
-// A helper trait for deterministic encapsulation tests
+/// A helper trait for deterministic encapsulation tests
 pub trait EncapsulateDeterministic {
-    // Returns (ciphertext, shared_secret)
+    /// Returns `(ciphertext, shared_secret)`.
     fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>);
 }
 

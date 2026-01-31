@@ -1,6 +1,7 @@
 //! PKCS#8 tests.
 
 #![cfg(all(feature = "pkcs8", feature = "alloc"))]
+#![allow(clippy::unwrap_used)]
 
 use core::fmt::Debug;
 use getrandom::SysRng;

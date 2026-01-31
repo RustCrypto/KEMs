@@ -15,7 +15,7 @@ where
     T: EncodingSize,
 {
     const POW2_HALF: u32 = 1 << (T::USIZE - 1);
-    const MASK: Int = ((1 as Int) << T::USIZE) - 1;
+    const MASK: Int = (1 << T::USIZE) - 1;
     const DIV_SHIFT: usize = 34;
     #[allow(clippy::integer_division_remainder_used, reason = "constant")]
     const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / BaseField::QLL;

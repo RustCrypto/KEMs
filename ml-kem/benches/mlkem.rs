@@ -1,3 +1,7 @@
+//! ML-KEM benchmarks.
+
+#![allow(missing_docs, clippy::unwrap_used)]
+
 use ::kem::{Decapsulate, Encapsulate, Kem, KeyExport, KeyInit};
 use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
@@ -14,7 +18,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
             let _dk_bytes = black_box(dk.to_seed().unwrap());
             let _ek_bytes = black_box(ek.to_bytes());
-        })
+        });
     });
 
     let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
@@ -24,7 +28,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     // Encapsulation
     c.bench_function("encapsulate", |b| {
-        b.iter(|| ek.encapsulate_with_rng(&mut rng))
+        b.iter(|| ek.encapsulate_with_rng(&mut rng));
     });
     let (ct, _sk) = ek.encapsulate_with_rng(&mut rng);
 
@@ -34,7 +38,7 @@ fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("decapsulate", |b| {
         b.iter(|| {
             dk.decapsulate(&ct);
-        })
+        });
     });
 
     // Round trip
@@ -43,7 +47,7 @@ fn criterion_benchmark(c: &mut Criterion) {
             let (dk, ek) = MlKem768::generate_keypair_from_rng(&mut rng);
             let (ct, _sk) = ek.encapsulate_with_rng(&mut rng);
             dk.decapsulate(&ct);
-        })
+        });
     });
 }
 
