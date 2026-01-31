@@ -2,10 +2,9 @@
 
 use core::convert::Infallible;
 use dhkem::NistP256DecapsulationKey;
-use elliptic_curve::Generate;
 use hex_literal::hex;
 use hkdf::Hkdf;
-use kem::{Encapsulate, KeyExport, TryDecapsulate};
+use kem::{Encapsulate, KeyExport, TryDecapsulate, TryKeyInit};
 use rand_core::{TryCryptoRng, TryRng};
 use sha2::Sha256;
 
@@ -68,6 +67,7 @@ fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> Vec<u8> {
 #[test]
 // section A.3.1 https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.3.1
 fn test_dhkem_p256_hkdf_sha256() {
+    let example_key = hex!("f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2");
     let example_pke = hex!(
         "04a92719c6195d5085104f469a8b9814d5838ff72b60501e2c4466e5e67b32\
          5ac98536d7b61a1af4b78e5b7f951c0900be863c403ce65c9bfcb9382657222d18c4"
@@ -79,10 +79,7 @@ fn test_dhkem_p256_hkdf_sha256() {
     let example_shared_secret =
         hex!("c0d26aeab536609a572b07695d933b589dcf363ff9d93c93adea537aeabb8cb8");
 
-    let skr = NistP256DecapsulationKey::try_generate_from_rng(&mut ConstantRng(&hex!(
-        "f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2"
-    )))
-    .unwrap();
+    let skr = NistP256DecapsulationKey::new(&example_key.into()).unwrap();
     let pkr = skr.as_ref();
     assert_eq!(&pkr.to_bytes(), &example_pkr);
 

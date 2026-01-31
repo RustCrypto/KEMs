@@ -41,7 +41,7 @@ k256 = ["dep:k256", "ecdh"]
 p256 = ["dep:p256", "ecdh"]
 p384 = ["dep:p384", "ecdh"]
 p521 = ["dep:p521", "ecdh"]
-x25519 = ["dep:x25519", "x25519/reusable_secrets"]
+x25519 = ["dep:x25519", "x25519/static_secrets"]
 zeroize = ["dep:zeroize"]
 
 [package.metadata.docs.rs]

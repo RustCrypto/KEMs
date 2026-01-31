@@ -14,3 +14,5 @@ debug = true
 [patch.crates-io]
 ml-kem = { path = "./ml-kem" }
 module-lattice = { path = "./module-lattice" }
+
+elliptic-curve = { git = "https://github.com/RustCrypto/traits" }
