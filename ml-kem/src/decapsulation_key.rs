@@ -186,6 +186,7 @@ where
     type KeySize = U64;
 }
 
+/// Initialize [`DecapsulationKey`] from a 64-byte uniformly random [`Seed`] value.
 impl<P> KeyInit for DecapsulationKey<P>
 where
     P: KemParams,
@@ -193,6 +194,20 @@ where
     #[inline]
     fn new(seed: &Seed) -> Self {
         Self::from_seed(*seed)
+    }
+}
+
+/// Serialize the 64-byte [`Seed`] value used to initialize this [`DecapsulationKey`].
+///
+/// # Panics
+/// If this [`DecapsulationKey`] was initialized using legacy expanded key support
+/// (see [`ExpandedKeyEncoding`]).
+impl<P> KeyExport for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn to_bytes(&self) -> Seed {
+        self.to_seed().expect("should be initialized from a seed")
     }
 }
 
