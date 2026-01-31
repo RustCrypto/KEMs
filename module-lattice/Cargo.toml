@@ -29,3 +29,6 @@ getrandom = { version = "0.4.0-rc.1", features = ["sys_rng"] }
 [features]
 subtle = ["dep:subtle", "array/subtle"]
 zeroize = ["array/zeroize", "dep:zeroize"]
+
+[lints]
+workspace = true

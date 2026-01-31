@@ -1,5 +1,8 @@
 //! Tests for the `algebra` module.
 
+#![allow(clippy::cast_possible_truncation, reason = "tests")]
+#![allow(clippy::integer_division_remainder_used, reason = "tests")]
+
 use array::typenum::U2;
 use module_lattice::algebra::{
     Elem, Field, NttMatrix, NttPolynomial, NttVector, Polynomial, Vector,
