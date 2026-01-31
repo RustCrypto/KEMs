@@ -42,15 +42,12 @@ pub trait CbdSamplingSize: ArraySize {
     const ONES: Array<Elem, Self::OnesSize>;
 }
 
-// To speed up CBD sampling, we pre-compute all the bit-manipulations:
-//
-// * Splitting a sampled integer into two parts
-// * Counting the ones in each part
-// * Taking the difference between the two counts mod q
-//
-// We have to allow the use of `as` here because we can't use our nice Truncate trait, because
-// const functions don't support traits.
-#[allow(clippy::cast_possible_truncation)]
+/// To speed up CBD sampling, we pre-compute all the bit-manipulations:
+///
+/// * Splitting a sampled integer into two parts
+/// * Counting the ones in each part
+/// * Taking the difference between the two counts mod q
+#[allow(clippy::integer_division_remainder_used, reason = "constant")]
 const fn ones_array<const B: usize, const N: usize, U>() -> Array<Elem, U>
 where
     U: ArraySize<ArrayType<Elem> = [Elem; N]>,
@@ -61,10 +58,9 @@ where
     let mut x = 0usize;
     while x < max {
         let mut y = 0usize;
-        #[allow(clippy::integer_division_remainder_used)]
         while y < max {
-            let x_ones = x.count_ones() as u16;
-            let y_ones = y.count_ones() as u16;
+            let x_ones = (x.count_ones() & 0xFFFF) as u16;
+            let y_ones = (y.count_ones() & 0xFFFF) as u16;
             let i = x + (y << B);
             out[i] = Elem::new((x_ones + BaseField::Q - y_ones) % BaseField::Q);
 
@@ -87,8 +83,9 @@ impl CbdSamplingSize for U3 {
     const ONES: Array<Elem, U64> = ones_array::<3, 64, U64>();
 }
 
-/// A `ParameterSet` captures the parameters that describe a particular instance of ML-KEM.  There
-/// are three variants, corresponding to three different security levels.
+/// A `ParameterSet` captures the parameters that describe a particular instance of ML-KEM.
+///
+/// There are three variants, corresponding to three different security levels.
 pub trait ParameterSet: Default + Clone + Debug + PartialEq {
     /// The dimensionality of vectors and arrays
     type K: ArraySize;
