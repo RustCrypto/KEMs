@@ -3,7 +3,7 @@ use crate::param::{ArraySize, EncodingSize};
 use module_lattice::{algebra::Field, utils::Truncate};
 
 // A convenience trait to allow us to associate some constants with a typenum
-pub trait CompressionFactor: EncodingSize {
+pub(crate) trait CompressionFactor: EncodingSize {
     const POW2_HALF: u32;
     const MASK: Int;
     const DIV_SHIFT: usize;
@@ -22,7 +22,7 @@ where
 }
 
 // Traits for objects that allow compression / decompression
-pub trait Compress {
+pub(crate) trait Compress {
     fn compress<D: CompressionFactor>(&mut self) -> &Self;
     fn decompress<D: CompressionFactor>(&mut self) -> &Self;
 }

@@ -10,7 +10,7 @@ use crate::{
     param::{CbdSamplingSize, EncodedPolynomial},
 };
 
-pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
+pub(crate) fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
     let mut h = Sha3_512::new();
     for x in inputs {
         Digest::update(&mut h, x);
@@ -25,7 +25,7 @@ pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
     (a, b)
 }
 
-pub fn H(x: impl AsRef<[u8]>) -> B32 {
+pub(crate) fn H(x: impl AsRef<[u8]>) -> B32 {
     let mut h = Sha3_256::new();
     Digest::update(&mut h, x);
 
@@ -37,7 +37,7 @@ pub fn H(x: impl AsRef<[u8]>) -> B32 {
     out
 }
 
-pub fn J(inputs: &[impl AsRef<[u8]>]) -> B32 {
+pub(crate) fn J(inputs: &[impl AsRef<[u8]>]) -> B32 {
     let mut h = Shake256::default();
     for x in inputs {
         h.update(x.as_ref());
@@ -49,9 +49,9 @@ pub fn J(inputs: &[impl AsRef<[u8]>]) -> B32 {
     out
 }
 
-pub type PrfOutput<Eta> = EncodedPolynomial<<Eta as CbdSamplingSize>::SampleSize>;
+pub(crate) type PrfOutput<Eta> = EncodedPolynomial<<Eta as CbdSamplingSize>::SampleSize>;
 
-pub fn PRF<Eta>(s: &B32, b: u8) -> PrfOutput<Eta>
+pub(crate) fn PRF<Eta>(s: &B32, b: u8) -> PrfOutput<Eta>
 where
     Eta: CbdSamplingSize,
 {
@@ -65,7 +65,7 @@ where
     out
 }
 
-pub fn XOF(rho: &B32, i: u8, j: u8) -> impl XofReader {
+pub(crate) fn XOF(rho: &B32, i: u8, j: u8) -> impl XofReader {
     let mut h = Shake128::default();
     h.update(rho);
     h.update(&[i, j]);

@@ -1,6 +1,7 @@
 //! Key generation tests.
 
-#![allow(clippy::unwrap_used)]
+#![allow(unreachable_pub, reason = "tests")]
+#![allow(clippy::unwrap_used, reason = "tests")]
 
 use array::ArrayN;
 use core::fmt::Debug;

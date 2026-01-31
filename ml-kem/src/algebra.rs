@@ -12,29 +12,29 @@ use crate::param::{ArraySize, CbdSamplingSize};
 
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
 
-pub type Int = <BaseField as Field>::Int;
+pub(crate) type Int = <BaseField as Field>::Int;
 
 /// An element of GF(q).
-pub type Elem = module_lattice::algebra::Elem<BaseField>;
+pub(crate) type Elem = module_lattice::algebra::Elem<BaseField>;
 
 /// An element of the ring `R_q`, i.e., a polynomial over `Z_q` of degree 255
-pub type Polynomial = module_lattice::algebra::Polynomial<BaseField>;
+pub(crate) type Polynomial = module_lattice::algebra::Polynomial<BaseField>;
 
 /// A vector of polynomials of length `K`.
-pub type Vector<K> = module_lattice::algebra::Vector<BaseField, K>;
+pub(crate) type Vector<K> = module_lattice::algebra::Vector<BaseField, K>;
 
 /// An element of the ring `T_q` i.e. a tuple of 128 elements of the direct sum components of `T_q`.
-pub type NttPolynomial = module_lattice::algebra::NttPolynomial<BaseField>;
+pub(crate) type NttPolynomial = module_lattice::algebra::NttPolynomial<BaseField>;
 
 /// A vector of K NTT-domain polynomials.
-pub type NttVector<K> = module_lattice::algebra::NttVector<BaseField, K>;
+pub(crate) type NttVector<K> = module_lattice::algebra::NttVector<BaseField, K>;
 
 /// A K x K matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
 /// multiplying on the right just requires iteration.
-pub type NttMatrix<K> = module_lattice::algebra::NttMatrix<BaseField, K, K>;
+pub(crate) type NttMatrix<K> = module_lattice::algebra::NttMatrix<BaseField, K, K>;
 
 /// Algorithm 7: `SampleNTT(B)`
-pub fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
+pub(crate) fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
     struct FieldElementReader<'a> {
         xof: &'a mut dyn XofReader,
         data: [u8; 96],

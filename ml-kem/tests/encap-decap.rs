@@ -1,6 +1,7 @@
 //! Encapsulation/decapsulation tests, including ones against the NIST ACVP test vectors.
 
-#![allow(clippy::unwrap_used)]
+#![allow(unreachable_pub, reason = "tests")]
+#![allow(clippy::unwrap_used, reason = "tests")]
 
 use ::kem::Decapsulate;
 use array::{Array, ArrayN};

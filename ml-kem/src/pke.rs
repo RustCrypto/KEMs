@@ -17,7 +17,7 @@ use zeroize::Zeroize;
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
 #[derive(Clone, Default, Debug)]
-pub struct DecryptionKey<P>
+pub(crate) struct DecryptionKey<P>
 where
     P: PkeParams,
 {
@@ -60,7 +60,7 @@ where
 {
     /// Generate a new random decryption key according to the `K-PKE.KeyGen` procedure.
     // Algorithm 12. K-PKE.KeyGen()
-    pub fn generate(d: &B32) -> (Self, EncryptionKey<P>) {
+    pub(crate) fn generate(d: &B32) -> (Self, EncryptionKey<P>) {
         // Generate random seeds
         let k = P::K::U8;
         let (rho, sigma) = G(&[&d[..], &[k]]);
@@ -85,7 +85,7 @@ where
 
     /// Decrypt ciphertext to obtain the encrypted value, according to the K-PKE.Decrypt procedure.
     // Algorithm 14. kK-PKE.Decrypt(dk_PKE, c)
-    pub fn decrypt(&self, ciphertext: &Ciphertext<P>) -> B32 {
+    pub(crate) fn decrypt(&self, ciphertext: &Ciphertext<P>) -> B32 {
         let (c1, c2) = P::split_ct(ciphertext);
 
         let mut u: Vector<P::K> = Encode::<P::Du>::decode(c1);
@@ -101,12 +101,12 @@ where
     }
 
     /// Represent this decryption key as a byte array `(s_hat)`
-    pub fn to_bytes(&self) -> EncodedDecryptionKey<P> {
+    pub(crate) fn to_bytes(&self) -> EncodedDecryptionKey<P> {
         P::encode_u12(&self.s_hat)
     }
 
     /// Parse an decryption key from a byte array `(s_hat)`
-    pub fn from_bytes(enc: &EncodedDecryptionKey<P>) -> Self {
+    pub(crate) fn from_bytes(enc: &EncodedDecryptionKey<P>) -> Self {
         let s_hat = P::decode_u12(enc);
         Self { s_hat }
     }
@@ -115,7 +115,7 @@ where
 /// An `EncryptionKey` provides the ability to encrypt a value so that it can only be
 /// decrypted by the holder of the corresponding decapsulation key.
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct EncryptionKey<P>
+pub(crate) struct EncryptionKey<P>
 where
     P: PkeParams,
 {
@@ -129,7 +129,7 @@ where
 {
     /// Encrypt the specified message for the holder of the corresponding decryption key, using the
     /// provided randomness, according the `K-PKE.Encrypt` procedure.
-    pub fn encrypt(&self, message: &B32, randomness: &B32) -> Ciphertext<P> {
+    pub(crate) fn encrypt(&self, message: &B32, randomness: &B32) -> Ciphertext<P> {
         let r = sample_poly_vec_cbd::<P::Eta1, P::K>(randomness, 0);
         let e1 = sample_poly_vec_cbd::<P::Eta2, P::K>(randomness, P::K::U8);
 
@@ -153,7 +153,7 @@ where
     }
 
     /// Represent this encryption key as a byte array `(t_hat || rho)`
-    pub fn to_bytes(&self) -> EncodedEncryptionKey<P> {
+    pub(crate) fn to_bytes(&self) -> EncodedEncryptionKey<P> {
         let t_hat = P::encode_u12(&self.t_hat);
         P::concat_ek(t_hat, self.rho.clone())
     }
@@ -163,7 +163,7 @@ where
     /// # Errors
     /// Returns [`InvalidKey`] in the event that the key fails the encapsulation key checks
     /// specified in FIPS 203 §7.2.
-    pub fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, InvalidKey> {
+    pub(crate) fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, InvalidKey> {
         let (t_hat, rho) = P::split_ek(enc);
         let t_hat = P::decode_u12(t_hat);
         let ret = Self {
