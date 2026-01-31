@@ -242,10 +242,16 @@ impl KeySizeUser for DecapsulationKey {
 }
 
 impl KeyInit for DecapsulationKey {
-    fn new(key: &ArrayN<u8, 32>) -> Self {
+    fn new(key: &Key<Self>) -> Self {
         let (_sk_m, _sk_x, pk_m, pk_x) = expand_key(key.as_ref());
         let ek = EncapsulationKey { pk_m, pk_x };
         Self { sk: key.0, ek }
+    }
+}
+
+impl KeyExport for DecapsulationKey {
+    fn to_bytes(&self) -> Key<Self> {
+        self.sk.into()
     }
 }
 
