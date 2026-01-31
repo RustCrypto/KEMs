@@ -74,7 +74,7 @@ pub fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
                 self.start = end;
 
                 let d1 = Int::from(b[0]) + ((Int::from(b[1]) & 0xf) << 8);
-                let d2 = (Int::from(b[1]) >> 4) + ((Int::from(b[2]) as Int) << 4);
+                let d2 = (Int::from(b[1]) >> 4) + (Int::from(b[2]) << 4);
 
                 if d1 < BaseField::Q {
                     if d2 < BaseField::Q {
@@ -315,7 +315,10 @@ const GAMMA: [Elem; 128] = {
 
 #[cfg(test)]
 mod test {
-    use super::*;
+    use super::{
+        Array, ArraySize, B32, BaseField, Elem, Field, Int, Ntt, NttInverse, NttMatrix,
+        NttPolynomial, NttVector, PRF, Polynomial, U256, XOF,
+    };
     use array::typenum::{U2, U3, U8};
     use module_lattice::utils::Flatten;
 
@@ -519,14 +522,14 @@ mod test {
         let rho = B32::default();
         let sample: Array<Array<Elem, U256>, U8> = Array::from_fn(|i| {
             let mut xof = XOF(&rho, 0, i as u8);
-            sample_ntt(&mut xof).into()
+            super::sample_ntt(&mut xof).into()
         });
 
         test_sample(&sample.flatten(), &UNIFORM);
     }
 
     #[test]
-    fn sample_cbd() {
+    fn sample_poly_cbd() {
         // Eta = 2
         let sigma = B32::default();
         let prf_output = PRF::<U2>(&sigma, 0);

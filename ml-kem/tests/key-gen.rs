@@ -1,3 +1,7 @@
+//! Key generation tests.
+
+#![allow(clippy::unwrap_used)]
+
 use array::ArrayN;
 use core::fmt::Debug;
 use ml_kem::*;
