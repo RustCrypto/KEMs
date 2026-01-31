@@ -3,7 +3,7 @@
 use crate::{DecapsulationKey, EncapsulationKey};
 use core::marker::PhantomData;
 use elliptic_curve::{
-    AffinePoint, CurveArithmetic, Error, FieldBytesSize, PublicKey,
+    AffinePoint, CurveArithmetic, Error, FieldBytes, FieldBytesSize, PublicKey, SecretKey,
     ecdh::EphemeralSecret,
     sec1::{
         FromEncodedPoint, ModulusSize, ToEncodedPoint, UncompressedPoint, UncompressedPointSize,
@@ -14,16 +14,6 @@ use kem::{
     TryDecapsulate, TryKeyInit,
 };
 use rand_core::{CryptoRng, TryCryptoRng};
-
-/// Elliptic Curve Diffie-Hellman Decapsulation Key (i.e. secret decryption key)
-///
-/// Generic around an elliptic curve `C`.
-pub type EcdhDecapsulationKey<C> = DecapsulationKey<EphemeralSecret<C>, PublicKey<C>>;
-
-/// Elliptic Curve Diffie-Hellman Encapsulation Key (i.e. public encryption key)
-///
-/// Generic around an elliptic curve `C`.
-pub type EcdhEncapsulationKey<C> = EncapsulationKey<PublicKey<C>>;
 
 /// Generic Elliptic Curve Diffie-Hellman KEM adapter compatible with curves implemented using
 /// traits from the `elliptic-curve` crate.
@@ -45,13 +35,94 @@ where
     type SharedKeySize = FieldBytesSize<C>;
 }
 
+/// Elliptic Curve Diffie-Hellman Decapsulation Key (i.e. secret decryption key)
+///
+/// Generic around an elliptic curve `C`.
+pub type EcdhDecapsulationKey<C> = DecapsulationKey<SecretKey<C>, PublicKey<C>>;
+
+impl<C> KeySizeUser for EcdhDecapsulationKey<C>
+where
+    C: CurveArithmetic,
+{
+    type KeySize = FieldBytesSize<C>;
+}
+
+/// From [RFC9810 §7.1.2]: `SerializePrivateKey` and `DeserializePrivateKey`:
+///
+/// > DeserializePrivateKey() performs the Octet-String-to-Field-Element conversion
+/// > according to [SECG].
+///
+/// [RFC9810 §7.1.2]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.2
+/// [SECG]: https://www.secg.org/sec1-v2.pdf
+impl<C> TryKeyInit for EcdhDecapsulationKey<C>
+where
+    C: CurveArithmetic,
+{
+    fn new(key: &FieldBytes<C>) -> Result<Self, InvalidKey> {
+        SecretKey::from_bytes(key)
+            .map(Into::into)
+            .map_err(|_| InvalidKey)
+    }
+}
+
+/// From [RFC9810 §7.1.2]: `SerializePrivateKey` and `DeserializePrivateKey`:
+///
+/// > the SerializePrivateKey() function of the KEM performs the Field-Element-to-Octet-String
+/// > conversion according to [SECG]. If the private key is an integer outside the range
+/// > `[0, order-1]`, where order is the order of the curve being used, the private key MUST be
+/// > reduced to its representative in `[0, order-1]` before being serialized.
+///
+/// [RFC9810 §7.1.2]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.2
+/// [SECG]: https://www.secg.org/sec1-v2.pdf
+impl<C> KeyExport for EcdhDecapsulationKey<C>
+where
+    C: CurveArithmetic,
+{
+    fn to_bytes(&self) -> FieldBytes<C> {
+        self.dk.to_bytes()
+    }
+}
+
+impl<C> Generate for EcdhDecapsulationKey<C>
+where
+    C: CurveArithmetic,
+    FieldBytesSize<C>: ModulusSize,
+{
+    fn try_generate_from_rng<R: TryCryptoRng + ?Sized>(rng: &mut R) -> Result<Self, R::Error> {
+        Ok(SecretKey::try_generate_from_rng(rng)?.into())
+    }
+}
+
+impl<C> TryDecapsulate<EcdhKem<C>> for EcdhDecapsulationKey<C>
+where
+    C: CurveArithmetic,
+    FieldBytesSize<C>: ModulusSize,
+    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
+{
+    type Error = Error;
+
+    fn try_decapsulate(
+        &self,
+        encapsulated_key: &Ciphertext<EcdhKem<C>>,
+    ) -> Result<SharedKey<EcdhKem<C>>, Error> {
+        let encapsulated_key = PublicKey::<C>::from_sec1_bytes(encapsulated_key)?;
+        let shared_secret = self.dk.diffie_hellman(&encapsulated_key);
+        Ok(shared_secret.raw_secret_bytes().clone())
+    }
+}
+
+/// Elliptic Curve Diffie-Hellman Encapsulation Key (i.e. public encryption key)
+///
+/// Generic around an elliptic curve `C`.
+pub type EcdhEncapsulationKey<C> = EncapsulationKey<PublicKey<C>>;
+
 /// From [RFC9810 §7.1.1]: `SerializePublicKey` and `DeserializePublicKey`:
 ///
 /// > For P-256, P-384, and P-521, the SerializePublicKey() function of the
 /// > KEM performs the uncompressed Elliptic-Curve-Point-to-Octet-String
 /// > conversion according to [SECG].
 ///
-/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#name-serializepublickey-and-dese
+/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.1
 /// [SECG]: https://www.secg.org/sec1-v2.pdf
 impl<C> KeySizeUser for EcdhEncapsulationKey<C>
 where
@@ -66,7 +137,7 @@ where
 /// > DeserializePublicKey() performs the uncompressed
 /// > Octet-String-to-Elliptic-Curve-Point conversion.
 ///
-/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#name-serializepublickey-and-dese
+/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.1
 impl<C> TryKeyInit for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
@@ -86,7 +157,7 @@ where
 /// > KEM performs the uncompressed Elliptic-Curve-Point-to-Octet-String
 /// > conversion according to [SECG].
 ///
-/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#name-serializepublickey-and-dese
+/// [RFC9810 §7.1.1]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.1
 /// [SECG]: https://www.secg.org/sec1-v2.pdf
 impl<C> KeyExport for EcdhEncapsulationKey<C>
 where
@@ -95,20 +166,7 @@ where
     AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
 {
     fn to_bytes(&self) -> UncompressedPoint<C> {
-        // TODO(tarcieri): self.0.to_uncompressed_point()
-        let mut ret = UncompressedPoint::<C>::default();
-        ret.copy_from_slice(self.to_encoded_point(false).as_bytes());
-        ret
-    }
-}
-
-impl<C> Generate for EcdhDecapsulationKey<C>
-where
-    C: CurveArithmetic,
-    FieldBytesSize<C>: ModulusSize,
-{
-    fn try_generate_from_rng<R: TryCryptoRng + ?Sized>(rng: &mut R) -> Result<Self, R::Error> {
-        Ok(EphemeralSecret::try_generate_from_rng(rng)?.into())
+        self.0.to_uncompressed_point()
     }
 }
 
@@ -131,23 +189,5 @@ where
 
         let pk = sk.public_key().to_uncompressed_point();
         (pk, ss.raw_secret_bytes().clone())
-    }
-}
-
-impl<C> TryDecapsulate<EcdhKem<C>> for EcdhDecapsulationKey<C>
-where
-    C: CurveArithmetic,
-    FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
-{
-    type Error = Error;
-
-    fn try_decapsulate(
-        &self,
-        encapsulated_key: &Ciphertext<EcdhKem<C>>,
-    ) -> Result<SharedKey<EcdhKem<C>>, Error> {
-        let encapsulated_key = PublicKey::<C>::from_sec1_bytes(encapsulated_key)?;
-        let shared_secret = self.dk.diffie_hellman(&encapsulated_key);
-        Ok(shared_secret.raw_secret_bytes().clone())
     }
 }
