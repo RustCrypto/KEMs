@@ -264,10 +264,10 @@ fn base_case_multiply(a0: Elem, a1: Elem, b0: Elem, b1: Elem, i: usize) -> (Elem
 ///
 /// The values computed here match those provided in Appendix A of FIPS 203.
 /// `ZETA_POW_BITREV` corresponds to the first table, and `GAMMA` to the second table.
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::integer_division_remainder_used, reason = "constant")]
 const ZETA_POW_BITREV: [Elem; 128] = {
     const ZETA: u64 = 17;
-    #[allow(clippy::integer_division_remainder_used)]
+
     const fn bitrev7(x: usize) -> usize {
         ((x >> 6) % 2)
             | (((x >> 5) % 2) << 1)
@@ -282,9 +282,9 @@ const ZETA_POW_BITREV: [Elem; 128] = {
     let mut pow = [Elem::new(0); 128];
     let mut i = 0;
     let mut curr = 1u64;
-    #[allow(clippy::integer_division_remainder_used)]
+
     while i < 128 {
-        pow[i] = Elem::new(curr as u16);
+        pow[i] = Elem::new((curr & 0xFFFF) as u16);
         i += 1;
         curr = (curr * ZETA) % BaseField::QLL;
     }
@@ -299,16 +299,15 @@ const ZETA_POW_BITREV: [Elem; 128] = {
     pow_bitrev
 };
 
-#[allow(clippy::cast_possible_truncation)]
+#[allow(clippy::integer_division_remainder_used, reason = "constant")]
 const GAMMA: [Elem; 128] = {
     const ZETA: u64 = 17;
     let mut gamma = [Elem::new(0); 128];
     let mut i = 0;
     while i < 128 {
         let zpr = ZETA_POW_BITREV[i].0 as u64;
-        #[allow(clippy::integer_division_remainder_used)]
         let g = (zpr * zpr * ZETA) % BaseField::QLL;
-        gamma[i] = Elem::new(g as u16);
+        gamma[i] = Elem::new((g & 0xFFFF) as u16);
         i += 1;
     }
     gamma

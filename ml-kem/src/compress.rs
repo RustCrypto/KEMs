@@ -17,7 +17,7 @@ where
     const POW2_HALF: u32 = 1 << (T::USIZE - 1);
     const MASK: Int = ((1 as Int) << T::USIZE) - 1;
     const DIV_SHIFT: usize = 34;
-    #[allow(clippy::integer_division_remainder_used)]
+    #[allow(clippy::integer_division_remainder_used, reason = "constant")]
     const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / BaseField::QLL;
 }
 
@@ -87,25 +87,24 @@ impl<K: ArraySize> Compress for Vector<K> {
 }
 
 #[cfg(test)]
-pub(crate) mod test {
+#[allow(clippy::cast_possible_truncation, reason = "tests")]
+#[allow(clippy::integer_division_remainder_used, reason = "tests")]
+pub(crate) mod tests {
     use super::*;
     use array::typenum::{U1, U4, U5, U6, U10, U11, U12};
     use num_rational::Ratio;
 
-    #[allow(clippy::cast_possible_truncation)]
     fn rational_compress<D: CompressionFactor>(input: u16) -> u16 {
         let fraction = Ratio::new(u32::from(input) * (1 << D::USIZE), BaseField::QL);
         (fraction.round().to_integer() as u16) & D::MASK
     }
 
-    #[allow(clippy::cast_possible_truncation)]
     fn rational_decompress<D: CompressionFactor>(input: u16) -> u16 {
         let fraction = Ratio::new(u32::from(input) * BaseField::QL, 1 << D::USIZE);
         fraction.round().to_integer() as u16
     }
 
     // Verify against inequality 4.7
-    #[allow(clippy::integer_division_remainder_used)]
     fn compression_decompression_inequality<D: CompressionFactor>() {
         const QI32: i32 = BaseField::Q as i32;
         let error_threshold = i32::from(Ratio::new(BaseField::Q, 1 << D::USIZE).to_integer());
