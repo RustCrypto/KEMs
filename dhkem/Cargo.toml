@@ -4,7 +4,7 @@ description = """
 Pure Rust implementation of Key Encapsulation Mechanism (KEM) adapters for Elliptic Curve
 Diffie Hellman (ECDH) protocols
 """
-version = "0.1.0-pre.2"
+version = "0.1.0-pre.3"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
@@ -18,7 +18,7 @@ kem = "0.3.0-rc.3"
 rand_core = "0.10.0-rc-6"
 
 # optional dependencies
-elliptic-curve = { version = "0.14.0-rc.24", optional = true, default-features = false }
+elliptic-curve = { version = "0.14.0-rc.25", optional = true, default-features = false }
 k256 = { version = "0.14.0-rc.6", optional = true, default-features = false, features = ["arithmetic"] }
 p256 = { version = "0.14.0-rc.6", optional = true, default-features = false, features = ["arithmetic"] }
 p384 = { version = "0.14.0-rc.6", optional = true, default-features = false, features = ["arithmetic"] }

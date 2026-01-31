@@ -365,7 +365,7 @@ dependencies = [
 
 [[package]]
 name = "dhkem"
-version = "0.1.0-pre.2"
+version = "0.1.0-pre.3"
 dependencies = [
  "elliptic-curve",
  "getrandom",
@@ -402,8 +402,9 @@ checksum = "48c757948c5ede0e46177b7add2e67155f70e33c07fea8284df6576da70b3719"
 
 [[package]]
 name = "elliptic-curve"
-version = "0.14.0-rc.24"
-source = "git+https://github.com/RustCrypto/traits#43d020754c46cd81ca8d13c980f48215aa362627"
+version = "0.14.0-rc.25"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a4e41550a307f4f1b2d52dae190683f7f4c4610ec29006acf0a906c26e81c4ac"
 dependencies = [
  "base16ct",
  "crypto-bigint",
@@ -766,7 +767,7 @@ checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
 name = "ml-kem"
-version = "0.3.0-pre.5"
+version = "0.3.0-pre.6"
 dependencies = [
  "const-oid",
  "criterion",
@@ -1732,7 +1733,7 @@ dependencies = [
 
 [[package]]
 name = "x-wing"
-version = "0.1.0-pre.5"
+version = "0.1.0-pre.6"
 dependencies = [
  "getrandom",
  "hex",
