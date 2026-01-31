@@ -68,13 +68,13 @@ mod pke;
 /// Section 7. Parameter Sets
 mod param;
 
+// PKCS#8 key encoding support (doc comments in module)
 pub mod pkcs8;
 
-/// Trait definitions
-mod traits;
-
 pub use array;
-pub use decapsulation_key::DecapsulationKey;
+#[allow(deprecated)]
+pub use decapsulation_key::ExpandedKeyEncoding;
+pub use decapsulation_key::{DecapsulationKey, FromSeed};
 pub use encapsulation_key::EncapsulationKey;
 pub use kem::{
     self, Ciphertext, Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
@@ -85,7 +85,6 @@ pub use ml_kem_768::MlKem768;
 pub use ml_kem_1024::MlKem1024;
 pub use module_lattice::encoding::ArraySize;
 pub use param::{ExpandedDecapsulationKey, ParameterSet};
-pub use traits::*;
 
 use array::{
     Array,
@@ -297,21 +296,41 @@ mod test {
         round_trip_test::<MlKem1024>();
     }
 
+    fn seed_test<P>()
+    where
+        P: KemParams,
+    {
+        let mut rng = UnwrapErr(SysRng);
+        let mut seed = Seed::default();
+        rng.try_fill_bytes(&mut seed).unwrap();
+
+        let dk = DecapsulationKey::<P>::from_seed(seed.clone());
+        let seed_encoded = dk.to_seed().unwrap();
+        assert_eq!(seed, seed_encoded);
+
+        let ek_original = dk.encapsulation_key();
+        let ek_encoded = ek_original.to_bytes();
+        let ek_decoded = EncapsulationKey::new(&ek_encoded).unwrap();
+        assert_eq!(ek_original, &ek_decoded);
+    }
+
+    #[test]
+    fn seed() {
+        seed_test::<MlKem512>();
+        seed_test::<MlKem768>();
+        seed_test::<MlKem1024>();
+    }
+
+    #[allow(deprecated)]
     fn expanded_key_test<P>()
     where
         P: KemParams,
     {
         let mut rng = UnwrapErr(SysRng);
         let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
-        let ek_original = dk_original.encapsulation_key().clone();
-
-        let dk_encoded = dk_original.to_encoded_bytes();
-        let dk_decoded = DecapsulationKey::from_encoded_bytes(&dk_encoded).unwrap();
+        let dk_encoded = dk_original.to_expanded_bytes();
+        let dk_decoded = DecapsulationKey::from_expanded_bytes(&dk_encoded).unwrap();
         assert_eq!(dk_original, dk_decoded);
-
-        let ek_encoded = ek_original.to_encoded_bytes();
-        let ek_decoded = EncapsulationKey::from_encoded_bytes(&ek_encoded).unwrap();
-        assert_eq!(ek_original, ek_decoded);
     }
 
     #[test]
@@ -328,13 +347,17 @@ mod test {
         let mut rng = UnwrapErr(SysRng);
         let dk_original = DecapsulationKey::<P>::generate_from_rng(&mut rng);
 
-        let mut dk_encoded = dk_original.to_encoded_bytes();
+        #[allow(deprecated)]
+        let mut dk_encoded = dk_original.to_expanded_bytes();
+
         // Corrupt the hash value
         let hash_offset = P::NttVectorSize::USIZE + P::EncryptionKeySize::USIZE;
         dk_encoded[hash_offset] ^= 0xFF;
 
+        #[allow(deprecated)]
         let dk_decoded: Result<DecapsulationKey<P>, InvalidKey> =
-            DecapsulationKey::from_encoded_bytes(&dk_encoded);
+            DecapsulationKey::from_expanded_bytes(&dk_encoded);
+
         assert!(dk_decoded.is_err());
     }
 
@@ -343,26 +366,6 @@ mod test {
         invalid_hash_expanded_key_test::<MlKem512>();
         invalid_hash_expanded_key_test::<MlKem768>();
         invalid_hash_expanded_key_test::<MlKem1024>();
-    }
-
-    fn seed_test<P>()
-    where
-        P: KemParams,
-    {
-        let mut rng = UnwrapErr(SysRng);
-        let mut seed = Seed::default();
-        rng.try_fill_bytes(&mut seed).unwrap();
-
-        let dk = DecapsulationKey::<P>::from_seed(seed.clone());
-        let seed_encoded = dk.to_seed().unwrap();
-        assert_eq!(seed, seed_encoded);
-    }
-
-    #[test]
-    fn seed() {
-        seed_test::<MlKem512>();
-        seed_test::<MlKem768>();
-        seed_test::<MlKem1024>();
     }
 
     fn key_inequality_test<P>()

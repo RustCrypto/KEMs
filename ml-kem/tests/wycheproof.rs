@@ -1,8 +1,10 @@
 //! Test against the Wycheproof test vectors.
 
 use array::{Array, ArraySize};
+#[allow(deprecated)]
+use ml_kem::ExpandedKeyEncoding;
 use ml_kem::{
-    EncodedSizeUser, FromSeed, MlKem512, MlKem768, MlKem1024,
+    FromSeed, MlKem512, MlKem768, MlKem1024,
     kem::{Decapsulate, KeyExport, TryKeyInit},
 };
 use serde::Deserialize;
@@ -149,7 +151,12 @@ macro_rules! mlkem_keygen_seed_test {
                     let test_dk = decode_expected_hex(&test.dk, "dk");
 
                     let (dk, ek) = $kem::from_seed(&test_seed);
-                    assert_eq!(test_dk, dk.to_encoded_bytes());
+
+                    #[allow(deprecated)]
+                    {
+                        assert_eq!(test_dk, dk.to_expanded_bytes());
+                    }
+
                     assert_eq!(test.ek.as_slice(), ek.to_bytes().as_slice());
                 }
             }

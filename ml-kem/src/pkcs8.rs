@@ -31,7 +31,7 @@ use array::Array;
 
 #[cfg(feature = "alloc")]
 use {
-    crate::EncodedSizeUser,
+    ::kem::KeyExport,
     ::pkcs8::der::{Encode, TagMode, asn1::BitStringRef},
 };
 
@@ -100,7 +100,7 @@ where
     /// Serialize the given `EncapsulationKey` into DER format.
     /// Returns a `Document` which wraps the DER document in case of success.
     fn to_public_key_der(&self) -> spki::Result<pkcs8::Document> {
-        let public_key = self.to_encoded_bytes();
+        let public_key = self.to_bytes();
         let subject_public_key = BitStringRef::new(0, &public_key)?;
 
         ::pkcs8::SubjectPublicKeyInfo {
