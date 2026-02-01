@@ -29,6 +29,9 @@
 //! [RFC9180]: https://datatracker.ietf.org/doc/html/rfc9180#name-dh-based-kem-dhkem
 //! [TLS KEM combiner]: https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10
 
+mod expander;
+
+pub use expander::{Expander, InvalidLength};
 pub use kem::{self, Encapsulate, Generate, Kem, TryDecapsulate};
 
 #[cfg(feature = "ecdh")]
@@ -86,16 +89,16 @@ impl<DK, EK> DecapsulationKey<DK, EK> {
 #[derive(Clone, Copy, Debug, Ord, PartialOrd, Eq, PartialEq, Hash, Default)]
 pub struct EncapsulationKey<EK>(EK);
 
-impl<EK> From<EK> for EncapsulationKey<EK> {
-    fn from(inner: EK) -> Self {
-        Self(inner)
+impl<EK> EncapsulationKey<EK> {
+    /// Consumes `self` and returns the wrapped value
+    pub fn into_inner(self) -> EK {
+        self.0
     }
 }
 
-impl<X> EncapsulationKey<X> {
-    /// Consumes `self` and returns the wrapped value
-    pub fn into_inner(self) -> X {
-        self.0
+impl<EK> From<EK> for EncapsulationKey<EK> {
+    fn from(inner: EK) -> Self {
+        Self(inner)
     }
 }
 

@@ -7,6 +7,9 @@ use kem::{
 use rand_core::{CryptoRng, TryCryptoRng};
 use x25519::{PublicKey, StaticSecret};
 
+#[cfg(doc)]
+use crate::Expander;
+
 /// X25519 ciphertexts are compressed Montgomery x/u-coordinates.
 type Ciphertext = Array<u8, U32>;
 
@@ -67,6 +70,15 @@ impl Generate for X25519DecapsulationKey {
     }
 }
 
+/// <div class="warning">
+/// <b><code>SharedKey</code> is non-uniform raw ECDH output!</b>
+///
+/// The resulting `SharedKey` is the non-uniform raw output of the Elliptic Curve Diffie-Hellman
+/// operation (i.e. coordinate of an elliptic curve point).
+///
+/// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
+/// output keys.
+/// </div>
 impl Decapsulate<X25519Kem> for X25519DecapsulationKey {
     fn decapsulate(&self, encapsulated_key: &Ciphertext) -> SharedKey {
         let public_key = PublicKey::from(encapsulated_key.0);
@@ -116,6 +128,15 @@ impl KeyExport for X25519EncapsulationKey {
     }
 }
 
+/// <div class="warning">
+/// <b><code>SharedKey</code> is non-uniform raw ECDH output!</b>
+///
+/// The resulting `SharedKey` is the non-uniform raw output of the Elliptic Curve Diffie-Hellman
+/// operation (i.e. coordinate of an elliptic curve point).
+///
+/// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
+/// output keys.
+/// </div>
 impl Encapsulate<X25519Kem> for X25519EncapsulationKey {
     fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedKey)
     where

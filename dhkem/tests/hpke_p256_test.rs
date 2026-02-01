@@ -7,10 +7,11 @@
 use core::convert::Infallible;
 use dhkem::NistP256DecapsulationKey;
 use hex_literal::hex;
-use hkdf::Hkdf;
 use kem::{Encapsulate, KeyExport, TryDecapsulate, TryKeyInit};
 use rand_core::{TryCryptoRng, TryRng};
 use sha2::Sha256;
+
+type Expander = dhkem::Expander<Sha256>;
 
 /// Constant RNG for testing purposes only.
 struct ConstantRng<'a>(pub &'a [u8]);
@@ -41,31 +42,14 @@ impl TryRng for ConstantRng<'_> {
 // this is only ever ok for testing
 impl TryCryptoRng for ConstantRng<'_> {}
 
-fn labeled_extract(salt: &[u8], label: &[u8], ikm: &[u8]) -> Vec<u8> {
-    let labeled_ikm = [b"HPKE-v1".as_slice(), b"KEM\x00\x10".as_slice(), label, ikm].concat();
-    Hkdf::<Sha256>::extract(Some(salt), &labeled_ikm).0.to_vec()
-}
+fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    let expander = Expander::new_labeled_hpke(b"", b"eae_prk", shared_secret).unwrap();
+    expander
+        .expand_labeled_hpke(b"shared_secret", kem_context, &mut out)
+        .unwrap();
 
-fn labeled_expand(prk: &[u8], label: &[u8], info: &[u8], l: u16) -> Vec<u8> {
-    let labeled_info = [
-        &l.to_be_bytes(),
-        b"HPKE-v1".as_slice(),
-        b"KEM\x00\x10".as_slice(),
-        label,
-        info,
-    ]
-    .concat();
-    let mut out = vec![0; l as usize];
-    Hkdf::<Sha256>::from_prk(prk)
-        .unwrap()
-        .expand(&labeled_info, &mut out)
-        .expect("ok");
     out
-}
-
-fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> Vec<u8> {
-    let eae_prk = labeled_extract(b"", b"eae_prk", shared_secret);
-    labeled_expand(&eae_prk, b"shared_secret", kem_context, 32)
 }
 
 #[test]
