@@ -1,4 +1,4 @@
-// #![no_std] TODO
+#![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 #![doc(
@@ -96,20 +96,28 @@
 )))]
 compile_error!("no algorithm feature enabled");
 
-mod error;
-pub use error::*;
+#[macro_use]
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 #[cfg(feature = "hazmat")]
 pub mod hazmat;
 #[cfg(not(feature = "hazmat"))]
 mod hazmat;
 
-use hazmat::*;
+mod error;
+pub use error::*;
 
+use alloc::vec::Vec;
 use core::marker::PhantomData;
+use hazmat::*;
 use rand_core::CryptoRng;
 use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop};
+
+#[cfg(feature = "serde")]
+use alloc::string::{String, ToString};
 
 macro_rules! serde_impl {
     ($name:ident, $from_method:ident) => {
@@ -508,6 +516,7 @@ impl ConstantTimeEq for Algorithm {
             (Self::FrodoKem976Shake, Self::FrodoKem976Shake) => Choice::from(1),
             #[cfg(feature = "frodo1344shake")]
             (Self::FrodoKem1344Shake, Self::FrodoKem1344Shake) => Choice::from(1),
+            #[allow(unreachable_patterns)]
             _ => Choice::from(0),
         }
     }
@@ -519,6 +528,7 @@ impl Default for Algorithm {
     }
 }
 
+#[cfg(feature = "std")]
 impl core::fmt::Display for Algorithm {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         static ALGORITHMS: std::sync::LazyLock<std::collections::HashMap<Algorithm, String>> =
@@ -592,6 +602,7 @@ impl core::fmt::Display for Algorithm {
     }
 }
 
+#[cfg(feature = "std")]
 impl core::str::FromStr for Algorithm {
     type Err = Error;
 

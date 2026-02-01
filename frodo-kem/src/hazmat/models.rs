@@ -2,6 +2,7 @@
 
 use super::{Expanded, Kem, Params, Sample};
 use crate::{Error, FrodoResult};
+use alloc::{boxed::Box, vec::Vec};
 use core::marker::PhantomData;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
