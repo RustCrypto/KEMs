@@ -35,13 +35,6 @@ use module_lattice::algebra::Field;
 #[cfg(doc)]
 use crate::Seed;
 
-/// An integer that describes a bit length to be used in CBD sampling
-pub trait CbdSamplingSize: ArraySize {
-    type SampleSize: EncodingSize;
-    type OnesSize: ArraySize;
-    const ONES: Array<Elem, Self::OnesSize>;
-}
-
 /// To speed up CBD sampling, we pre-compute all the bit-manipulations:
 ///
 /// * Splitting a sampled integer into two parts
@@ -69,6 +62,14 @@ where
         x += 1;
     }
     Array(out)
+}
+
+/// An integer that describes a bit length to be used in CBD sampling
+#[allow(unreachable_pub)]
+pub trait CbdSamplingSize: ArraySize {
+    type SampleSize: EncodingSize;
+    type OnesSize: ArraySize;
+    const ONES: Array<Elem, Self::OnesSize>;
 }
 
 impl CbdSamplingSize for U2 {
@@ -127,9 +128,9 @@ pub trait PkeParams: Kem<SharedKeySize = U32> + ParameterSet {
     fn split_ek(ek: &EncodedEncryptionKey<Self>) -> (&EncodedNttVector<Self>, &B32);
 }
 
-pub type EncodedNttVector<P> = Array<u8, <P as PkeParams>::NttVectorSize>;
-pub type EncodedDecryptionKey<P> = Array<u8, <P as PkeParams>::NttVectorSize>;
-pub type EncodedEncryptionKey<P> = Array<u8, <P as PkeParams>::EncryptionKeySize>;
+pub(crate) type EncodedNttVector<P> = Array<u8, <P as PkeParams>::NttVectorSize>;
+pub(crate) type EncodedDecryptionKey<P> = Array<u8, <P as PkeParams>::NttVectorSize>;
+pub(crate) type EncodedEncryptionKey<P> = Array<u8, <P as PkeParams>::EncryptionKeySize>;
 
 impl<P> PkeParams for P
 where
@@ -193,8 +194,8 @@ pub trait KemParams: PkeParams {
     );
 }
 
-pub type DecapsulationKeySize<P> = <P as KemParams>::DecapsulationKeySize;
-pub type EncapsulationKeySize<P> = <P as PkeParams>::EncryptionKeySize;
+pub(crate) type DecapsulationKeySize<P> = <P as KemParams>::DecapsulationKeySize;
+pub(crate) type EncapsulationKeySize<P> = <P as PkeParams>::EncryptionKeySize;
 
 /// Serialized decapsulation key after having been expanded from a [`Seed`].
 pub type ExpandedDecapsulationKey<P> = Array<u8, <P as KemParams>::DecapsulationKeySize>;
