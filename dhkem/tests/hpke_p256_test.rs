@@ -1,4 +1,8 @@
+//! HPKE tests (P-256 only)
+
 #![cfg(feature = "p256")]
+#![allow(clippy::unwrap_in_result, reason = "tests")]
+#![allow(clippy::unwrap_used, reason = "tests")]
 
 use core::convert::Infallible;
 use dhkem::NistP256DecapsulationKey;

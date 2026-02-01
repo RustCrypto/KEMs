@@ -44,6 +44,9 @@ p521 = ["dep:p521", "ecdh"]
 x25519 = ["dep:x25519", "x25519/static_secrets"]
 zeroize = ["dep:zeroize"]
 
+[lints]
+workspace = true
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]
