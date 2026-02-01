@@ -101,6 +101,9 @@ features = [
 ]
 rustdoc-args = ["--cfg", "docsrs"]
 
+[lints]
+workspace = true
+
 [[bench]]
 name = "frodo"
 harness = false

@@ -27,7 +27,7 @@
 //! [`FrodoKem640Aes`], [`FrodoKem976Aes`], and [`FrodoKem1344Aes`] for the FrodoKEM-AES algorithms.
 //! [`FrodoKem640Shake`], [`FrodoKem976Shake`], and [`FrodoKem1344Shake`] for the FrodoKEM-SHAKE algorithms.
 
-#![allow(clippy::unwrap_used)]
+#![allow(unreachable_pub, clippy::unwrap_used)]
 
 mod models;
 mod traits;

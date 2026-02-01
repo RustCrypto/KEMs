@@ -1,6 +1,25 @@
+// #![no_std] TODO
+#![cfg_attr(docsrs, feature(doc_cfg))]
+#![doc = include_str!("../README.md")]
+#![doc(
+    html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
+    html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
+)]
+#![allow(
+    clippy::cast_possible_truncation,
+    clippy::cast_possible_wrap,
+    clippy::cast_sign_loss,
+    clippy::doc_markdown,
+    clippy::integer_division_remainder_used,
+    clippy::missing_errors_doc,
+    clippy::trivially_copy_pass_by_ref,
+    clippy::undocumented_unsafe_blocks,
+    reason = "TODO"
+)]
+
 //! ## Usage
 //!
-//! The standard safe method for FrodoKEM is to use [`Algorithm`],
+//! The standard safe method for `FrodoKEM` is to use [`Algorithm`],
 //! `encapsulate` a randomly generated value,
 //! and `decapsulate` it on the other side.
 //!
@@ -57,20 +76,9 @@
 //!
 //! ## Custom
 //!
-//! To create a custom implementation of FrodoKEM, use the `hazmat` feature, to access
+//! To create a custom implementation of `FrodoKEM`, use the `hazmat` feature, to access
 //! the necessary traits and models for creating a custom implementation.
 //! Be warned, this is not recommended unless you are sure of what you are doing.
-#![cfg_attr(docsrs, feature(doc_cfg))]
-#![warn(
-    missing_docs,
-    missing_debug_implementations,
-    missing_copy_implementations,
-    trivial_casts,
-    trivial_numeric_casts,
-    unused,
-    clippy::mod_module_files
-)]
-#![deny(clippy::unwrap_used)]
 
 #[cfg(not(any(
     feature = "efrodo640aes",
@@ -98,8 +106,8 @@ mod hazmat;
 
 use hazmat::*;
 
+use core::marker::PhantomData;
 use rand_core::CryptoRng;
-use std::marker::PhantomData;
 use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -144,7 +152,7 @@ macro_rules! serde_impl {
                     impl<'de> serde::de::Visitor<'de> for FieldVisitor {
                         type Value = $name;
 
-                        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        fn expecting(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                             write!(f, "a struct with two fields")
                         }
 
@@ -191,7 +199,7 @@ macro_rules! serde_impl {
                     impl<'de> serde::de::Visitor<'de> for BytesVisitor {
                         type Value = $name;
 
-                        fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                        fn expecting(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
                             write!(f, "a byte sequence")
                         }
 
@@ -234,7 +242,7 @@ macro_rules! ct_eq_imp {
     };
 }
 
-/// A FrodoKEM ciphertext key
+/// A `FrodoKEM` ciphertext key
 #[derive(Debug, Clone, Default)]
 pub struct Ciphertext {
     pub(crate) algorithm: Algorithm,
@@ -253,11 +261,13 @@ serde_impl!(Ciphertext, ciphertext_from_bytes);
 
 impl Ciphertext {
     /// Get the algorithm
+    #[must_use]
     pub fn algorithm(&self) -> Algorithm {
         self.algorithm
     }
 
     /// Get the value
+    #[must_use]
     pub fn value(&self) -> &[u8] {
         self.value.as_slice()
     }
@@ -268,7 +278,7 @@ impl Ciphertext {
     }
 }
 
-/// A FrodoKEM public key
+/// A `FrodoKEM` public key
 #[derive(Debug, Clone, Default)]
 pub struct EncryptionKey {
     pub(crate) algorithm: Algorithm,
@@ -295,11 +305,13 @@ serde_impl!(EncryptionKey, encryption_key_from_bytes);
 
 impl EncryptionKey {
     /// Get the algorithm
+    #[must_use]
     pub fn algorithm(&self) -> Algorithm {
         self.algorithm
     }
 
     /// Get the value
+    #[must_use]
     pub fn value(&self) -> &[u8] {
         self.value.as_slice()
     }
@@ -331,7 +343,7 @@ impl EncryptionKey {
     }
 }
 
-/// A FrodoKEM secret key
+/// A `FrodoKEM` secret key
 #[derive(Debug, Clone, Default)]
 pub struct DecryptionKey {
     pub(crate) algorithm: Algorithm,
@@ -358,11 +370,13 @@ impl ZeroizeOnDrop for DecryptionKey {}
 
 impl DecryptionKey {
     /// Get the algorithm
+    #[must_use]
     pub fn algorithm(&self) -> Algorithm {
         self.algorithm
     }
 
     /// Get the value
+    #[must_use]
     pub fn value(&self) -> &[u8] {
         self.value.as_slice()
     }
@@ -382,7 +396,7 @@ impl DecryptionKey {
     }
 }
 
-/// A FrodoKEM shared secret
+/// A `FrodoKEM` shared secret
 #[derive(Debug, Clone, Default)]
 pub struct SharedSecret {
     pub(crate) algorithm: Algorithm,
@@ -409,11 +423,13 @@ impl ZeroizeOnDrop for SharedSecret {}
 
 impl SharedSecret {
     /// Get the algorithm
+    #[must_use]
     pub fn algorithm(&self) -> Algorithm {
         self.algorithm
     }
 
     /// Get the value
+    #[must_use]
     pub fn value(&self) -> &[u8] {
         self.value.as_slice()
     }
@@ -424,7 +440,7 @@ impl SharedSecret {
     }
 }
 
-/// The supported FrodoKem algorithms
+/// The supported `FrodoKem` algorithms
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Ord, PartialOrd, Hash)]
 pub enum Algorithm {
     #[cfg(feature = "frodo640aes")]
@@ -503,8 +519,8 @@ impl Default for Algorithm {
     }
 }
 
-impl std::fmt::Display for Algorithm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl core::fmt::Display for Algorithm {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         static ALGORITHMS: std::sync::LazyLock<std::collections::HashMap<Algorithm, String>> =
             std::sync::LazyLock::new(|| {
                 let mut set = std::collections::HashMap::new();
@@ -576,7 +592,7 @@ impl std::fmt::Display for Algorithm {
     }
 }
 
-impl std::str::FromStr for Algorithm {
+impl core::str::FromStr for Algorithm {
     type Err = Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -686,26 +702,26 @@ impl From<Algorithm> for u8 {
 
 impl From<Algorithm> for u16 {
     fn from(alg: Algorithm) -> u16 {
-        u8::from(alg) as u16
+        u16::from(u8::from(alg))
     }
 }
 
 impl From<Algorithm> for u32 {
     fn from(alg: Algorithm) -> u32 {
-        u8::from(alg) as u32
+        u32::from(u8::from(alg))
     }
 }
 
 impl From<Algorithm> for u64 {
     fn from(alg: Algorithm) -> u64 {
-        u8::from(alg) as u64
+        u64::from(u8::from(alg))
     }
 }
 
 #[cfg(target_pointer_width = "64")]
 impl From<Algorithm> for u128 {
     fn from(alg: Algorithm) -> u128 {
-        u8::from(alg) as u128
+        u128::from(u8::from(alg))
     }
 }
 
@@ -827,6 +843,7 @@ impl<'de> serde::Deserialize<'de> for Algorithm {
 
 impl Algorithm {
     /// Get the enabled algorithms
+    #[must_use]
     pub fn enabled_algorithms() -> &'static [Algorithm] {
         &[
             #[cfg(feature = "frodo640aes")]
@@ -857,6 +874,7 @@ impl Algorithm {
     }
 
     /// Get the parameters for this algorithm
+    #[must_use]
     pub const fn params(&self) -> AlgorithmParams {
         match self {
             #[cfg(feature = "frodo640aes")]
@@ -908,6 +926,7 @@ impl Algorithm {
     }
 
     /// Get the [`EncryptionKey`] from a [`DecryptionKey`]
+    #[must_use]
     pub fn encryption_key_from_decryption_key(&self, secret_key: &DecryptionKey) -> EncryptionKey {
         match self {
             #[cfg(feature = "frodo640aes")]
