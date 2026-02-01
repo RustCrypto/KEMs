@@ -15,6 +15,9 @@ use kem::{
 };
 use rand_core::{CryptoRng, TryCryptoRng};
 
+#[cfg(doc)]
+use crate::Expander;
+
 /// Generic Elliptic Curve Diffie-Hellman KEM adapter compatible with curves implemented using
 /// traits from the `elliptic-curve` crate.
 ///
@@ -93,6 +96,15 @@ where
     }
 }
 
+/// <div class="warning">
+/// <b><code>SharedKey</code> is non-uniform raw ECDH output!</b>
+///
+/// The resulting [`SharedKey`] is the non-uniform raw output of the Elliptic Curve Diffie-Hellman
+/// operation (i.e. coordinate of an elliptic curve point).
+///
+/// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
+/// output keys.
+/// </div>
 impl<C> TryDecapsulate<EcdhKem<C>> for EcdhDecapsulationKey<C>
 where
     C: CurveArithmetic,
@@ -170,6 +182,15 @@ where
     }
 }
 
+/// <div class="warning">
+/// <b><code>SharedKey</code> is non-uniform raw ECDH output!</b>
+///
+/// The resulting [`SharedKey`] is the non-uniform raw output of the Elliptic Curve Diffie-Hellman
+/// operation (i.e. coordinate of an elliptic curve point).
+///
+/// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
+/// output keys.
+/// </div>
 impl<C> Encapsulate<EcdhKem<C>> for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
