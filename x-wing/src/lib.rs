@@ -33,12 +33,14 @@ pub use kem::{
     KeySizeUser, TryKeyInit,
 };
 
+use core::fmt::{self, Debug};
 use ml_kem::{
     FromSeed, MlKem768,
     array::{
         Array, ArrayN, AsArrayRef,
         sizes::{U32, U1120, U1184, U1216},
     },
+    ml_kem_768,
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRng};
 use sha3::{
@@ -50,8 +52,8 @@ use x25519_dalek::{PublicKey, StaticSecret};
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
-type MlKem768DecapsulationKey = ml_kem::kem::DecapsulationKey<MlKem768>;
-type MlKem768EncapsulationKey = ml_kem::kem::EncapsulationKey<MlKem768>;
+type MlKem768DecapsulationKey = ml_kem_768::DecapsulationKey;
+type MlKem768EncapsulationKey = ml_kem_768::EncapsulationKey;
 
 const X_WING_LABEL: &[u8; 6] = br"\.//^\";
 
@@ -200,6 +202,14 @@ impl AsRef<EncapsulationKey> for DecapsulationKey {
     }
 }
 
+impl Debug for DecapsulationKey {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DecapsulationKey")
+            .field("ek", &self.ek)
+            .finish_non_exhaustive()
+    }
+}
+
 impl Decapsulate<XWingKem> for DecapsulationKey {
     #[allow(clippy::similar_names)] // So we can use the names as in the RFC
     fn decapsulate(&self, ct: &Ciphertext) -> SharedKey {
@@ -282,7 +292,7 @@ fn expand_key(
 }
 
 /// X-Wing ciphertext.
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CiphertextMessage {
     ct_m: ArrayN<u8, 1088>,
     ct_x: PublicKey,
