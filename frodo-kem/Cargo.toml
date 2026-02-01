@@ -19,6 +19,7 @@ default = [
     "frodo",
     "efrodo",
     "serde",
+    "std"
 ]
 hazmat = []
 efrodo = [
@@ -52,7 +53,8 @@ frodo1344shake = []
 openssl = ["openssl-aes", "openssl-shake"]
 openssl-aes = ["dep:openssl-sys"]
 openssl-shake = ["dep:openssl-sys"]
-serde = ["dep:hex", "dep:serde"]
+serde = ["std", "dep:hex", "dep:serde"]
+std = []
 
 [dependencies]
 aes = { version = "0.9.0-rc.2", optional = true }

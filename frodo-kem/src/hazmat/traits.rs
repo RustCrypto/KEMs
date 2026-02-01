@@ -4,6 +4,7 @@ use crate::hazmat::{
     Ciphertext, CiphertextRef, DecryptionKey, DecryptionKeyRef, EncryptionKey, EncryptionKeyRef,
     SharedSecret,
 };
+use alloc::{string::String, vec::Vec};
 use rand_core::CryptoRng;
 use sha3::digest::{ExtendableOutput, ExtendableOutputReset, Update};
 use subtle::{Choice, ConditionallySelectable};
@@ -27,6 +28,7 @@ pub trait Sample: Default {
 /// Expand the seed to produce the matrix A
 pub trait Expanded: Default {
     /// The method used to expand the seed
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     const METHOD: &'static str;
     /// Expand the seed to produce the matrix A
     /// Generate matrix A (N x N) column-wise
@@ -106,6 +108,7 @@ pub trait Params: Sized + Default {
 /// The base FrodoKEM methods
 pub trait Kem: Params + Expanded + Sample {
     /// The name of the frodoKEM algorithm
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     const NAME: &'static str;
 
     /// Generate a keypair
@@ -426,6 +429,7 @@ pub trait Kem: Params + Expanded + Sample {
     }
 
     /// Get the algorithm name
+    #[cfg_attr(not(feature = "std"), allow(dead_code))]
     fn algorithm(&self) -> String {
         format!("{}-{}-{}", Self::NAME, Self::N, Self::METHOD)
     }
