@@ -127,7 +127,7 @@ where
 #[cfg(feature = "zeroize")]
 impl<DK: Zeroize, EK> Zeroize for DecapsulationKey<DK, EK> {
     fn zeroize(&mut self) {
-        self.dk.zeroize()
+        self.dk.zeroize();
     }
 }
 

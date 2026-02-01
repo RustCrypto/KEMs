@@ -1,3 +1,5 @@
+//! DHKEM tests.
+
 #![cfg(any(
     feature = "k256",
     feature = "p256",
@@ -5,6 +7,7 @@
     feature = "p521",
     feature = "x25519"
 ))]
+#![allow(clippy::unwrap_used, reason = "tests")]
 
 use kem::{Encapsulate, Generate, Kem, TryDecapsulate};
 
