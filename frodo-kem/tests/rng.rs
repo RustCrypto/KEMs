@@ -1,5 +1,10 @@
 //! Random number generator for testing
 //! AES-CTR DRBG
+
+#![allow(dead_code)]
+#![allow(clippy::integer_division_remainder_used, reason = "tests")]
+#![allow(clippy::unwrap_used, clippy::unwrap_in_result, reason = "tests")]
+
 use aes::{
     Aes256Enc, Block,
     cipher::{BlockCipherEncrypt, KeyInit},
@@ -9,11 +14,11 @@ use hybrid_array::{Array, typenum::U48};
 use rand_core::{Rng, SeedableRng, TryCryptoRng, TryRng};
 
 /// Seed type for the AES-CTR DRBG
-pub type RngSeed = Array<u8, U48>;
+pub(crate) type RngSeed = Array<u8, U48>;
 
 /// AES-CTR DRBG
 #[derive(Debug, Default, Copy, Clone)]
-pub struct AesCtrDrbg {
+pub(crate) struct AesCtrDrbg {
     reseed_counter: usize,
     key: [u8; 32],
     counter: [u8; 16],
@@ -75,7 +80,7 @@ impl TryCryptoRng for AesCtrDrbg {}
 
 impl AesCtrDrbg {
     /// Reseed the DRBG with a new seed
-    pub fn reseed(&mut self, seed: &RngSeed) {
+    pub(crate) fn reseed(&mut self, seed: &RngSeed) {
         self.counter.iter_mut().for_each(|c| *c = 0);
         self.key.iter_mut().for_each(|k| *k = 0);
 

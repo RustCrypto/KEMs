@@ -1,4 +1,8 @@
 //! Reader for Frodo KAT files and test vectors
+
+#![allow(dead_code)]
+#![allow(clippy::unwrap_used, reason = "tests")]
+
 use frodo_kem::*;
 use hybrid_array::{Array, typenum::U48};
 use std::path::Path;
@@ -9,29 +13,29 @@ use std::{
 
 type RngSeed = Array<u8, U48>;
 
-/// "count = ".len()
+/// "count = ".`len()`
 const COUNT_PREFIX: usize = 8;
-/// "seed = ".len()
+/// "seed = ".`len()`
 const SEED_PREFIX: usize = 7;
-/// "pk = ".len()
+/// "pk = ".`len()`
 const PK_PREFIX: usize = 5;
-/// "sk = ".len()
+/// "sk = ".`len()`
 const SK_PREFIX: usize = 5;
-/// "ct = ".len()
+/// "ct = ".`len()`
 const CT_PREFIX: usize = 5;
-/// "ss = ".len()
+/// "ss = ".`len()`
 const SS_PREFIX: usize = 5;
 
 /// Reader for Frodo KAT files
 #[derive(Debug)]
-pub struct RspReader {
+pub(crate) struct RspReader {
     lines: Lines<BufReader<File>>,
     scheme: Algorithm,
 }
 
 impl RspReader {
-    /// Create a new RspReader from a file
-    pub fn new<P: AsRef<Path>>(file: P) -> Self {
+    /// Create a new `RspReader` from a file
+    pub(crate) fn new<P: AsRef<Path>>(file: P) -> Self {
         let path = file.as_ref();
         assert!(
             path.is_file(),
@@ -65,7 +69,7 @@ impl Iterator for RspReader {
         let seed_line = self.lines.next()?.unwrap();
         let seed_bytes = hex::decode(seed_line[SEED_PREFIX..].trim_end()).unwrap();
         assert_eq!(seed_bytes.len(), 48);
-        let seed = RngSeed::from_iter(seed_bytes.iter().copied());
+        let seed = seed_bytes.iter().copied().collect::<RngSeed>();
         let pk_line = self.lines.next()?.unwrap();
         let pk_bytes = hex::decode(pk_line[PK_PREFIX..].trim_end()).unwrap();
         let pk = self.scheme.encryption_key_from_bytes(&pk_bytes).unwrap();
@@ -94,7 +98,7 @@ impl Iterator for RspReader {
 
 /// Test vector data
 #[derive(Debug, Clone, Default)]
-pub struct RspData {
+pub(crate) struct RspData {
     /// Algorithm used in the test vector
     pub scheme: Algorithm,
     /// Test vector number

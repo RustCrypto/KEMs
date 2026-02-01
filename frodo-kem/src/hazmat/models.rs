@@ -1,6 +1,8 @@
+#![allow(unsafe_code)]
+
 use super::{Expanded, Kem, Params, Sample};
 use crate::{Error, FrodoResult};
-use std::marker::PhantomData;
+use core::marker::PhantomData;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 macro_rules! from_slice_impl {
@@ -95,6 +97,7 @@ impl<P: Params> Ciphertext<P> {
 
     /// Returns a reference to the c1 component
     #[allow(dead_code)]
+    #[must_use]
     pub fn c1(&self) -> &[u8] {
         &self.0[..P::LOG_Q_X_N_X_N_BAR_DIV_8]
     }
@@ -106,6 +109,7 @@ impl<P: Params> Ciphertext<P> {
 
     /// Returns a reference to the c2 component
     #[allow(dead_code)]
+    #[must_use]
     pub fn c2(&self) -> &[u8] {
         &self.0[P::LOG_Q_X_N_X_N_BAR_DIV_8..P::CIPHERTEXT_LENGTH - P::BYTES_SALT]
     }
@@ -117,6 +121,7 @@ impl<P: Params> Ciphertext<P> {
 
     /// Returns a reference to the salt
     #[allow(dead_code)]
+    #[must_use]
     pub fn salt(&self) -> &[u8] {
         &self.0[P::CIPHERTEXT_LENGTH - P::BYTES_SALT..]
     }
@@ -154,22 +159,26 @@ impl<'a, P: Params> CiphertextRef<'a, P> {
     }
 
     /// Returns a reference to the c1 component
+    #[must_use]
     pub fn c1(&self) -> &[u8] {
         &self.0[..P::LOG_Q_X_N_X_N_BAR_DIV_8]
     }
 
     /// Returns a reference to the c2 component
+    #[must_use]
     pub fn c2(&self) -> &[u8] {
         &self.0[P::LOG_Q_X_N_X_N_BAR_DIV_8..P::CIPHERTEXT_LENGTH - P::BYTES_SALT]
     }
 
     /// Returns a reference to the salt
+    #[must_use]
     pub fn salt(&self) -> &[u8] {
         &self.0[P::CIPHERTEXT_LENGTH - P::BYTES_SALT..]
     }
 
     /// Convert the ciphertext reference into an owned ciphertext
     #[allow(dead_code)]
+    #[must_use]
     pub fn to_owned(&self) -> Ciphertext<P> {
         Ciphertext(self.0.to_vec(), PhantomData)
     }
@@ -217,6 +226,7 @@ impl<P: Params> EncryptionKey<P> {
     }
 
     /// Returns a reference to the seed A
+    #[must_use]
     pub fn seed_a(&self) -> &[u8] {
         &self.0[..P::BYTES_SEED_A]
     }
@@ -228,6 +238,7 @@ impl<P: Params> EncryptionKey<P> {
 
     /// Returns a reference to the matrix B
     #[allow(dead_code)]
+    #[must_use]
     pub fn matrix_b(&self) -> &[u8] {
         &self.0[P::BYTES_SEED_A..]
     }
@@ -252,17 +263,20 @@ impl<'a, P: Params> EncryptionKeyRef<'a, P> {
     }
 
     /// Returns a reference to the seed A
+    #[must_use]
     pub fn seed_a(&self) -> &[u8] {
         &self.0[..P::BYTES_SEED_A]
     }
 
     /// Returns a reference to the matrix B
+    #[must_use]
     pub fn matrix_b(&self) -> &[u8] {
         &self.0[P::BYTES_SEED_A..]
     }
 
     /// Convert the public key reference into an owned public key
     #[allow(dead_code)]
+    #[must_use]
     pub fn to_owned(&self) -> EncryptionKey<P> {
         EncryptionKey(self.0.to_vec(), PhantomData)
     }
@@ -286,7 +300,7 @@ impl<P: Params> Default for DecryptionKey<P> {
 
 impl<P: Params> Zeroize for DecryptionKey<P> {
     fn zeroize(&mut self) {
-        self.0.zeroize()
+        self.0.zeroize();
     }
 }
 
@@ -307,6 +321,7 @@ impl<P: Params> DecryptionKey<P> {
 
     /// Returns a reference to the shared secret
     #[allow(dead_code)]
+    #[must_use]
     pub fn random_s(&self) -> &[u8] {
         &self.0[..P::SHARED_SECRET_LENGTH]
     }
@@ -317,6 +332,7 @@ impl<P: Params> DecryptionKey<P> {
     }
 
     /// Returns a reference to the public key
+    #[must_use]
     pub fn public_key(&self) -> &[u8] {
         &self.0[P::SHARED_SECRET_LENGTH..P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH]
     }
@@ -328,6 +344,7 @@ impl<P: Params> DecryptionKey<P> {
 
     /// Returns a reference to the matrix s
     #[allow(dead_code)]
+    #[must_use]
     pub fn matrix_s(&self) -> &[u8] {
         &self.0[P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH
             ..P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH + P::TWO_N_X_N_BAR]
@@ -341,6 +358,7 @@ impl<P: Params> DecryptionKey<P> {
 
     /// Returns a reference to the hash of the public key
     #[allow(dead_code)]
+    #[must_use]
     pub fn hpk(&self) -> &[u8] {
         &self.0[P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH + P::TWO_N_X_N_BAR..]
     }
@@ -378,28 +396,33 @@ impl<'a, P: Params> DecryptionKeyRef<'a, P> {
 
     /// Returns a reference to the shared secret
     #[allow(dead_code)]
+    #[must_use]
     pub fn random_s(&self) -> &[u8] {
         &self.0[..P::SHARED_SECRET_LENGTH]
     }
 
     /// Returns a reference to the public key
+    #[must_use]
     pub fn public_key(&self) -> &[u8] {
         &self.0[P::SHARED_SECRET_LENGTH..P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH]
     }
 
     /// Returns a reference to the matrix s
+    #[must_use]
     pub fn matrix_s(&self) -> &[u8] {
         &self.0[P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH
             ..P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH + P::TWO_N_X_N_BAR]
     }
 
     /// Returns a reference to the hash of the public key
+    #[must_use]
     pub fn hpk(&self) -> &[u8] {
         &self.0[P::SHARED_SECRET_LENGTH + P::PUBLIC_KEY_LENGTH + P::TWO_N_X_N_BAR..]
     }
 
     /// Convert the secret key reference into an owned secret key
     #[allow(dead_code)]
+    #[must_use]
     pub fn to_owned(&self) -> DecryptionKey<P> {
         DecryptionKey(self.0.to_vec(), PhantomData)
     }
@@ -471,6 +494,7 @@ impl<'a, P: Params> SharedSecretRef<'a, P> {
 
     /// Convert the shared secret reference into an owned shared secret
     #[allow(dead_code)]
+    #[must_use]
     pub fn to_owned(&self) -> SharedSecret<P> {
         SharedSecret(self.0.to_vec(), PhantomData)
     }
@@ -522,7 +546,7 @@ impl<P: Params, E: Expanded, S: Sample> Expanded for FrodoKem<P, E, S> {
     const METHOD: &'static str = E::METHOD;
 
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
-        E::expand_a(&E::default(), seed_a, a)
+        E::expand_a(&E::default(), seed_a, a);
     }
 }
 
@@ -536,7 +560,7 @@ impl<P: Params, E: Expanded, S: Sample> Expanded for FrodoKem<P, E, S> {
 ))]
 impl<P: Params, E: Expanded, S: Sample> Sample for FrodoKem<P, E, S> {
     fn sample(&self, s: &mut [u16]) {
-        S::sample(&S::default(), s)
+        S::sample(&S::default(), s);
     }
 }
 
@@ -598,7 +622,7 @@ impl<P: Params, E: Expanded, S: Sample> Expanded for EphemeralFrodoKem<P, E, S> 
     const METHOD: &'static str = E::METHOD;
 
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
-        E::expand_a(&E::default(), seed_a, a)
+        E::expand_a(&E::default(), seed_a, a);
     }
 }
 
@@ -612,7 +636,7 @@ impl<P: Params, E: Expanded, S: Sample> Expanded for EphemeralFrodoKem<P, E, S> 
 ))]
 impl<P: Params, E: Expanded, S: Sample> Sample for EphemeralFrodoKem<P, E, S> {
     fn sample(&self, s: &mut [u16]) {
-        S::sample(&S::default(), s)
+        S::sample(&S::default(), s);
     }
 }
 
@@ -876,7 +900,10 @@ impl<P: Params> Expanded for FrodoAes<P> {
 
         // Treat `a` as blocks then overwrite in place to avoid allocation
         let blocks = unsafe {
-            std::slice::from_raw_parts_mut(a.as_mut_ptr() as *mut Block, P::N_X_N / P::STRIPE_STEP)
+            core::slice::from_raw_parts_mut(
+                a.as_mut_ptr().cast::<Block>(),
+                P::N_X_N / P::STRIPE_STEP,
+            )
         };
         let mut pos = 0;
         for i in 0..P::N {
@@ -921,7 +948,7 @@ impl<P: Params> Expanded for FrodoAes<P> {
         debug_assert_eq!(seed_a.len(), 16);
 
         let in_blocks =
-            unsafe { std::slice::from_raw_parts_mut(a.as_mut_ptr() as *mut u8, P::N_X_N * 2) };
+            unsafe { core::slice::from_raw_parts_mut(a.as_mut_ptr().cast::<u8>(), P::N_X_N * 2) };
         let mut in_block = [0u8; 16];
         let mut pos = 0;
         for i in 0..P::N {
@@ -936,15 +963,13 @@ impl<P: Params> Expanded for FrodoAes<P> {
         }
         unsafe {
             let aes_key_schedule = openssl_sys::EVP_CIPHER_CTX_new();
-            if aes_key_schedule.is_null() {
-                panic!("EVP_CIPHER_CTX_new failed");
-            }
+            assert!(!aes_key_schedule.is_null(), "EVP_CIPHER_CTX_new failed");
             if openssl_sys::EVP_EncryptInit_ex(
                 aes_key_schedule,
                 openssl_sys::EVP_aes_128_ecb(),
-                std::ptr::null_mut(),
+                core::ptr::null_mut(),
                 seed_a.as_ptr(),
-                std::ptr::null_mut(),
+                core::ptr::null_mut(),
             ) != 1
             {
                 panic!("EVP_EncryptInit_ex failed");
@@ -954,7 +979,7 @@ impl<P: Params> Expanded for FrodoAes<P> {
             if openssl_sys::EVP_EncryptUpdate(
                 aes_key_schedule,
                 in_blocks.as_mut_ptr(),
-                &mut olen,
+                &raw mut olen,
                 in_blocks.as_ptr(),
                 ilen,
             ) != 1
@@ -1021,7 +1046,7 @@ impl<P: Params> Expanded for FrodoShake<P> {
             shake.update(&seed_separated);
             let a_temp = &mut a[ii..ii + P::N];
             let bytes = unsafe {
-                std::slice::from_raw_parts_mut(a_temp.as_mut_ptr() as *mut u8, a_temp.len() * 2)
+                core::slice::from_raw_parts_mut(a_temp.as_mut_ptr().cast::<u8>(), a_temp.len() * 2)
             };
             shake.finalize_xof_reset_into(bytes);
             #[cfg(target_endian = "big")]
@@ -1063,20 +1088,18 @@ impl<P: Params> Expanded for FrodoShake<P> {
             seed_separated[0..2].copy_from_slice(&(i as u16).to_le_bytes());
             unsafe {
                 let shake = openssl_sys::EVP_MD_CTX_new();
-                if shake.is_null() {
-                    panic!("EVP_MD_CTX_new failed");
-                }
+                assert!(!shake.is_null(), "EVP_MD_CTX_new failed");
                 if openssl_sys::EVP_DigestInit_ex(
                     shake,
                     openssl_sys::EVP_shake128(),
-                    std::ptr::null_mut(),
+                    core::ptr::null_mut(),
                 ) != 1
                 {
                     panic!("EVP_DigestInit_ex failed");
                 }
                 if openssl_sys::EVP_DigestUpdate(
                     shake,
-                    seed_separated.as_ptr() as *const _,
+                    seed_separated.as_ptr().cast(),
                     seed_separated.len(),
                 ) != 1
                 {
@@ -1084,7 +1107,7 @@ impl<P: Params> Expanded for FrodoShake<P> {
                 }
                 if openssl_sys::EVP_DigestFinalXOF(
                     shake,
-                    a[ii..ii + P::N].as_mut_ptr() as *mut u8,
+                    a[ii..ii + P::N].as_mut_ptr().cast::<u8>(),
                     P::TWO_N,
                 ) != 1
                 {

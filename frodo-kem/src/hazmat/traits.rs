@@ -1,3 +1,5 @@
+#![allow(unsafe_code)]
+
 use crate::hazmat::{
     Ciphertext, CiphertextRef, DecryptionKey, DecryptionKeyRef, EncryptionKey, EncryptionKeyRef,
     SharedSecret,
@@ -137,7 +139,10 @@ pub trait Kem: Params + Expanded + Sample {
         let mut bytes_se = vec![0u16; Self::TWO_N_X_N_BAR];
         {
             let bytes_se = unsafe {
-                std::slice::from_raw_parts_mut(bytes_se.as_mut_ptr() as *mut u8, bytes_se.len() * 2)
+                core::slice::from_raw_parts_mut(
+                    bytes_se.as_mut_ptr().cast::<u8>(),
+                    bytes_se.len() * 2,
+                )
             };
             shake.finalize_xof_reset_into(bytes_se);
         }
@@ -231,8 +236,9 @@ pub trait Kem: Params + Expanded + Sample {
         shake.update(&[0x96]);
         shake.update(&g2_out[..Self::BYTES_SEED_SE]);
         {
-            let bytes_sp =
-                unsafe { std::slice::from_raw_parts_mut(sp.as_mut_ptr() as *mut u8, sp.len() * 2) };
+            let bytes_sp = unsafe {
+                core::slice::from_raw_parts_mut(sp.as_mut_ptr().cast::<u8>(), sp.len() * 2)
+            };
             shake.finalize_xof_reset_into(bytes_sp);
         }
         #[cfg(target_endian = "big")]
@@ -349,8 +355,9 @@ pub trait Kem: Params + Expanded + Sample {
         shake.update(&[0x96]);
         shake.update(&g2_out[..Self::BYTES_SEED_SE]);
         {
-            let bytes_sp =
-                unsafe { std::slice::from_raw_parts_mut(sp.as_mut_ptr() as *mut u8, sp.len() * 2) };
+            let bytes_sp = unsafe {
+                core::slice::from_raw_parts_mut(sp.as_mut_ptr().cast::<u8>(), sp.len() * 2)
+            };
             shake.finalize_xof_reset_into(bytes_sp);
         }
         #[cfg(target_endian = "big")]
@@ -621,7 +628,7 @@ pub trait Kem: Params + Expanded + Sample {
             let mut temp = 0;
             let ii = i * Self::EXTRACTED_BITS;
             for j in 0..Self::EXTRACTED_BITS {
-                let t = msg[ii + j] as u64;
+                let t = u64::from(msg[ii + j]);
                 temp |= t << (8 * j);
             }
             for _ in 0..8 {
@@ -648,7 +655,7 @@ pub trait Kem: Params + Expanded + Sample {
             for j in 0..8 {
                 let mut t = (input[index] & Self::Q_MASK).wrapping_add(add);
                 t >>= Self::SHIFT;
-                temp |= ((t & Self::EXTRACTED_BITS_MASK) as u64) << (Self::EXTRACTED_BITS * j);
+                temp |= u64::from(t & Self::EXTRACTED_BITS_MASK) << (Self::EXTRACTED_BITS * j);
                 index += 1;
             }
             let ii = i * Self::EXTRACTED_BITS;
@@ -675,12 +682,12 @@ pub trait Kem: Params + Expanded + Sample {
             let mut b = 0u8;
 
             while b < 8 {
-                let nbits = std::cmp::min(8 - b, bits);
+                let nbits = core::cmp::min(8 - b, bits);
                 let mask = (1u16 << nbits).wrapping_sub(1);
 
                 let w_shifted = w >> (bits - nbits);
 
-                let t = (w_shifted & mask) as u32;
+                let t = u32::from(w_shifted & mask);
 
                 let t_shifted = (t << (8 - b - nbits)) as u8;
 
@@ -725,14 +732,14 @@ pub trait Kem: Params + Expanded + Sample {
             let mut b = 0u8;
 
             while b < lsb {
-                let nbits = std::cmp::min(lsb - b, bits);
+                let nbits = core::cmp::min(lsb - b, bits);
                 let mask = (1u16 << nbits).wrapping_sub(1);
 
                 let w_shifted = w >> (bits.wrapping_sub(nbits));
 
                 let t = w_shifted & (mask as u8);
 
-                let t_shifted = ((t as u32) << (lsb - b - nbits)) as u16;
+                let t_shifted = (u32::from(t) << (lsb - b - nbits)) as u16;
 
                 output[i] = output[i].wrapping_add(t_shifted);
                 b = b.wrapping_add(nbits);

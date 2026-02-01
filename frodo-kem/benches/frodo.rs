@@ -1,3 +1,8 @@
+//! `FrodoKEM` benchmarks.
+
+#![allow(missing_docs, reason = "benchmarks")]
+#![allow(clippy::unwrap_used, reason = "benchmarks")]
+
 use criterion::{
     BenchmarkGroup, Criterion, criterion_group, criterion_main, measurement::Measurement,
 };

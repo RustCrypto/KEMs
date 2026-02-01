@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// The errors that can occur for FrodoKEM
+/// The errors that can occur for `FrodoKEM`
 #[derive(Error, Copy, Clone, Debug)]
 pub enum Error {
     /// The secret key length is invalid
@@ -23,5 +23,5 @@ pub enum Error {
     UnsupportedAlgorithm,
 }
 
-/// The result type for FrodoKEM
+/// The result type for `FrodoKEM`
 pub type FrodoResult<T> = Result<T, Error>;
