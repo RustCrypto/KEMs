@@ -10,11 +10,6 @@
 //! know any details about object sizes.  For example, `VectorEncodingSize::flatten` needs to know
 //! that the size of an encoded vector is `K` times the size of an encoded polynomial.
 
-pub(crate) use module_lattice::encoding::{
-    ArraySize, Encode, EncodedPolynomial, EncodedPolynomialSize, EncodedVectorSize, EncodingSize,
-    VectorEncodingSize,
-};
-
 use crate::{
     B32, Ciphertext, Kem,
     algebra::{BaseField, Elem, NttVector},
@@ -30,7 +25,10 @@ use core::{
     fmt::Debug,
     ops::{Add, Div, Mul, Rem, Sub},
 };
-use module_lattice::algebra::Field;
+use module_lattice::{
+    ArraySize, Encode, EncodedPolynomialSize, EncodedVectorSize, EncodingSize, Field,
+    VectorEncodingSize,
+};
 
 #[cfg(doc)]
 use crate::Seed;

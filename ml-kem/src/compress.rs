@@ -1,6 +1,7 @@
 use crate::algebra::{BaseField, Elem, Int, Polynomial, Vector};
-use crate::param::{ArraySize, EncodingSize};
-use module_lattice::{algebra::Field, truncate::Truncate};
+use array::ArraySize;
+use module_lattice::EncodingSize;
+use module_lattice::{Field, Truncate};
 
 // A convenience trait to allow us to associate some constants with a typenum
 pub(crate) trait CompressionFactor: EncodingSize {

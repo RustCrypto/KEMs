@@ -68,7 +68,7 @@ mod param;
 // PKCS#8 key encoding support (doc comments in module)
 pub mod pkcs8;
 
-pub use array;
+pub use array::{self, ArraySize};
 #[allow(deprecated)]
 pub use decapsulation_key::ExpandedKeyEncoding;
 pub use decapsulation_key::{DecapsulationKey, FromSeed};
@@ -80,7 +80,6 @@ pub use kem::{
 pub use ml_kem_512::MlKem512;
 pub use ml_kem_768::MlKem768;
 pub use ml_kem_1024::MlKem1024;
-pub use module_lattice::encoding::ArraySize;
 pub use param::{ExpandedDecapsulationKey, ParameterSet};
 
 use array::{

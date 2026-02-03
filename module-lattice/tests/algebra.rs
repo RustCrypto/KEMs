@@ -4,9 +4,7 @@
 #![allow(clippy::integer_division_remainder_used, reason = "tests")]
 
 use array::typenum::U2;
-use module_lattice::algebra::{
-    Elem, Field, NttMatrix, NttPolynomial, NttVector, Polynomial, Vector,
-};
+use module_lattice::{Elem, Field, NttMatrix, NttPolynomial, NttVector, Polynomial, Vector};
 
 // Field used by ML-KEM.
 module_lattice::define_field!(KyberField, u16, u32, u64, 3329);

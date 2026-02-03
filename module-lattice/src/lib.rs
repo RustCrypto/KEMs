@@ -11,11 +11,20 @@
 
 /// Linear algebra with degree-256 polynomials over a prime-order field, vectors of such
 /// polynomials, and NTT polynomials / vectors
-pub mod algebra;
+mod algebra;
 
 /// Packing of polynomials into coefficients with a specified number of bits.
-pub mod encoding;
+mod encoding;
 
 /// Utility functions such as truncating integers, flattening arrays of arrays, and unflattening
 /// arrays into arrays of arrays.
-pub mod truncate;
+mod truncate;
+
+pub use algebra::{
+    Elem, Field, MultiplyNtt, NttMatrix, NttPolynomial, NttVector, Polynomial, Vector,
+};
+pub use encoding::{
+    ArraySize, DecodedValue, Encode, EncodedPolynomial, EncodedPolynomialSize, EncodedVector,
+    EncodedVectorSize, EncodingSize, VectorEncodingSize, byte_decode, byte_encode,
+};
+pub use truncate::Truncate;
