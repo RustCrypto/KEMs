@@ -57,7 +57,7 @@ macro_rules! define_field {
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $field;
 
-        impl $crate::algebra::Field for $field {
+        impl $crate::Field for $field {
             type Int = $int;
             type Long = $long;
             type LongLong = $longlong;
@@ -80,7 +80,7 @@ macro_rules! define_field {
                 let product = x * Self::BARRETT_MULTIPLIER;
                 let quotient = product >> Self::BARRETT_SHIFT;
                 let remainder = x - quotient * Self::QLL;
-                Self::small_reduce($crate::truncate::Truncate::truncate(remainder))
+                Self::small_reduce($crate::Truncate::truncate(remainder))
             }
         }
     };

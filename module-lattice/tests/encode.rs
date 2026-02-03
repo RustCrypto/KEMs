@@ -3,28 +3,26 @@
 #![allow(clippy::cast_possible_truncation, reason = "tests")]
 #![allow(clippy::integer_division_remainder_used, reason = "tests")]
 
-use array::sizes::U3;
-use array::typenum::{Mod, Zero};
 use array::{
-    Array,
-    sizes::{U1, U2, U4, U5, U6, U8, U10, U11, U12, U256},
+    Array, ArraySize,
+    sizes::{U1, U2, U3, U4, U5, U6, U8, U10, U11, U12, U256},
+    typenum::{Mod, Zero},
 };
 use core::{fmt::Debug, ops::Rem};
 use getrandom::{
     SysRng,
     rand_core::{Rng, UnwrapErr},
 };
-use module_lattice::encoding::EncodedVector;
 use module_lattice::{
-    algebra::{Elem, Field, NttPolynomial, NttVector, Polynomial, Vector},
-    encoding::{ArraySize, Encode, EncodedPolynomial, EncodingSize, byte_decode, byte_encode},
+    Elem, Encode, EncodedPolynomial, EncodedVector, EncodingSize, Field, NttPolynomial, NttVector,
+    Polynomial, Vector, byte_decode, byte_encode,
 };
 
 // Field used by ML-KEM.
 module_lattice::define_field!(KyberField, u16, u32, u64, 3329);
 
 type Int = u16;
-type DecodedValue = module_lattice::encoding::DecodedValue<KyberField>;
+type DecodedValue = module_lattice::DecodedValue<KyberField>;
 
 /// A helper trait to construct larger arrays by repeating smaller ones
 trait Repeat<T: Clone, D: ArraySize> {

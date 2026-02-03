@@ -1,37 +1,34 @@
-use array::{Array, typenum::U256};
-use module_lattice::{
-    algebra::{Field, MultiplyNtt},
-    encoding::Encode,
-    truncate::Truncate,
+use crate::{
+    B32,
+    crypto::{PRF, PrfOutput, XOF},
+    param::CbdSamplingSize,
 };
+use array::{Array, ArraySize, typenum::U256};
+use module_lattice::{Encode, Field, MultiplyNtt, Truncate};
 use sha3::digest::XofReader;
-
-use crate::B32;
-use crate::crypto::{PRF, PrfOutput, XOF};
-use crate::param::{ArraySize, CbdSamplingSize};
 
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
 
 pub(crate) type Int = <BaseField as Field>::Int;
 
 /// An element of GF(q).
-pub(crate) type Elem = module_lattice::algebra::Elem<BaseField>;
+pub(crate) type Elem = module_lattice::Elem<BaseField>;
 
 /// An element of the ring `R_q`, i.e., a polynomial over `Z_q` of degree 255
-pub(crate) type Polynomial = module_lattice::algebra::Polynomial<BaseField>;
+pub(crate) type Polynomial = module_lattice::Polynomial<BaseField>;
 
 /// A vector of polynomials of length `K`.
-pub(crate) type Vector<K> = module_lattice::algebra::Vector<BaseField, K>;
+pub(crate) type Vector<K> = module_lattice::Vector<BaseField, K>;
 
 /// An element of the ring `T_q` i.e. a tuple of 128 elements of the direct sum components of `T_q`.
-pub(crate) type NttPolynomial = module_lattice::algebra::NttPolynomial<BaseField>;
+pub(crate) type NttPolynomial = module_lattice::NttPolynomial<BaseField>;
 
 /// A vector of K NTT-domain polynomials.
-pub(crate) type NttVector<K> = module_lattice::algebra::NttVector<BaseField, K>;
+pub(crate) type NttVector<K> = module_lattice::NttVector<BaseField, K>;
 
 /// A K x K matrix of NTT-domain polynomials.  Each vector represents a row of the matrix, so that
 /// multiplying on the right just requires iteration.
-pub(crate) type NttMatrix<K> = module_lattice::algebra::NttMatrix<BaseField, K, K>;
+pub(crate) type NttMatrix<K> = module_lattice::NttMatrix<BaseField, K, K>;
 
 /// Algorithm 7: `SampleNTT(B)`
 pub(crate) fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
@@ -316,11 +313,11 @@ const GAMMA: [Elem; 128] = {
 #[cfg(test)]
 mod test {
     use super::{
-        Array, ArraySize, B32, BaseField, Elem, Field, Int, Ntt, NttInverse, NttMatrix,
-        NttPolynomial, NttVector, PRF, Polynomial, U256, XOF,
+        Array, B32, BaseField, Elem, Field, Int, Ntt, NttInverse, NttMatrix, NttPolynomial,
+        NttVector, PRF, Polynomial, U256, XOF,
     };
     use array::{
-        Flatten,
+        ArraySize, Flatten,
         typenum::{U2, U3, U8},
     };
 
