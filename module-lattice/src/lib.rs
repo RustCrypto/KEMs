@@ -18,4 +18,4 @@ pub mod encoding;
 
 /// Utility functions such as truncating integers, flattening arrays of arrays, and unflattening
 /// arrays into arrays of arrays.
-pub mod utils;
+pub mod truncate;

@@ -1,5 +1,5 @@
 use array::{
-    Array,
+    Array, Flatten, Unflatten,
     typenum::{Gcd, Gcf, Prod, Quot, U0, U8, U32, U256, Unsigned},
 };
 use core::fmt::Debug;
@@ -7,7 +7,7 @@ use core::ops::{Div, Mul, Rem};
 use num_traits::One;
 
 use super::algebra::{Elem, Field, NttPolynomial, NttVector, Polynomial, Vector};
-use super::utils::{Flatten, Truncate, Unflatten};
+use super::truncate::Truncate;
 
 /// An array length with other useful properties
 pub trait ArraySize: array::ArraySize + PartialEq + Debug {}
