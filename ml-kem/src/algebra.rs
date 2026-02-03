@@ -2,7 +2,7 @@ use array::{Array, typenum::U256};
 use module_lattice::{
     algebra::{Field, MultiplyNtt},
     encoding::Encode,
-    utils::Truncate,
+    truncate::Truncate,
 };
 use sha3::digest::XofReader;
 
@@ -319,8 +319,10 @@ mod test {
         Array, ArraySize, B32, BaseField, Elem, Field, Int, Ntt, NttInverse, NttMatrix,
         NttPolynomial, NttVector, PRF, Polynomial, U256, XOF,
     };
-    use array::typenum::{U2, U3, U8};
-    use module_lattice::utils::Flatten;
+    use array::{
+        Flatten,
+        typenum::{U2, U3, U8},
+    };
 
     /// A polynomial with only a scalar component, to make simple test cases
     fn const_ntt(x: Int) -> NttPolynomial {
