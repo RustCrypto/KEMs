@@ -5,9 +5,7 @@ use core::marker::PhantomData;
 use elliptic_curve::{
     AffinePoint, CurveArithmetic, Error, FieldBytes, FieldBytesSize, PublicKey, SecretKey,
     ecdh::EphemeralSecret,
-    sec1::{
-        FromEncodedPoint, ModulusSize, ToEncodedPoint, UncompressedPoint, UncompressedPointSize,
-    },
+    sec1::{FromSec1Point, ModulusSize, ToSec1Point, UncompressedPoint, UncompressedPointSize},
 };
 use kem::{
     Ciphertext, Encapsulate, Generate, InvalidKey, Kem, KeyExport, KeySizeUser, SharedKey,
@@ -109,7 +107,7 @@ impl<C> TryDecapsulate<EcdhKem<C>> for EcdhDecapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
 {
     type Error = Error;
 
@@ -154,7 +152,7 @@ impl<C> TryKeyInit for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
 {
     fn new(encapsulation_key: &UncompressedPoint<C>) -> Result<Self, InvalidKey> {
         PublicKey::<C>::from_sec1_bytes(encapsulation_key)
@@ -175,7 +173,7 @@ impl<C> KeyExport for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
 {
     fn to_bytes(&self) -> UncompressedPoint<C> {
         self.0.to_uncompressed_point()
@@ -195,7 +193,7 @@ impl<C> Encapsulate<EcdhKem<C>> for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
-    AffinePoint<C>: FromEncodedPoint<C> + ToEncodedPoint<C>,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
 {
     fn encapsulate_with_rng<R>(
         &self,

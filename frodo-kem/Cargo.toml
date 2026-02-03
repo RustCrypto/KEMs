@@ -57,35 +57,35 @@ serde = ["std", "dep:hex", "dep:serde"]
 std = []
 
 [dependencies]
-aes = { version = "0.9.0-rc.2", optional = true }
+aes = { version = "0.9.0-rc.4", optional = true }
 hex = { version = "0.4", optional = true }
 openssl-sys = { version = "0.9.104", optional = true }
-rand_core = { version = "0.10.0-rc-6", features = [] }
+rand_core = { version = "0.10", features = [] }
 serde = { version = "1.0", features = ["derive"], optional = true }
 serdect = "0.4"
 subtle = "2.6"
 thiserror = "2.0"
 
 [target.'cfg(target_arch = "aarch64")'.dependencies]
-sha3 = { version = "0.11.0-rc.3", features = ["asm"] }
+sha3 = { version = "0.11.0-rc.7", features = ["asm"] }
 zeroize = { version = "1", features = ["aarch64"] }
 
 [target.'cfg(any(target_arch = "x86_64", target_arch = "x86"))'.dependencies]
 zeroize = { version = "1", features = ["simd"] }
 
 [target.'cfg(not(target_arch = "aarch64"))'.dependencies]
-sha3 = { version = "0.11.0-rc.0" }
+sha3 = { version = "0.11.0-rc.7" }
 
 [target.'cfg(not(any(target_arch = "x86_64", target_arch = "x86", target_arch = "aarch64")))'.dependencies]
 zeroize = "1"
 
 [dev-dependencies]
-aes = "0.9.0-rc.2"
+aes = "0.9.0-rc.4"
 criterion = "0.7"
 getrandom = { version = "0.4.0-rc.1", features = ["sys_rng"] }
 hex = "0.4"
 hybrid-array = "0.4"
-chacha20 = { version = "0.10.0-rc.9", features = ["rng"] }
+chacha20 = { version = "0.10.0-rc.10", features = ["rng"] }
 rstest = "0.26"
 postcard = { version = "1.0", features = ["use-std"] }
 serde_bare = "0.5"

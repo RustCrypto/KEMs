@@ -47,7 +47,7 @@ pub use x25519_kem::{X25519DecapsulationKey, X25519EncapsulationKey, X25519Kem};
 #[cfg(feature = "ecdh")]
 use elliptic_curve::{
     CurveArithmetic, PublicKey, bigint,
-    sec1::{self, FromEncodedPoint, ToEncodedPoint},
+    sec1::{self, FromSec1Point, ToSec1Point},
 };
 
 #[cfg(feature = "zeroize")]
@@ -103,26 +103,26 @@ impl<EK> From<EK> for EncapsulationKey<EK> {
 }
 
 #[cfg(feature = "ecdh")]
-impl<C> FromEncodedPoint<C> for EcdhEncapsulationKey<C>
+impl<C> FromSec1Point<C> for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     C::FieldBytesSize: sec1::ModulusSize,
-    PublicKey<C>: FromEncodedPoint<C>,
+    PublicKey<C>: FromSec1Point<C>,
 {
-    fn from_encoded_point(point: &sec1::EncodedPoint<C>) -> bigint::CtOption<Self> {
-        PublicKey::<C>::from_encoded_point(point).map(Into::into)
+    fn from_sec1_point(point: &sec1::Sec1Point<C>) -> bigint::CtOption<Self> {
+        PublicKey::<C>::from_sec1_point(point).map(Into::into)
     }
 }
 
 #[cfg(feature = "ecdh")]
-impl<C> ToEncodedPoint<C> for EcdhEncapsulationKey<C>
+impl<C> ToSec1Point<C> for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     C::FieldBytesSize: sec1::ModulusSize,
-    PublicKey<C>: ToEncodedPoint<C>,
+    PublicKey<C>: ToSec1Point<C>,
 {
-    fn to_encoded_point(&self, compress: bool) -> sec1::EncodedPoint<C> {
-        self.0.to_encoded_point(compress)
+    fn to_sec1_point(&self, compress: bool) -> sec1::Sec1Point<C> {
+        self.0.to_sec1_point(compress)
     }
 }
 
