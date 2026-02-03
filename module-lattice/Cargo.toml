@@ -24,7 +24,7 @@ subtle = { version = "2", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
-getrandom = { version = "0.4.0-rc.1", features = ["sys_rng"] }
+getrandom = { version = "0.4", features = ["sys_rng"] }
 
 [features]
 subtle = ["dep:subtle", "array/subtle"]
