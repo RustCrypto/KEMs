@@ -29,8 +29,8 @@
 //! ```
 
 pub use kem::{
-    self, Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
-    KeySizeUser, TryKeyInit,
+    self, Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport,
+    KeyInit, KeySizeUser, TryKeyInit,
 };
 
 use core::fmt::{self, Debug};
@@ -132,7 +132,9 @@ impl EncapsulationKey {
     }
 }
 
-impl Encapsulate<XWingKem> for EncapsulationKey {
+impl Encapsulate for EncapsulationKey {
+    type Kem = XWingKem;
+
     fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedKey)
     where
         R: CryptoRng + ?Sized,
@@ -196,12 +198,6 @@ impl DecapsulationKey {
     }
 }
 
-impl AsRef<EncapsulationKey> for DecapsulationKey {
-    fn as_ref(&self) -> &EncapsulationKey {
-        &self.ek
-    }
-}
-
 impl Debug for DecapsulationKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("DecapsulationKey")
@@ -210,7 +206,7 @@ impl Debug for DecapsulationKey {
     }
 }
 
-impl Decapsulate<XWingKem> for DecapsulationKey {
+impl Decapsulate for DecapsulationKey {
     #[allow(clippy::similar_names)] // So we can use the names as in the RFC
     fn decapsulate(&self, ct: &Ciphertext) -> SharedKey {
         let ct = CiphertextMessage::from(ct);
@@ -222,6 +218,14 @@ impl Decapsulate<XWingKem> for DecapsulationKey {
         let ss_x = sk_x.diffie_hellman(&ct.ct_x);
 
         combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x)
+    }
+}
+
+impl Decapsulator for DecapsulationKey {
+    type Kem = XWingKem;
+
+    fn encapsulation_key(&self) -> &EncapsulationKey {
+        &self.ek
     }
 }
 

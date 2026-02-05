@@ -1,7 +1,6 @@
 use crate::{
     B32, EncapsulationKey, Seed, SharedKey,
     crypto::{G, J},
-    kem::{Generate, InvalidKey, Kem, KeyExport, KeyInit, KeySizeUser},
     param::{DecapsulationKeySize, ExpandedDecapsulationKey, KemParams},
     pke::{DecryptionKey, EncryptionKey},
 };
@@ -9,7 +8,10 @@ use array::{
     Array, ArraySize,
     sizes::{U32, U64},
 };
-use kem::{Ciphertext, Decapsulate};
+use kem::{
+    Ciphertext, Decapsulate, Decapsulator, Generate, InvalidKey, Kem, KeyExport, KeyInit,
+    KeySizeUser,
+};
 use rand_core::{TryCryptoRng, TryRng};
 use subtle::{ConditionallySelectable, ConstantTimeEq};
 
@@ -145,7 +147,7 @@ where
     }
 }
 
-impl<P> Decapsulate<P> for DecapsulationKey<P>
+impl<P> Decapsulate for DecapsulationKey<P>
 where
     P: Kem<EncapsulationKey = EncapsulationKey<P>, SharedKeySize = U32> + KemParams,
 {
@@ -158,11 +160,13 @@ where
     }
 }
 
-impl<P> AsRef<EncapsulationKey<P>> for DecapsulationKey<P>
+impl<P> Decapsulator for DecapsulationKey<P>
 where
-    P: KemParams,
+    P: Kem<EncapsulationKey = EncapsulationKey<P>, SharedKeySize = U32> + KemParams,
 {
-    fn as_ref(&self) -> &EncapsulationKey<P> {
+    type Kem = P;
+
+    fn encapsulation_key(&self) -> &EncapsulationKey<P> {
         &self.ek
     }
 }
@@ -271,7 +275,7 @@ where
 {
     fn from_seed(seed: &Seed) -> (K::DecapsulationKey, K::EncapsulationKey) {
         let dk = K::DecapsulationKey::new(seed);
-        let ek = dk.as_ref().clone();
+        let ek = dk.encapsulation_key().clone();
         (dk, ek)
     }
 }

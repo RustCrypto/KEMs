@@ -1,7 +1,7 @@
 use crate::{DecapsulationKey, EncapsulationKey};
 use kem::{
-    Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit, KeySizeUser,
-    TryKeyInit,
+    Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
+    KeySizeUser, TryKeyInit,
     common::array::{Array, sizes::U32},
 };
 use rand_core::{CryptoRng, TryCryptoRng};
@@ -33,6 +33,14 @@ impl Kem for X25519Kem {
 ///
 /// Generic around an elliptic curve `C`.
 pub type X25519DecapsulationKey = DecapsulationKey<StaticSecret, PublicKey>;
+
+impl Decapsulator for X25519DecapsulationKey {
+    type Kem = X25519Kem;
+
+    fn encapsulation_key(&self) -> &X25519EncapsulationKey {
+        &self.ek
+    }
+}
 
 impl KeySizeUser for X25519DecapsulationKey {
     type KeySize = U32;
@@ -79,7 +87,7 @@ impl Generate for X25519DecapsulationKey {
 /// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
 /// output keys.
 /// </div>
-impl Decapsulate<X25519Kem> for X25519DecapsulationKey {
+impl Decapsulate for X25519DecapsulationKey {
     fn decapsulate(&self, encapsulated_key: &Ciphertext) -> SharedKey {
         let public_key = PublicKey::from(encapsulated_key.0);
         self.dk.diffie_hellman(&public_key).to_bytes().into()
@@ -137,7 +145,9 @@ impl KeyExport for X25519EncapsulationKey {
 /// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
 /// output keys.
 /// </div>
-impl Encapsulate<X25519Kem> for X25519EncapsulationKey {
+impl Encapsulate for X25519EncapsulationKey {
+    type Kem = X25519Kem;
+
     fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext, SharedKey)
     where
         R: CryptoRng + ?Sized,

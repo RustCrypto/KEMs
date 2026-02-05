@@ -63,10 +63,12 @@ where
     }
 }
 
-impl<P> Encapsulate<P> for EncapsulationKey<P>
+impl<P> Encapsulate for EncapsulationKey<P>
 where
     P: Kem + KemParams,
 {
+    type Kem = P;
+
     fn encapsulate_with_rng<R>(&self, rng: &mut R) -> (Ciphertext<P>, SharedKey)
     where
         R: CryptoRng + ?Sized,
