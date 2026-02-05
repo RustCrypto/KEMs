@@ -69,13 +69,13 @@ mod param;
 pub mod pkcs8;
 
 pub use array::{self, ArraySize};
+pub use decapsulation_key::DecapsulationKey;
 #[allow(deprecated)]
 pub use decapsulation_key::ExpandedKeyEncoding;
-pub use decapsulation_key::{DecapsulationKey, FromSeed};
 pub use encapsulation_key::EncapsulationKey;
 pub use kem::{
-    self, Ciphertext, Decapsulate, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
-    KeySizeUser, TryKeyInit,
+    self, Ciphertext, Decapsulate, Encapsulate, FromSeed, Generate, InvalidKey, Kem, Key,
+    KeyExport, KeyInit, KeySizeUser, TryKeyInit,
 };
 pub use ml_kem_512::MlKem512;
 pub use ml_kem_768::MlKem768;

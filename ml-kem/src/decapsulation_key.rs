@@ -261,21 +261,3 @@ where
         P::concat_dk(dk_pke, ek, self.ek.h(), self.z.clone())
     }
 }
-
-/// Initialize a KEM from a seed.
-pub trait FromSeed: Kem {
-    /// Using the provided [`Seed`] value, create a KEM keypair.
-    fn from_seed(seed: &Seed) -> (Self::DecapsulationKey, Self::EncapsulationKey);
-}
-
-impl<K> FromSeed for K
-where
-    K: Kem,
-    K::DecapsulationKey: KeyInit + KeySizeUser<KeySize = U64>,
-{
-    fn from_seed(seed: &Seed) -> (K::DecapsulationKey, K::EncapsulationKey) {
-        let dk = K::DecapsulationKey::new(seed);
-        let ek = dk.encapsulation_key().clone();
-        (dk, ek)
-    }
-}
