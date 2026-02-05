@@ -3,7 +3,7 @@
 #![allow(unreachable_pub, reason = "tests")]
 #![allow(clippy::unwrap_used, reason = "tests")]
 
-use array::ArrayN;
+use array::{ArrayN, sizes::U64};
 use core::fmt::Debug;
 use ml_kem::*;
 use std::{fs::read_to_string, path::PathBuf};
@@ -33,7 +33,7 @@ fn acvp_key_gen() {
 #[allow(deprecated)]
 fn verify<K>(tc: &acvp::TestCase)
 where
-    K: Kem + FromSeed,
+    K: Kem + FromSeed<SeedSize = U64>,
     K::DecapsulationKey: ExpandedKeyEncoding + Debug + PartialEq,
     K::EncapsulationKey: KeySizeUser,
 {
