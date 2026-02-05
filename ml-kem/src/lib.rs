@@ -278,8 +278,7 @@ mod test {
     where
         K: Kem,
     {
-        let dk = K::DecapsulationKey::generate();
-        let ek = dk.as_ref().clone();
+        let (dk, ek) = K::generate_keypair();
         let (ct, k_send) = ek.encapsulate();
         let k_recv = dk.try_decapsulate(&ct).unwrap();
         assert_eq!(k_send, k_recv);

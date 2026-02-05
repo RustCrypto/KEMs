@@ -3,8 +3,8 @@
 #![allow(unreachable_pub, reason = "tests")]
 #![allow(clippy::unwrap_used, reason = "tests")]
 
-use ::kem::Decapsulate;
 use array::{Array, ArrayN};
+use kem::{Ciphertext, Decapsulate, Decapsulator};
 use ml_kem::*;
 use std::{fs::read_to_string, path::PathBuf};
 
@@ -92,11 +92,10 @@ fn verify_decap_group(tg: &acvp::DecapTestGroup) {
 fn verify_decap<K>(tc: &acvp::DecapTestCase, dk_slice: &[u8])
 where
     K: Kem,
-    K::DecapsulationKey: Decapsulate<K> + ExpandedKeyEncoding,
+    K::DecapsulationKey: Decapsulate + Decapsulator<Kem = K> + ExpandedKeyEncoding,
 {
     let dk = K::DecapsulationKey::from_expanded_bytes(dk_slice.try_into().unwrap()).unwrap();
-
-    let c = ::kem::Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
+    let c = Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
     let k = dk.decapsulate(&c);
     assert_eq!(k.as_slice(), tc.k.as_slice());
 }

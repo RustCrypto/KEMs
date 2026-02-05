@@ -8,8 +8,8 @@ use elliptic_curve::{
     sec1::{FromSec1Point, ModulusSize, ToSec1Point, UncompressedPoint, UncompressedPointSize},
 };
 use kem::{
-    Ciphertext, Encapsulate, Generate, InvalidKey, Kem, KeyExport, KeySizeUser, SharedKey,
-    TryDecapsulate, TryKeyInit,
+    Ciphertext, Decapsulator, Encapsulate, Generate, InvalidKey, Kem, KeyExport, KeySizeUser,
+    SharedKey, TryDecapsulate, TryKeyInit,
 };
 use rand_core::{CryptoRng, TryCryptoRng};
 
@@ -27,8 +27,8 @@ impl<C> Kem for EcdhKem<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
-    EcdhDecapsulationKey<C>: TryDecapsulate<Self> + Generate,
-    EcdhEncapsulationKey<C>: Encapsulate<Self> + Clone,
+    EcdhDecapsulationKey<C>: TryDecapsulate<Kem = Self> + Generate,
+    EcdhEncapsulationKey<C>: Encapsulate<Kem = Self> + Clone,
 {
     type DecapsulationKey = EcdhDecapsulationKey<C>;
     type EncapsulationKey = EcdhEncapsulationKey<C>;
@@ -40,6 +40,19 @@ where
 ///
 /// Generic around an elliptic curve `C`.
 pub type EcdhDecapsulationKey<C> = DecapsulationKey<SecretKey<C>, PublicKey<C>>;
+
+impl<C> Decapsulator for EcdhDecapsulationKey<C>
+where
+    C: CurveArithmetic,
+    FieldBytesSize<C>: ModulusSize,
+    AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
+{
+    type Kem = EcdhKem<C>;
+
+    fn encapsulation_key(&self) -> &EcdhEncapsulationKey<C> {
+        &self.ek
+    }
+}
 
 impl<C> KeySizeUser for EcdhDecapsulationKey<C>
 where
@@ -103,7 +116,7 @@ where
 /// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
 /// output keys.
 /// </div>
-impl<C> TryDecapsulate<EcdhKem<C>> for EcdhDecapsulationKey<C>
+impl<C> TryDecapsulate for EcdhDecapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
@@ -189,12 +202,14 @@ where
 /// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
 /// output keys.
 /// </div>
-impl<C> Encapsulate<EcdhKem<C>> for EcdhEncapsulationKey<C>
+impl<C> Encapsulate for EcdhEncapsulationKey<C>
 where
     C: CurveArithmetic,
     FieldBytesSize<C>: ModulusSize,
     AffinePoint<C>: FromSec1Point<C> + ToSec1Point<C>,
 {
+    type Kem = EcdhKem<C>;
+
     fn encapsulate_with_rng<R>(
         &self,
         rng: &mut R,

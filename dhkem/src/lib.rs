@@ -32,7 +32,7 @@
 mod expander;
 
 pub use expander::{Expander, InvalidLength};
-pub use kem::{self, Encapsulate, Generate, Kem, TryDecapsulate};
+pub use kem::{self, Decapsulator, Encapsulate, Generate, Kem, TryDecapsulate};
 
 #[cfg(feature = "ecdh")]
 mod ecdh_kem;
@@ -62,6 +62,13 @@ pub struct DecapsulationKey<DK, EK> {
     ek: EncapsulationKey<EK>,
 }
 
+impl<DK, EK> DecapsulationKey<DK, EK> {
+    /// Consumes `self` and returns the wrapped value
+    pub fn into_inner(self) -> DK {
+        self.dk
+    }
+}
+
 impl<DK, EK> AsRef<EncapsulationKey<EK>> for DecapsulationKey<DK, EK> {
     fn as_ref(&self) -> &EncapsulationKey<EK> {
         &self.ek
@@ -75,13 +82,6 @@ where
     fn from(dk: DK) -> Self {
         let ek = EncapsulationKey(EK::from(&dk));
         Self { dk, ek }
-    }
-}
-
-impl<DK, EK> DecapsulationKey<DK, EK> {
-    /// Consumes `self` and returns the wrapped value
-    pub fn into_inner(self) -> DK {
-        self.dk
     }
 }
 

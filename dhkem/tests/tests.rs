@@ -1,19 +1,21 @@
 //! DHKEM tests.
 
-#![cfg(any(
-    feature = "k256",
-    feature = "p256",
-    feature = "p384",
-    feature = "p521",
-    feature = "x25519"
+#![cfg(all(
+    feature = "getrandom",
+    any(
+        feature = "k256",
+        feature = "p256",
+        feature = "p384",
+        feature = "p521",
+        feature = "x25519"
+    )
 ))]
 #![allow(clippy::unwrap_used, reason = "tests")]
 
-use kem::{Encapsulate, Generate, Kem, TryDecapsulate};
+use kem::{Encapsulate, Kem, TryDecapsulate};
 
 fn test_kem<K: Kem>() {
-    let dk = K::DecapsulationKey::generate();
-    let ek = dk.as_ref().clone();
+    let (dk, ek) = K::generate_keypair();
     let (ek, ss1) = ek.encapsulate();
     let ss2 = dk.try_decapsulate(&ek).unwrap();
     assert_eq!(ss1.as_slice(), ss2.as_slice());
