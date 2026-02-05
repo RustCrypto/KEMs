@@ -5,9 +5,6 @@
     html_logo_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg",
     html_favicon_url = "https://raw.githubusercontent.com/RustCrypto/meta/master/logo.svg"
 )]
-//#![deny(missing_docs)] // TODO: Require all public interfaces to be documented
-#![warn(clippy::pedantic)] // Be pedantic by default
-#![warn(clippy::integer_division_remainder_used)] // Be judicious about using `/` and `%`
 
 /// Linear algebra with degree-256 polynomials over a prime-order field, vectors of such
 /// polynomials, and NTT polynomials / vectors
