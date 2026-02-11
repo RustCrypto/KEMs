@@ -987,6 +987,7 @@ impl<P: Params> Expanded for FrodoAes<P> {
             {
                 panic!("EVP_EncryptInit_ex failed");
             }
+            openssl_sys::EVP_CIPHER_CTX_free(aes_key_schedule);
         }
         #[cfg(target_endian = "big")]
         {
@@ -1114,6 +1115,7 @@ impl<P: Params> Expanded for FrodoShake<P> {
                 {
                     panic!("EVP_DigestFinalXOF failed");
                 }
+                openssl_sys::EVP_MD_CTX_free(shake);
             }
         }
         #[cfg(target_endian = "big")]
