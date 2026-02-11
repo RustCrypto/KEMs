@@ -215,10 +215,11 @@ macro_rules! serde_impl {
                         where
                             E: serde::de::Error,
                         {
+                            let (&tag, value) = v
+                                .split_first()
+                                .ok_or_else(|| serde::de::Error::custom("empty input"))?;
                             let algorithm =
-                                Algorithm::try_from(v[0]).map_err(serde::de::Error::custom)?;
-
-                            let value = &v[1..];
+                                Algorithm::try_from(tag).map_err(serde::de::Error::custom)?;
                             algorithm
                                 .$from_method(value)
                                 .map_err(serde::de::Error::custom)
