@@ -12,9 +12,9 @@ use sha2::Sha512;
 
 type Expander = dhkem::Expander<Sha512>;
 
-fn extract_and_expand(dh: &[u8], kem_context: &[u8]) -> [u8; 64] {
+fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> [u8; 64] {
     let mut out = [0u8; 64];
-    let expander = Expander::new_labeled_hpke(b"", b"eae_prk", dh).unwrap();
+    let expander = Expander::new_labeled_hpke(b"", b"eae_prk", shared_secret).unwrap();
     expander
         .expand_labeled_hpke(b"shared_secret", kem_context, &mut out)
         .unwrap();
@@ -23,7 +23,7 @@ fn extract_and_expand(dh: &[u8], kem_context: &[u8]) -> [u8; 64] {
 
 #[test]
 fn test_a_6_1_base() {
-    // RFC 9180 A.6.1 (Base)
+    // RFC 9180 A.6.1 (Base) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.6.1
     let skrm = hex!(
         "01462680369ae375e4b3791070a7458ed527842f6a98a79ff5e0d4cbde83c271\
          96a3916956655523a6a2556a7af62c5cadabe2ef9da3760bb21e005202f7b246\
@@ -56,7 +56,7 @@ fn test_a_6_1_base() {
 
 #[test]
 fn test_a_6_2_psk() {
-    // RFC 9180 A.6.2 (Psk)
+    // RFC 9180 A.6.2 (Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.6.2
     let skrm = hex!(
         "011bafd9c7a52e3e71afbdab0d2f31b03d998a0dc875dd7555c63560e142bde2\
          64428de03379863b4ec6138f813fa009927dc5d15f62314c56d4e7ff2b485753\
@@ -89,7 +89,7 @@ fn test_a_6_2_psk() {
 
 #[test]
 fn test_a_6_3_auth() {
-    // RFC 9180 A.6.3 (Auth)
+    // RFC 9180 A.6.3 (Auth) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.6.3
     let skrm = hex!(
         "013ef326940998544a899e15e1726548ff43bbdb23a8587aa3bef9d1b857338d\
          87287df5667037b519d6a14661e9503cfc95a154d93566d8c84e95ce93ad0529\
@@ -131,7 +131,7 @@ fn test_a_6_3_auth() {
 
 #[test]
 fn test_a_6_4_auth_psk() {
-    // RFC 9180 A.6.4 (Auth Psk)
+    // RFC 9180 A.6.4 (Auth Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.6.4
     let skrm = hex!(
         "0053c0bc8c1db4e9e5c3e3158bfdd7fc716aef12db13c8515adf821dd692ba3c\
          a53041029128ee19c8556e345c4bcb840bb7fd789f97fe10f17f0e2c6c252807\

@@ -44,9 +44,9 @@ impl TryRng for ConstantRng<'_> {
 // this is only ever ok for testing
 impl TryCryptoRng for ConstantRng<'_> {}
 
-fn extract_and_expand(dh: &[u8], kem_context: &[u8]) -> [u8; 32] {
+fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> [u8; 32] {
     let mut out = [0u8; 32];
-    let expander = Expander::new_labeled_hpke(b"", b"eae_prk", dh).unwrap();
+    let expander = Expander::new_labeled_hpke(b"", b"eae_prk", shared_secret).unwrap();
     expander
         .expand_labeled_hpke(b"shared_secret", kem_context, &mut out)
         .unwrap();
@@ -89,7 +89,7 @@ fn test_dhkem_p256_hkdf_sha256() {
 
 #[test]
 fn test_a_3_1_base() {
-    // RFC 9180 A.3.1 (Base)
+    // RFC 9180 A.3.1 (Base) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.3.1
     let skrm = hex!("f3ce7fdae57e1a310d87f1ebbde6f328be0a99cdbcadf4d6589cf29de4b8ffd2");
     let enc = hex!(
         "04a92719c6195d5085104f469a8b9814d5838ff72b60501e2c4466e5e67b325a\
@@ -111,7 +111,7 @@ fn test_a_3_1_base() {
 
 #[test]
 fn test_a_3_2_psk() {
-    // RFC 9180 A.3.2 (Psk)
+    // RFC 9180 A.3.2 (Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.3.2
     let skrm = hex!("438d8bcef33b89e0e9ae5eb0957c353c25a94584b0dd59c991372a75b43cb661");
     let enc = hex!(
         "04305d35563527bce037773d79a13deabed0e8e7cde61eecee403496959e89e4\
@@ -133,7 +133,7 @@ fn test_a_3_2_psk() {
 
 #[test]
 fn test_a_3_3_auth() {
-    // RFC 9180 A.3.3 (Auth)
+    // RFC 9180 A.3.3 (Auth) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.3.3
     let skrm = hex!("d929ab4be2e59f6954d6bedd93e638f02d4046cef21115b00cdda2acb2a4440e");
     let enc = hex!(
         "042224f3ea800f7ec55c03f29fc9865f6ee27004f818fcbdc6dc68932c1e52e1\
@@ -162,7 +162,7 @@ fn test_a_3_3_auth() {
 
 #[test]
 fn test_a_3_4_auth_psk() {
-    // RFC 9180 A.3.4 (Auth Psk)
+    // RFC 9180 A.3.4 (Auth Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.3.4
     let skrm = hex!("bdf4e2e587afdf0930644a0c45053889ebcadeca662d7c755a353d5b4e2a8394");
     let enc = hex!(
         "046a1de3fc26a3d43f4e4ba97dbe24f7e99181136129c48fbe872d4743e2b131\
@@ -191,7 +191,7 @@ fn test_a_3_4_auth_psk() {
 
 #[test]
 fn test_a_4_1_base() {
-    // RFC 9180 A.4.1 (Base)
+    // RFC 9180 A.4.1 (Base) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.4.1
     let skrm = hex!("3ac8530ad1b01885960fab38cf3cdc4f7aef121eaa239f222623614b4079fb38");
     let enc = hex!(
         "0493ed86735bdfb978cc055c98b45695ad7ce61ce748f4dd63c525a3b8d53a15\
@@ -213,7 +213,7 @@ fn test_a_4_1_base() {
 
 #[test]
 fn test_a_4_2_psk() {
-    // RFC 9180 A.4.2 (Psk)
+    // RFC 9180 A.4.2 (Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.4.2
     let skrm = hex!("bc6f0b5e22429e5ff47d5969003f3cae0f4fec50e23602e880038364f33b8522");
     let enc = hex!(
         "04a307934180ad5287f95525fe5bc6244285d7273c15e061f0f2efb211c35057\
@@ -235,7 +235,7 @@ fn test_a_4_2_psk() {
 
 #[test]
 fn test_a_4_3_auth() {
-    // RFC 9180 A.4.3 (Auth)
+    // RFC 9180 A.4.3 (Auth) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.4.3
     let skrm = hex!("1ea4484be482bf25fdb2ed39e6a02ed9156b3e57dfb18dff82e4a048de990236");
     let enc = hex!(
         "04fec59fa9f76f5d0f6c1660bb179cb314ed97953c53a60ab38f8e6ace60fd59\
@@ -264,7 +264,7 @@ fn test_a_4_3_auth() {
 
 #[test]
 fn test_a_4_4_auth_psk() {
-    // RFC 9180 A.4.4 (Auth Psk)
+    // RFC 9180 A.4.4 (Auth Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.4.4
     let skrm = hex!("00510a70fde67af487c093234fc4215c1cdec09579c4b30cc8e48cb530414d0e");
     let enc = hex!(
         "04801740f4b1b35823f7fb2930eac2efc8c4893f34ba111c0bb976e3c7d5dc0a\
@@ -293,7 +293,7 @@ fn test_a_4_4_auth_psk() {
 
 #[test]
 fn test_a_5_1_base() {
-    // RFC 9180 A.5.1 (Base)
+    // RFC 9180 A.5.1 (Base) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.5.1
     let skrm = hex!("a4d1c55836aa30f9b3fbb6ac98d338c877c2867dd3a77396d13f68d3ab150d3b");
     let enc = hex!(
         "04c07836a0206e04e31d8ae99bfd549380b072a1b1b82e563c935c095827824f\
@@ -315,7 +315,7 @@ fn test_a_5_1_base() {
 
 #[test]
 fn test_a_5_2_psk() {
-    // RFC 9180 A.5.2 (Psk)
+    // RFC 9180 A.5.2 (Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.5.2
     let skrm = hex!("12ecde2c8bc2d5d7ed2219c71f27e3943d92b344174436af833337c557c300b3");
     let enc = hex!(
         "04f336578b72ad7932fe867cc4d2d44a718a318037a0ec271163699cee653fa8\
@@ -337,7 +337,7 @@ fn test_a_5_2_psk() {
 
 #[test]
 fn test_a_5_3_auth() {
-    // RFC 9180 A.5.3 (Auth)
+    // RFC 9180 A.5.3 (Auth) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.5.3
     let skrm = hex!("3cb2c125b8c5a81d165a333048f5dcae29a2ab2072625adad66dbb0f48689af9");
     let enc = hex!(
         "040d5176aedba55bc41709261e9195c5146bb62d783031280775f32e507d79b5\
@@ -366,7 +366,7 @@ fn test_a_5_3_auth() {
 
 #[test]
 fn test_a_5_4_auth_psk() {
-    // RFC 9180 A.5.4 (Auth Psk)
+    // RFC 9180 A.5.4 (Auth Psk) https://datatracker.ietf.org/doc/html/rfc9180#appendix-A.5.4
     let skrm = hex!("c29fc577b7e74d525c0043f1c27540a1248e4f2c8d297298e99010a92e94865c");
     let enc = hex!(
         "043539917ee26f8ae0aa5f784a387981b13de33124a3cde88b94672030183110\
