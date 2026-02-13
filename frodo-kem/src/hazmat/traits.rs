@@ -7,7 +7,7 @@ use crate::hazmat::{
 use alloc::{string::String, vec::Vec};
 use rand_core::CryptoRng;
 use sha3::digest::{ExtendableOutput, ExtendableOutputReset, Update};
-use subtle::{Choice, ConditionallySelectable};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use zeroize::Zeroize;
 
 /// Trait for implementing the FrodoKEM sampling algorithm
@@ -403,8 +403,7 @@ pub trait Kem: Params + Expanded + Sample {
         // Needs to avoid branching on secret data as per:
         //     Qian Guo, Thomas Johansson, Alexander Nilsson. A key-recovery timing attack on post-quantum
         //     primitives using the Fujisaki-Okamoto transformation and its application on FrodoKEM. In CRYPTO 2020.
-        let choice =
-            self.ct_verify(&matrix_bp, &matrix_bpp) & self.ct_verify(&matrix_c, &matrix_cc);
+        let choice = matrix_bp.ct_eq(&matrix_bpp) & matrix_c.ct_eq(&matrix_cc);
 
         let mut fin_k = vec![0u8; Self::SHARED_SECRET_LENGTH];
         // Take k if choice == 0, otherwise take s
@@ -767,19 +766,6 @@ pub trait Kem: Params + Expanded + Sample {
                 i += 1;
             }
         }
-    }
-
-    /// Constant time verify for a u16 array
-    fn ct_verify(&self, a: &[u16], b: &[u16]) -> Choice {
-        let mut choice = 0;
-
-        for i in 0..a.len() {
-            choice |= a[i] ^ b[i];
-        }
-
-        let mut choice = choice as i16;
-        choice = ((choice | choice.wrapping_neg()) >> 15) + 1;
-        Choice::from(choice as u8)
     }
 
     /// Constant time select for a u16 array
