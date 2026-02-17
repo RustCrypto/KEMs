@@ -12,7 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 [#118]: https://github.com/RustCrypto/KEMs/pull/118
 
+## 0.2.3 (2026-02-17)
+### Fixed
+- Use `doc_cfg` instead of `doc_auto_cfg` ([#265])
+
+[#265]: https://github.com/RustCrypto/KEMs/pull/265
+
 ## 0.2.2 (2026-01-24)
+### Changed
 - Pin `kem` crate dependency to `=0.3.0-pre.0` ([#194])
 
 [#194]: https://github.com/RustCrypto/KEMs/pull/194
