@@ -10,6 +10,9 @@ use array::sizes::U32;
 use kem::{Ciphertext, Encapsulate, Generate};
 use rand_core::CryptoRng;
 
+#[cfg(feature = "zeroize")]
+use zeroize::{Zeroize, ZeroizeOnDrop};
+
 /// A temporary secret produced by the first incremental encapsulation step,
 /// to be used by the second one to finish encapsulation.
 #[derive(Clone, Debug)]
@@ -33,6 +36,9 @@ where
         self.es.zeroize();
     }
 }
+
+#[cfg(feature = "zeroize")]
+impl<P> ZeroizeOnDrop for EncapsulationSecret<P> where P: KemParams {}
 
 /// An `EncapsulationKey` provides the ability to encapsulate a shared key so that it can only be
 /// decapsulated by the holder of the corresponding decapsulation key.
@@ -110,7 +116,7 @@ where
         self.ek_pke.encrypt_incremental_2(
             &encapsulation_secret.m,
             &encapsulation_secret.r,
-            encapsulation_secret.es,
+            &encapsulation_secret.es,
         )
     }
 

@@ -186,7 +186,7 @@ where
         &self,
         message: &B32,
         randomness: &B32,
-        r_hat: NttVector<P::K>,
+        r_hat: &NttVector<P::K>,
     ) -> Ciphertext2<P> {
         let prf_output = PRF::<P::Eta2>(randomness, 2 * P::K::U8);
         let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
@@ -194,7 +194,7 @@ where
         let mut mu: Polynomial = Encode::<U1>::decode(message);
         mu.decompress::<U1>();
 
-        let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
+        let tTr: Polynomial = (&self.t_hat * r_hat).ntt_inverse();
         let mut v = &(&tTr + &e2) + &mu;
 
         Encode::<P::Dv>::encode(v.compress::<P::Dv>())
