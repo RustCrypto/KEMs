@@ -12,12 +12,21 @@ use std::{fs::read_to_string, path::PathBuf};
 pub trait EncapsulateDeterministic {
     /// Returns `(ciphertext, shared_secret)`.
     fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>);
+    /// Returns `(ciphertext, shared_secret)`.
+    fn encapsulate_incremental_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>);
 }
 
 impl EncapsulateDeterministic for EncapsulationKey512 {
     fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
         let (c, k) = self.encapsulate_deterministic(m);
         (c.to_vec(), k.to_vec())
+    }
+    fn encapsulate_incremental_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
+        let (c1, es, k) = self.encapsulate_incremental_1_deterministic(m);
+        let c2 = self.encapsulate_incremental_2(es);
+        let mut c = c1.to_vec();
+        c.extend_from_slice(&c2);
+        (c, k.to_vec())
     }
 }
 
@@ -26,12 +35,53 @@ impl EncapsulateDeterministic for EncapsulationKey768 {
         let (c, k) = self.encapsulate_deterministic(m);
         (c.to_vec(), k.to_vec())
     }
+    fn encapsulate_incremental_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
+        let (c1, es, k) = self.encapsulate_incremental_1_deterministic(m);
+        let c2 = self.encapsulate_incremental_2(es);
+        let mut c = c1.to_vec();
+        c.extend_from_slice(&c2);
+        (c, k.to_vec())
+    }
 }
 
 impl EncapsulateDeterministic for EncapsulationKey1024 {
     fn encapsulate_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
         let (c, k) = self.encapsulate_deterministic(m);
         (c.to_vec(), k.to_vec())
+    }
+    fn encapsulate_incremental_deterministic(&self, m: &ArrayN<u8, 32>) -> (Vec<u8>, Vec<u8>) {
+        let (c1, es, k) = self.encapsulate_incremental_1_deterministic(m);
+        let c2 = self.encapsulate_incremental_2(es);
+        let mut c = c1.to_vec();
+        c.extend_from_slice(&c2);
+        (c, k.to_vec())
+    }
+}
+
+/// A helper trait for deterministic incremental decapsulation tests
+pub trait DecapsulateIncremental<C> {
+    /// Returns `shared_secret`.
+    fn decapsulate_incremental(&self, c: &C) -> Vec<u8>;
+}
+
+impl DecapsulateIncremental<ml_kem_512::Ciphertext> for DecapsulationKey512 {
+    fn decapsulate_incremental(&self, c: &ml_kem_512::Ciphertext) -> Vec<u8> {
+        let (c1, c2) = c.split_ref();
+        self.decapsulate_incremental(c1, c2).to_vec()
+    }
+}
+
+impl DecapsulateIncremental<ml_kem_768::Ciphertext> for DecapsulationKey768 {
+    fn decapsulate_incremental(&self, c: &ml_kem_768::Ciphertext) -> Vec<u8> {
+        let (c1, c2) = c.split_ref();
+        self.decapsulate_incremental(c1, c2).to_vec()
+    }
+}
+
+impl DecapsulateIncremental<ml_kem_1024::Ciphertext> for DecapsulationKey1024 {
+    fn decapsulate_incremental(&self, c: &ml_kem_1024::Ciphertext) -> Vec<u8> {
+        let (c1, c2) = c.split_ref();
+        self.decapsulate_incremental(c1, c2).to_vec()
     }
 }
 
@@ -76,6 +126,11 @@ where
 
     assert_eq!(k.as_slice(), tc.k.as_slice());
     assert_eq!(c.as_slice(), tc.c.as_slice());
+
+    let (c, k) = ek.encapsulate_incremental_deterministic(&m);
+
+    assert_eq!(k.as_slice(), tc.k.as_slice());
+    assert_eq!(c.as_slice(), tc.c.as_slice());
 }
 
 fn verify_decap_group(tg: &acvp::DecapTestGroup) {
@@ -92,11 +147,18 @@ fn verify_decap_group(tg: &acvp::DecapTestGroup) {
 fn verify_decap<K>(tc: &acvp::DecapTestCase, dk_slice: &[u8])
 where
     K: Kem,
-    K::DecapsulationKey: Decapsulate + Decapsulator<Kem = K> + ExpandedKeyEncoding,
+    K::DecapsulationKey: Decapsulate
+        + DecapsulateIncremental<Ciphertext<K>>
+        + Decapsulator<Kem = K>
+        + ExpandedKeyEncoding,
 {
     let dk = K::DecapsulationKey::from_expanded_bytes(dk_slice.try_into().unwrap()).unwrap();
     let c = Ciphertext::<K>::try_from(tc.c.as_slice()).unwrap();
+
     let k = dk.decapsulate(&c);
+    assert_eq!(k.as_slice(), tc.k.as_slice());
+
+    let k = dk.decapsulate_incremental(&c);
     assert_eq!(k.as_slice(), tc.k.as_slice());
 }
 
