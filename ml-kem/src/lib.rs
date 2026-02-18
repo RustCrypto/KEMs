@@ -72,7 +72,7 @@ pub use array::{self, ArraySize};
 pub use decapsulation_key::DecapsulationKey;
 #[allow(deprecated)]
 pub use decapsulation_key::ExpandedKeyEncoding;
-pub use encapsulation_key::EncapsulationKey;
+pub use encapsulation_key::{EncapsulationKey, EncapsulationSecret};
 pub use kem::{
     self, Ciphertext, Decapsulate, Encapsulate, FromSeed, Generate, InvalidKey, Kem, Key,
     KeyExport, KeyInit, KeySizeUser, TryKeyInit,
@@ -81,6 +81,7 @@ pub use ml_kem_512::MlKem512;
 pub use ml_kem_768::MlKem768;
 pub use ml_kem_1024::MlKem1024;
 pub use param::{ExpandedDecapsulationKey, ParameterSet};
+pub use pke::{Ciphertext1, Ciphertext2};
 
 use array::{
     Array,
@@ -133,8 +134,17 @@ pub mod ml_kem_512 {
     /// can only be decapsulated by the holder of the corresponding decapsulation key.
     pub type EncapsulationKey = crate::EncapsulationKey<MlKem512>;
 
+    /// An ML-KEM-512 `EncapsulationSecret` is a temporary secret used for incremental encapsulation.
+    pub type EncapsulationSecret = crate::EncapsulationSecret<MlKem512>;
+
     /// Encoded ML-KEM-512 ciphertexts.
     pub type Ciphertext = kem::Ciphertext<MlKem512>;
+
+    /// Encoded ML-KEM-512 first incremental ciphertexts.
+    pub type Ciphertext1 = crate::Ciphertext1<MlKem512>;
+
+    /// Encoded ML-KEM-512 second incrementalciphertexts.
+    pub type Ciphertext2 = crate::Ciphertext2<MlKem512>;
 
     /// Legacy expanded decapsulation keys. Prefer seeds instead.
     #[doc(hidden)]
@@ -181,8 +191,17 @@ pub mod ml_kem_768 {
     /// can only be decapsulated by the holder of the corresponding decapsulation key.
     pub type EncapsulationKey = crate::EncapsulationKey<MlKem768>;
 
-    /// Encoded ML-KEM-512 ciphertexts.
+    /// An ML-KEM-768 `EncapsulationSecret` is a temporary secret used for incremental encapsulation.
+    pub type EncapsulationSecret = crate::EncapsulationSecret<MlKem768>;
+
+    /// Encoded ML-KEM-768 ciphertexts.
     pub type Ciphertext = kem::Ciphertext<MlKem768>;
+
+    /// Encoded ML-KEM-768 first incremental ciphertexts.
+    pub type Ciphertext1 = crate::Ciphertext1<MlKem768>;
+
+    /// Encoded ML-KEM-768 second incrementalciphertexts.
+    pub type Ciphertext2 = crate::Ciphertext2<MlKem768>;
 
     /// Legacy expanded decapsulation keys. Prefer seeds instead.
     #[doc(hidden)]
@@ -228,8 +247,17 @@ pub mod ml_kem_1024 {
     /// it can only be decapsulated by the holder of the corresponding decapsulation key.
     pub type EncapsulationKey = crate::EncapsulationKey<MlKem1024>;
 
-    /// Encoded ML-KEM-512 ciphertexts.
+    /// An ML-KEM-1024 `EncapsulationSecret` is a temporary secret used for incremental encapsulation.
+    pub type EncapsulationSecret = crate::EncapsulationSecret<MlKem1024>;
+
+    /// Encoded ML-KEM-1024 ciphertexts.
     pub type Ciphertext = kem::Ciphertext<MlKem1024>;
+
+    /// Encoded ML-KEM-1024 first incremental ciphertexts.
+    pub type Ciphertext1 = crate::Ciphertext1<MlKem1024>;
+
+    /// Encoded ML-KEM-1024 second incrementalciphertexts.
+    pub type Ciphertext2 = crate::Ciphertext2<MlKem1024>;
 
     /// Legacy expanded decapsulation keys. Prefer seeds instead.
     #[doc(hidden)]
