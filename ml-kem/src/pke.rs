@@ -88,6 +88,10 @@ where
     pub(crate) fn decrypt(&self, ciphertext: &Ciphertext<P>) -> B32 {
         let (c1, c2) = P::split_ct(ciphertext);
 
+        self.decrypt_split(c1, c2)
+    }
+
+    pub(crate) fn decrypt_split(&self, c1: &Ciphertext1<P>, c2: &Ciphertext2<P>) -> B32 {
         let mut u: Vector<P::K> = Encode::<P::Du>::decode(c1);
         u.decompress::<P::Du>();
 
@@ -123,6 +127,11 @@ where
     rho: B32,
 }
 
+/// First ciphertext for incremental encapsulation
+pub type Ciphertext1<P> = array::Array<u8, crate::param::EncodedUSize<P>>;
+/// Second ciphertext for incremental encapsulation
+pub type Ciphertext2<P> = array::Array<u8, crate::param::EncodedVSize<P>>;
+
 impl<P> EncryptionKey<P>
 where
     P: PkeParams,
@@ -150,6 +159,45 @@ where
         let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());
         let c2 = Encode::<P::Dv>::encode(v.compress::<P::Dv>());
         P::concat_ct(c1, c2)
+    }
+
+    /// Encrypt the specified message for the holder of the corresponding decryption key, using the
+    /// provided randomness, according the `K-PKE.Encrypt` procedure.
+    pub(crate) fn encrypt_incremental_1(
+        &self,
+        randomness: &B32,
+    ) -> (Ciphertext1<P>, NttVector<P::K>) {
+        let r = sample_poly_vec_cbd::<P::Eta1, P::K>(randomness, 0);
+        let e1 = sample_poly_vec_cbd::<P::Eta2, P::K>(randomness, P::K::U8);
+
+        let A_hat_t: NttMatrix<P::K> = matrix_sample_ntt(&self.rho, true);
+        let r_hat: NttVector<P::K> = r.ntt();
+        let ATr: Vector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
+        let mut u = ATr + e1;
+
+        let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());
+
+        (c1, r_hat)
+    }
+
+    /// Encrypt the specified message for the holder of the corresponding decryption key, using the
+    /// provided randomness, according the `K-PKE.Encrypt` procedure.
+    pub(crate) fn encrypt_incremental_2(
+        &self,
+        message: &B32,
+        randomness: &B32,
+        r_hat: &NttVector<P::K>,
+    ) -> Ciphertext2<P> {
+        let prf_output = PRF::<P::Eta2>(randomness, 2 * P::K::U8);
+        let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
+
+        let mut mu: Polynomial = Encode::<U1>::decode(message);
+        mu.decompress::<U1>();
+
+        let tTr: Polynomial = (&self.t_hat * r_hat).ntt_inverse();
+        let mut v = &(&tTr + &e2) + &mu;
+
+        Encode::<P::Dv>::encode(v.compress::<P::Dv>())
     }
 
     /// Represent this encryption key as a byte array `(t_hat || rho)`
