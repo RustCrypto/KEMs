@@ -237,7 +237,7 @@ macro_rules! ct_eq_imp {
     ($name:ident) => {
         impl ConstantTimeEq for $name {
             fn ct_eq(&self, other: &Self) -> Choice {
-                self.algorithm.ct_eq(&other.algorithm) & ct_eq_bytes(&self.value, &other.value)
+                self.algorithm.ct_eq(&other.algorithm) & self.value.ct_eq(&other.value)
             }
         }
 
@@ -1643,20 +1643,6 @@ pub struct AlgorithmParams {
     pub decryption_key_length: usize,
     /// The byte length of the ciphertext
     pub ciphertext_length: usize,
-}
-
-fn ct_eq_bytes(lhs: &[u8], rhs: &[u8]) -> Choice {
-    if lhs.len() != rhs.len() {
-        return 0u8.into();
-    }
-
-    let mut eq = 0u8;
-    for i in 0..lhs.len() {
-        eq |= lhs[i] ^ rhs[i];
-    }
-
-    let eq = ((eq | eq.wrapping_neg()) >> 7).wrapping_add(1);
-    Choice::from(eq)
 }
 
 #[cfg(test)]
