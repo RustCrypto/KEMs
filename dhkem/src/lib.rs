@@ -167,7 +167,7 @@ pub type NistP521DecapsulationKey = EcdhDecapsulationKey<p521::NistP521>;
 pub type NistP521EncapsulationKey = EcdhEncapsulationKey<p521::NistP521>;
 
 /// secp256k1 DHKEM.
-#[cfg(feature = "p521")]
+#[cfg(feature = "k256")]
 pub type Secp256k1Kem = EcdhKem<k256::Secp256k1>;
 /// secp256k1 ECDH Decapsulation Key.
 #[cfg(feature = "k256")]
