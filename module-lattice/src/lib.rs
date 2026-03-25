@@ -7,14 +7,13 @@
 )]
 
 /// Linear algebra with degree-256 polynomials over a prime-order field, vectors of such
-/// polynomials, and NTT polynomials / vectors
+/// polynomials, and NTT polynomials / vectors.
 mod algebra;
 
 /// Packing of polynomials into coefficients with a specified number of bits.
 mod encoding;
 
-/// Utility functions such as truncating integers, flattening arrays of arrays, and unflattening
-/// arrays into arrays of arrays.
+/// Integer truncation support.
 mod truncate;
 
 pub use algebra::{
@@ -25,3 +24,6 @@ pub use encoding::{
     EncodedVectorSize, EncodingSize, VectorEncodingSize, byte_decode, byte_encode,
 };
 pub use truncate::Truncate;
+
+#[cfg(feature = "ctutils")]
+pub use ctutils;

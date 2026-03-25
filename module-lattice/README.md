@@ -18,8 +18,7 @@ these algorithms:
 - Linear algebra with degree-256 polynomials over a prime-order field, vectors of such polynomials, and NTT
   polynomials / vectors.
 - Packing of polynomials into coefficients with a specified number of bits.
-- Utility functions such as truncating integers, flattening arrays of arrays, and unflattening arrays into arrays
-  of arrays.
+- Utility functions such as truncating integers
 
 ## ⚠️ Warning: [Hazmat!][hazmat-link]
 

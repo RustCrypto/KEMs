@@ -8,8 +8,10 @@ use crate::crypto::{G, PRF};
 use crate::param::{EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use array::typenum::{U1, Unsigned};
 use kem::{Ciphertext, InvalidKey};
-use module_lattice::Encode;
-use subtle::{Choice, ConstantTimeEq};
+use module_lattice::{
+    Encode,
+    ctutils::{Choice, CtEq},
+};
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -24,7 +26,7 @@ where
     s_hat: NttVector<P::K>,
 }
 
-impl<P> ConstantTimeEq for DecryptionKey<P>
+impl<P> CtEq for DecryptionKey<P>
 where
     P: PkeParams,
 {
