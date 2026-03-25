@@ -5,8 +5,8 @@ use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
 use num_traits::PrimInt;
 
-#[cfg(feature = "subtle")]
-use subtle::{Choice, ConstantTimeEq};
+#[cfg(feature = "ctutils")]
+use ctutils::{Choice, CtEq, CtEqSlice};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 
@@ -104,15 +104,18 @@ impl<F: Field> Elem<F> {
     }
 }
 
-#[cfg(feature = "subtle")]
-impl<F: Field> ConstantTimeEq for Elem<F>
+#[cfg(feature = "ctutils")]
+impl<F: Field> CtEq for Elem<F>
 where
-    F::Int: ConstantTimeEq,
+    F::Int: CtEq,
 {
     fn ct_eq(&self, other: &Self) -> Choice {
         self.0.ct_eq(&other.0)
     }
 }
+
+#[cfg(feature = "ctutils")]
+impl<F: Field<Int: CtEq>> CtEqSlice for Elem<F> {}
 
 #[cfg(feature = "zeroize")]
 impl<F: Field> Zeroize for Elem<F>
@@ -392,15 +395,18 @@ impl<F: Field> From<NttPolynomial<F>> for Array<Elem<F>, U256> {
     }
 }
 
-#[cfg(feature = "subtle")]
-impl<F: Field> ConstantTimeEq for NttPolynomial<F>
+#[cfg(feature = "ctutils")]
+impl<F: Field> CtEq for NttPolynomial<F>
 where
-    F::Int: ConstantTimeEq,
+    F::Int: CtEq,
 {
     fn ct_eq(&self, other: &Self) -> Choice {
         self.0.ct_eq(&other.0)
     }
 }
+
+#[cfg(feature = "ctutils")]
+impl<F: Field<Int: CtEq>> CtEqSlice for NttPolynomial<F> {}
 
 #[cfg(feature = "zeroize")]
 impl<F: Field> Zeroize for NttPolynomial<F>
@@ -427,15 +433,18 @@ impl<F: Field, K: ArraySize> NttVector<F, K> {
     }
 }
 
-#[cfg(feature = "subtle")]
-impl<F: Field, K: ArraySize> ConstantTimeEq for NttVector<F, K>
+#[cfg(feature = "ctutils")]
+impl<F: Field, K: ArraySize> CtEq for NttVector<F, K>
 where
-    F::Int: ConstantTimeEq,
+    F::Int: CtEq,
 {
     fn ct_eq(&self, other: &Self) -> Choice {
         self.0.ct_eq(&other.0)
     }
 }
+
+#[cfg(feature = "ctutils")]
+impl<F: Field<Int: CtEq>, K: ArraySize> CtEqSlice for NttVector<F, K> {}
 
 #[cfg(feature = "zeroize")]
 impl<F: Field, K: ArraySize> Zeroize for NttVector<F, K>

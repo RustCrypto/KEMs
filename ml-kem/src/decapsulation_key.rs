@@ -12,8 +12,8 @@ use kem::{
     Ciphertext, Decapsulate, Decapsulator, Generate, InvalidKey, Kem, KeyExport, KeyInit,
     KeySizeUser,
 };
+use module_lattice::ctutils::{CtEq, CtSelect};
 use rand_core::{TryCryptoRng, TryRng};
-use subtle::{ConditionallySelectable, ConstantTimeEq};
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -156,7 +156,7 @@ where
         let (Kp, rp) = G(&[&mp, &self.ek.h()]);
         let Kbar = J(&[self.z.as_slice(), encapsulated_key.as_ref()]);
         let cp = self.ek.ek_pke().encrypt(&mp, &rp);
-        B32::conditional_select(&Kbar, &Kp, cp.ct_eq(encapsulated_key))
+        Kbar.ct_select(&Kp, cp.ct_eq(encapsulated_key))
     }
 }
 

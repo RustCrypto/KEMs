@@ -516,14 +516,11 @@ mod zeroize_tests {
     }
 }
 
-// ========================================
-// ConstantTimeEq tests (require subtle feature)
-// ========================================
-
-#[cfg(feature = "subtle")]
-mod subtle_tests {
+/// `CtEq` tests (requires `ctutils` feature)
+#[cfg(feature = "ctutils")]
+mod ctutils_tests {
     use super::*;
-    use subtle::ConstantTimeEq;
+    use ctutils::CtEq;
 
     #[test]
     fn elem_ct_eq() {

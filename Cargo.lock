@@ -658,10 +658,11 @@ dependencies = [
 
 [[package]]
 name = "hybrid-array"
-version = "0.4.7"
+version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1b229d73f5803b562cc26e4da0396c8610a4ee209f4fac8fa4f8d709166dc45"
+checksum = "8655f91cd07f2b9d0c24137bd650fe69617773435ee5ec83022377777ce65ef1"
 dependencies = [
+ "ctutils",
  "subtle",
  "typenum",
  "zeroize",
@@ -800,18 +801,17 @@ dependencies = [
  "serde",
  "serde_json",
  "sha3",
- "subtle",
  "zeroize",
 ]
 
 [[package]]
 name = "module-lattice"
-version = "0.1.0"
+version = "0.2.0-pre"
 dependencies = [
+ "ctutils",
  "getrandom",
  "hybrid-array",
  "num-traits",
- "subtle",
  "zeroize",
 ]
 
