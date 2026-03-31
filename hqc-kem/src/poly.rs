@@ -61,12 +61,14 @@ fn base_mul(a: u64, b: u64) -> [u64; 2] {
 #[inline]
 unsafe fn base_mul_pclmul(a: u64, b: u64) -> [u64; 2] {
     use std::arch::x86_64::*;
-    let va = _mm_set_epi64x(0, a as i64);
-    let vb = _mm_set_epi64x(0, b as i64);
-    let r = _mm_clmulepi64_si128(va, vb, 0x00);
-    let mut result = [0u64; 2];
-    _mm_storeu_si128(result.as_mut_ptr() as *mut __m128i, r);
-    result
+    unsafe {
+        let va = _mm_set_epi64x(0, a as i64);
+        let vb = _mm_set_epi64x(0, b as i64);
+        let r = _mm_clmulepi64_si128(va, vb, 0x00);
+        let mut result = [0u64; 2];
+        _mm_storeu_si128(result.as_mut_ptr() as *mut __m128i, r);
+        result
+    }
 }
 
 /// Software carry-less multiplication (constant-time).
@@ -314,14 +316,16 @@ pub(crate) fn store8_arr(out: &mut [u8], inp: &[u64]) {
 unsafe fn vect_add_avx2(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize) {
     use std::arch::x86_64::*;
     let chunks = size / 4;
-    let p1 = v1.as_ptr() as *const __m256i;
-    let p2 = v2.as_ptr() as *const __m256i;
-    let po = o.as_mut_ptr() as *mut __m256i;
-    for i in 0..chunks {
-        _mm256_storeu_si256(
-            po.add(i),
-            _mm256_xor_si256(_mm256_loadu_si256(p1.add(i)), _mm256_loadu_si256(p2.add(i))),
-        );
+    unsafe {
+        let p1 = v1.as_ptr() as *const __m256i;
+        let p2 = v2.as_ptr() as *const __m256i;
+        let po = o.as_mut_ptr() as *mut __m256i;
+        for i in 0..chunks {
+            _mm256_storeu_si256(
+                po.add(i),
+                _mm256_xor_si256(_mm256_loadu_si256(p1.add(i)), _mm256_loadu_si256(p2.add(i))),
+            );
+        }
     }
     for i in (chunks * 4)..size {
         o[i] = v1[i] ^ v2[i];
@@ -333,16 +337,18 @@ unsafe fn vect_add_avx2(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize) {
 unsafe fn vect_add_assign_avx2(v: &mut [u64], rhs: &[u64], size: usize) {
     use std::arch::x86_64::*;
     let chunks = size / 4;
-    let pv = v.as_mut_ptr() as *mut __m256i;
-    let pr = rhs.as_ptr() as *const __m256i;
-    for i in 0..chunks {
-        _mm256_storeu_si256(
-            pv.add(i),
-            _mm256_xor_si256(
-                _mm256_loadu_si256(pv.add(i) as *const __m256i),
-                _mm256_loadu_si256(pr.add(i)),
-            ),
-        );
+    unsafe {
+        let pv = v.as_mut_ptr() as *mut __m256i;
+        let pr = rhs.as_ptr() as *const __m256i;
+        for i in 0..chunks {
+            _mm256_storeu_si256(
+                pv.add(i),
+                _mm256_xor_si256(
+                    _mm256_loadu_si256(pv.add(i) as *const __m256i),
+                    _mm256_loadu_si256(pr.add(i)),
+                ),
+            );
+        }
     }
     for i in (chunks * 4)..size {
         v[i] ^= rhs[i];
@@ -363,18 +369,20 @@ unsafe fn karatsuba_add1_avx2(
     let chunks = size_h / 4;
     for i in 0..chunks {
         let idx = i * 4;
-        let a_lo = _mm256_loadu_si256(a.as_ptr().add(idx) as *const __m256i);
-        let a_hi = _mm256_loadu_si256(a.as_ptr().add(idx + size_l) as *const __m256i);
-        _mm256_storeu_si256(
-            alh.as_mut_ptr().add(idx) as *mut __m256i,
-            _mm256_xor_si256(a_lo, a_hi),
-        );
-        let b_lo = _mm256_loadu_si256(b.as_ptr().add(idx) as *const __m256i);
-        let b_hi = _mm256_loadu_si256(b.as_ptr().add(idx + size_l) as *const __m256i);
-        _mm256_storeu_si256(
-            blh.as_mut_ptr().add(idx) as *mut __m256i,
-            _mm256_xor_si256(b_lo, b_hi),
-        );
+        unsafe {
+            let a_lo = _mm256_loadu_si256(a.as_ptr().add(idx) as *const __m256i);
+            let a_hi = _mm256_loadu_si256(a.as_ptr().add(idx + size_l) as *const __m256i);
+            _mm256_storeu_si256(
+                alh.as_mut_ptr().add(idx) as *mut __m256i,
+                _mm256_xor_si256(a_lo, a_hi),
+            );
+            let b_lo = _mm256_loadu_si256(b.as_ptr().add(idx) as *const __m256i);
+            let b_hi = _mm256_loadu_si256(b.as_ptr().add(idx + size_l) as *const __m256i);
+            _mm256_storeu_si256(
+                blh.as_mut_ptr().add(idx) as *mut __m256i,
+                _mm256_xor_si256(b_lo, b_hi),
+            );
+        }
     }
     for i in (chunks * 4)..size_h {
         alh[i] = a[i] ^ a[i + size_l];
@@ -404,14 +412,16 @@ unsafe fn karatsuba_add2_avx2(
     let chunks1 = len1 / 4;
     for i in 0..chunks1 {
         let idx = i * 4;
-        let pt = tmp1.as_mut_ptr().add(idx) as *mut __m256i;
-        _mm256_storeu_si256(
-            pt,
-            _mm256_xor_si256(
-                _mm256_loadu_si256(pt as *const __m256i),
-                _mm256_loadu_si256(o.as_ptr().add(idx) as *const __m256i),
-            ),
-        );
+        unsafe {
+            let pt = tmp1.as_mut_ptr().add(idx) as *mut __m256i;
+            _mm256_storeu_si256(
+                pt,
+                _mm256_xor_si256(
+                    _mm256_loadu_si256(pt as *const __m256i),
+                    _mm256_loadu_si256(o.as_ptr().add(idx) as *const __m256i),
+                ),
+            );
+        }
     }
     for i in (chunks1 * 4)..len1 {
         tmp1[i] ^= o[i];
@@ -421,14 +431,16 @@ unsafe fn karatsuba_add2_avx2(
     let chunks2 = len2 / 4;
     for i in 0..chunks2 {
         let idx = i * 4;
-        let pt = tmp1.as_mut_ptr().add(idx) as *mut __m256i;
-        _mm256_storeu_si256(
-            pt,
-            _mm256_xor_si256(
-                _mm256_loadu_si256(pt as *const __m256i),
-                _mm256_loadu_si256(tmp2.as_ptr().add(idx) as *const __m256i),
-            ),
-        );
+        unsafe {
+            let pt = tmp1.as_mut_ptr().add(idx) as *mut __m256i;
+            _mm256_storeu_si256(
+                pt,
+                _mm256_xor_si256(
+                    _mm256_loadu_si256(pt as *const __m256i),
+                    _mm256_loadu_si256(tmp2.as_ptr().add(idx) as *const __m256i),
+                ),
+            );
+        }
     }
     for i in (chunks2 * 4)..len2 {
         tmp1[i] ^= tmp2[i];
@@ -437,14 +449,16 @@ unsafe fn karatsuba_add2_avx2(
     // o[i + size_l] ^= tmp1[i] for i in 0..2*size_l
     for i in 0..chunks1 {
         let idx = i * 4;
-        let po = o.as_mut_ptr().add(idx + size_l) as *mut __m256i;
-        _mm256_storeu_si256(
-            po,
-            _mm256_xor_si256(
-                _mm256_loadu_si256(po as *const __m256i),
-                _mm256_loadu_si256(tmp1.as_ptr().add(idx) as *const __m256i),
-            ),
-        );
+        unsafe {
+            let po = o.as_mut_ptr().add(idx + size_l) as *mut __m256i;
+            _mm256_storeu_si256(
+                po,
+                _mm256_xor_si256(
+                    _mm256_loadu_si256(po as *const __m256i),
+                    _mm256_loadu_si256(tmp1.as_ptr().add(idx) as *const __m256i),
+                ),
+            );
+        }
     }
     for i in (chunks1 * 4)..len1 {
         o[i + size_l] ^= tmp1[i];
@@ -457,21 +471,24 @@ unsafe fn reduce_avx2(o: &mut [u64], a: &[u64], n: usize, vec_n: usize) {
     use std::arch::x86_64::*;
     let shift = (n & 0x3f) as i64;
     let inv_shift = 64 - shift;
-    let shift_v = _mm_set_epi64x(0, shift);
-    let inv_shift_v = _mm_set_epi64x(0, inv_shift);
     let chunks = vec_n / 4;
 
-    for i in 0..chunks {
-        let idx = i * 4;
-        let base = _mm256_loadu_si256(a.as_ptr().add(idx) as *const __m256i);
-        let hi_prev = _mm256_loadu_si256(a.as_ptr().add(idx + vec_n - 1) as *const __m256i);
-        let hi_next = _mm256_loadu_si256(a.as_ptr().add(idx + vec_n) as *const __m256i);
-        let r = _mm256_srl_epi64(hi_prev, shift_v);
-        let carry = _mm256_sll_epi64(hi_next, inv_shift_v);
-        _mm256_storeu_si256(
-            o.as_mut_ptr().add(idx) as *mut __m256i,
-            _mm256_xor_si256(base, _mm256_xor_si256(r, carry)),
-        );
+    unsafe {
+        let shift_v = _mm_set_epi64x(0, shift);
+        let inv_shift_v = _mm_set_epi64x(0, inv_shift);
+
+        for i in 0..chunks {
+            let idx = i * 4;
+            let base = _mm256_loadu_si256(a.as_ptr().add(idx) as *const __m256i);
+            let hi_prev = _mm256_loadu_si256(a.as_ptr().add(idx + vec_n - 1) as *const __m256i);
+            let hi_next = _mm256_loadu_si256(a.as_ptr().add(idx + vec_n) as *const __m256i);
+            let r = _mm256_srl_epi64(hi_prev, shift_v);
+            let carry = _mm256_sll_epi64(hi_next, inv_shift_v);
+            _mm256_storeu_si256(
+                o.as_mut_ptr().add(idx) as *mut __m256i,
+                _mm256_xor_si256(base, _mm256_xor_si256(r, carry)),
+            );
+        }
     }
     // Scalar remainder
     let shift_s = n & 0x3f;
