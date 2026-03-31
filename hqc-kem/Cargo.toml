@@ -1,0 +1,64 @@
+[package]
+name = "hqc-kem"
+categories = ["cryptography"]
+description = "Pure Rust implementation of HQC-KEM as described in FIPS 207"
+edition = "2024"
+homepage = "https://github.com/RustCrypto/KEMs/tree/master/hqc-kem"
+keywords = ["hqc", "kem", "post-quantum", "cryptography", "codes"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/RustCrypto/KEMs"
+version = "0.1.0"
+
+[features]
+default = ["kgen", "ecap", "dcap"]
+kgen = []
+ecap = []
+dcap = []
+kem = ["dep:kem_traits", "dep:hybrid-array", "dep:typenum", "kgen", "ecap", "dcap"]
+pkcs8 = ["dep:const-oid", "dep:pkcs8"]
+pem = ["pkcs8/pem"]
+alloc = ["pkcs8?/alloc"]
+serde = ["dep:serdect", "dep:serde"]
+
+[dependencies]
+const-oid = { version = "0.10", optional = true }
+hex = "0.4"
+hybrid-array = { version = "0.4.7", optional = true, features = ["extra-sizes"] }
+kem_traits = { package = "kem", version = "0.3.0-rc.6", optional = true }
+pkcs8 = { version = "0.11.0-rc.11", optional = true, default-features = false }
+rand = "0.10"
+sha3 = "0.10"
+serdect = { version = "0.4", optional = true }
+serde = { version = "1", features = ["derive"], optional = true }
+subtle = "2"
+thiserror = "2"
+typenum = { version = "1", optional = true }
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+hex = "0.4"
+rand = { version = "0.10", features = ["thread_rng"] }
+
+[[bench]]
+name = "kem"
+harness = false
+
+[patch.crates-io]
+hybrid-array = { path = "hybrid-array-patch" }
+
+[lints.rust]
+missing_docs = "deny"
+missing_debug_implementations = "deny"
+unused_import_braces = "deny"
+unused_lifetimes = "deny"
+unused_parens = "deny"
+unused_qualifications = "deny"
+unused_results = "deny"
+unused_extern_crates = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+panic = "warn"
+panic_in_result_fn = "warn"
