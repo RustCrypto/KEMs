@@ -2,6 +2,7 @@
 //!
 //! Tests use the KAT PRNG (SHAKE256 with domain byte 0x00) to generate
 //! deterministic randomness matching the v5.0.0 reference implementation.
+#![cfg(all(feature = "kgen", feature = "ecap", feature = "dcap"))]
 
 use hqc_kem::{hqc128, hqc192, hqc256};
 

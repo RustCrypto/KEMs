@@ -7,6 +7,8 @@
 //! # Usage
 //!
 //! ```rust
+//! # #[cfg(all(feature = "kgen", feature = "ecap", feature = "dcap"))]
+//! # {
 //! use hqc_kem::{Hqc128, HqcKem};
 //!
 //! let mut rng = rand::rng();
@@ -14,6 +16,7 @@
 //! let (ct, ss1) = ek.encapsulate(&mut rng);
 //! let ss2 = dk.decapsulate(&ct);
 //! assert_eq!(ss1, ss2);
+//! # }
 //! ```
 //!
 //! # Security Levels

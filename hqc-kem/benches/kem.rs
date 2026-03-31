@@ -1,4 +1,5 @@
 #![allow(missing_docs, unused_results)]
+#![cfg(all(feature = "kgen", feature = "ecap", feature = "dcap"))]
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use hqc_kem::{hqc128, hqc192, hqc256};
