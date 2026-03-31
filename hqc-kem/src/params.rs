@@ -1,12 +1,20 @@
 //! HQC parameter definitions for all security levels.
 
 /// Seed size in bytes.
+#[cfg(any(
+    feature = "kgen",
+    feature = "ecap",
+    feature = "dcap",
+    feature = "pkcs8",
+    feature = "kem"
+))]
 pub(crate) const SEED_BYTES: usize = 32;
 /// Salt size in bytes.
 pub(crate) const SALT_BYTES: usize = 16;
 /// Shared secret size in bytes.
 pub(crate) const SS_BYTES: usize = 32;
 /// GF(2^M) parameter M.
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 pub(crate) const PARAM_M: usize = 8;
 
 /// Internal runtime parameter set.
@@ -147,7 +155,9 @@ pub(crate) const HQC_256: HqcParameters = HqcParameters {
 };
 
 // Maximum sizes for stack-allocated arrays.
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 pub(crate) const MAX_N1: usize = 90;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 pub(crate) const MAX_DELTA: usize = 29;
 
 mod sealed {

@@ -36,21 +36,31 @@
 //! - `alloc`: Enables PKCS#8 encoding (requires `alloc`)
 //! - `serde`: Serde serialization support
 
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod code;
 mod error;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod fft;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod gf256;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod kem;
 #[cfg(feature = "kem")]
 mod kem_impl;
 mod params;
 #[cfg(feature = "pkcs8")]
 mod pkcs8_impl;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod pke;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod poly;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod reed_muller;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod reed_solomon;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod sampling;
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod shake;
 #[cfg(feature = "kem")]
 mod sizes;

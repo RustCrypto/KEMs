@@ -66,35 +66,63 @@ macro_rules! basic_bytes {
 /// HQC encapsulation key (public key).
 #[derive(Clone)]
 pub struct EncapsulationKey<P: HqcParams> {
-    bytes: Vec<u8>,
-    _marker: PhantomData<P>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) _marker: PhantomData<P>,
 }
 
 /// HQC decapsulation key (secret key).
 #[derive(Clone)]
 pub struct DecapsulationKey<P: HqcParams> {
-    bytes: Vec<u8>,
-    ek: EncapsulationKey<P>,
-    _marker: PhantomData<P>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) ek: EncapsulationKey<P>,
+    pub(crate) _marker: PhantomData<P>,
 }
 
 /// HQC ciphertext.
 #[derive(Clone)]
 pub struct Ciphertext<P: HqcParams> {
-    bytes: Vec<u8>,
-    _marker: PhantomData<P>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) _marker: PhantomData<P>,
 }
 
 /// HQC shared secret.
 #[derive(Clone)]
 pub struct SharedSecret<P: HqcParams> {
-    bytes: Vec<u8>,
-    _marker: PhantomData<P>,
+    pub(crate) bytes: Vec<u8>,
+    pub(crate) _marker: PhantomData<P>,
 }
 
 from_bytes!(EncapsulationKey, P::PK_BYTES, InvalidPublicKeySize);
 from_bytes!(Ciphertext, P::CT_BYTES, InvalidCiphertextSize);
 from_bytes!(SharedSecret, P::SS_BYTES, InvalidSharedSecretSize);
+
+// ---------------------------------------------------------------------------
+// Internal constructors (crate-only)
+// ---------------------------------------------------------------------------
+
+#[cfg(any(feature = "kem", feature = "pkcs8"))]
+impl<P: HqcParams> EncapsulationKey<P> {
+    pub(crate) fn from_vec(bytes: Vec<u8>) -> Self {
+        debug_assert_eq!(bytes.len(), P::PK_BYTES);
+        Self {
+            bytes,
+            _marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(any(feature = "kem", feature = "pkcs8"))]
+impl<P: HqcParams> DecapsulationKey<P> {
+    pub(crate) fn from_vec(bytes: Vec<u8>) -> Self {
+        debug_assert_eq!(bytes.len(), P::SK_BYTES);
+        let ek = EncapsulationKey::from_vec(bytes[..P::PK_BYTES].to_vec());
+        Self {
+            bytes,
+            ek,
+            _marker: PhantomData,
+        }
+    }
+}
 
 /// HQC Key Encapsulation Mechanism parameterized by security level.
 ///
@@ -360,7 +388,7 @@ mod serde_impl {
     use super::*;
 
     macro_rules! ser_impl {
-        ($name:ident, ) => {
+        ($name:ident) => {
             impl<P: HqcParams> serde::Serialize for $name<P> {
                 fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
                     serdect::slice::serialize_hex_lower_or_bin(&self.bytes, s)
