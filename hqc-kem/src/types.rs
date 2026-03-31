@@ -6,6 +6,63 @@ use core::marker::PhantomData;
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
+macro_rules! from_bytes {
+    ($name:ident, $bytes:expr, $err:ident) => {
+        impl<P: HqcParams> TryFrom<&[u8]> for $name<P> {
+            type Error = Error;
+
+            fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+                if bytes.len() == $bytes {
+                    return Err(Error::$err {
+                        expected: $bytes,
+                        got: bytes.len(),
+                    });
+                }
+                Ok(Self {
+                    bytes: bytes.to_vec(),
+                    _marker: PhantomData,
+                })
+            }
+        }
+
+        basic_bytes!($name, $bytes, $err);
+    };
+}
+
+macro_rules! basic_bytes {
+    ($name:ident, $bytes:expr, $err:ident) => {
+        impl<P: HqcParams> TryFrom<Vec<u8>> for $name<P> {
+            type Error = Error;
+
+            fn try_from(bytes: Vec<u8>) -> Result<Self, Self::Error> {
+                Self::try_from(bytes.as_slice())
+            }
+        }
+
+        impl<P: HqcParams> TryFrom<&Vec<u8>> for $name<P> {
+            type Error = Error;
+
+            fn try_from(bytes: &Vec<u8>) -> Result<Self, Self::Error> {
+                Self::try_from(bytes.as_slice())
+            }
+        }
+
+        impl<P: HqcParams> TryFrom<Box<[u8]>> for $name<P> {
+            type Error = Error;
+
+            fn try_from(bytes: Box<[u8]>) -> Result<Self, Self::Error> {
+                Self::try_from(bytes.as_ref())
+            }
+        }
+
+        impl<P: HqcParams> AsRef<[u8]> for $name<P> {
+            fn as_ref(&self) -> &[u8] {
+                &self.bytes
+            }
+        }
+    };
+}
+
 /// HQC encapsulation key (public key).
 #[derive(Clone)]
 pub struct EncapsulationKey<P: HqcParams> {
@@ -35,6 +92,10 @@ pub struct SharedSecret<P: HqcParams> {
     _marker: PhantomData<P>,
 }
 
+from_bytes!(EncapsulationKey, P::PK_BYTES, InvalidPublicKeySize);
+from_bytes!(Ciphertext, P::CT_BYTES, InvalidCiphertextSize);
+from_bytes!(SharedSecret, P::SS_BYTES, InvalidSharedSecretSize);
+
 /// HQC Key Encapsulation Mechanism parameterized by security level.
 ///
 /// Zero-sized marker type providing [`generate_key`](HqcKem::generate_key).
@@ -43,56 +104,32 @@ pub struct SharedSecret<P: HqcParams> {
 #[derive(Debug, Clone, Copy)]
 pub struct HqcKem<P: HqcParams>(PhantomData<P>);
 
-// ---------------------------------------------------------------------------
-// Internal constructors (crate-only)
-// ---------------------------------------------------------------------------
-
-impl<P: HqcParams> EncapsulationKey<P> {
-    pub(crate) fn from_vec(bytes: Vec<u8>) -> Self {
-        debug_assert_eq!(bytes.len(), P::PK_BYTES);
-        Self {
-            bytes,
-            _marker: PhantomData,
-        }
-    }
-}
-
 impl<P: HqcParams> DecapsulationKey<P> {
-    pub(crate) fn from_vec(bytes: Vec<u8>) -> Self {
-        debug_assert_eq!(bytes.len(), P::SK_BYTES);
-        let ek = EncapsulationKey::from_vec(bytes[..P::PK_BYTES].to_vec());
-        Self {
-            bytes,
-            ek,
-            _marker: PhantomData,
-        }
-    }
-
     /// Get the encapsulation (public) key corresponding to this decapsulation key.
     pub fn encapsulation_key(&self) -> &EncapsulationKey<P> {
         &self.ek
     }
 }
 
-impl<P: HqcParams> Ciphertext<P> {
-    pub(crate) fn from_vec(bytes: Vec<u8>) -> Self {
-        debug_assert_eq!(bytes.len(), P::CT_BYTES);
-        Self {
-            bytes,
-            _marker: PhantomData,
+impl<P: HqcParams> TryFrom<&[u8]> for DecapsulationKey<P> {
+    type Error = Error;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        if bytes.len() != P::SK_BYTES {
+            return Err(Error::InvalidSecretKeySize {
+                expected: P::SK_BYTES,
+                got: bytes.len(),
+            });
         }
+        Ok(Self {
+            bytes: bytes.to_vec(),
+            ek: EncapsulationKey::try_from(&bytes[..P::PK_BYTES])?,
+            _marker: PhantomData,
+        })
     }
 }
 
-impl<P: HqcParams> SharedSecret<P> {
-    pub(crate) fn from_vec(bytes: Vec<u8>) -> Self {
-        debug_assert_eq!(bytes.len(), P::SS_BYTES);
-        Self {
-            bytes,
-            _marker: PhantomData,
-        }
-    }
-}
+basic_bytes!(DecapsulationKey, P::SK_BYTES, InvalidSecretKeySize);
 
 // ---------------------------------------------------------------------------
 // Debug
@@ -129,88 +166,6 @@ impl<P: HqcParams> core::fmt::Debug for SharedSecret<P> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name: String = format!("{}::SharedSecret", P::NAME);
         f.debug_struct(&name).finish()
-    }
-}
-
-// ---------------------------------------------------------------------------
-// AsRef<[u8]>
-// ---------------------------------------------------------------------------
-
-impl<P: HqcParams> AsRef<[u8]> for EncapsulationKey<P> {
-    fn as_ref(&self) -> &[u8] {
-        &self.bytes
-    }
-}
-
-impl<P: HqcParams> AsRef<[u8]> for DecapsulationKey<P> {
-    fn as_ref(&self) -> &[u8] {
-        &self.bytes
-    }
-}
-
-impl<P: HqcParams> AsRef<[u8]> for Ciphertext<P> {
-    fn as_ref(&self) -> &[u8] {
-        &self.bytes
-    }
-}
-
-impl<P: HqcParams> AsRef<[u8]> for SharedSecret<P> {
-    fn as_ref(&self) -> &[u8] {
-        &self.bytes
-    }
-}
-
-// ---------------------------------------------------------------------------
-// TryFrom<&[u8]>
-// ---------------------------------------------------------------------------
-
-impl<P: HqcParams> TryFrom<&[u8]> for EncapsulationKey<P> {
-    type Error = Error;
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != P::PK_BYTES {
-            return Err(Error::InvalidPublicKeySize {
-                expected: P::PK_BYTES,
-                got: bytes.len(),
-            });
-        }
-        Ok(Self {
-            bytes: bytes.to_vec(),
-            _marker: PhantomData,
-        })
-    }
-}
-
-impl<P: HqcParams> TryFrom<&[u8]> for DecapsulationKey<P> {
-    type Error = Error;
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != P::SK_BYTES {
-            return Err(Error::InvalidSecretKeySize {
-                expected: P::SK_BYTES,
-                got: bytes.len(),
-            });
-        }
-        let ek = EncapsulationKey::from_vec(bytes[..P::PK_BYTES].to_vec());
-        Ok(Self {
-            bytes: bytes.to_vec(),
-            ek,
-            _marker: PhantomData,
-        })
-    }
-}
-
-impl<P: HqcParams> TryFrom<&[u8]> for Ciphertext<P> {
-    type Error = Error;
-    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
-        if bytes.len() != P::CT_BYTES {
-            return Err(Error::InvalidCiphertextSize {
-                expected: P::CT_BYTES,
-                got: bytes.len(),
-            });
-        }
-        Ok(Self {
-            bytes: bytes.to_vec(),
-            _marker: PhantomData,
-        })
     }
 }
 
@@ -291,9 +246,20 @@ impl<P: HqcParams> HqcKem<P> {
         rng: &mut impl rand::CryptoRng,
     ) -> (EncapsulationKey<P>, DecapsulationKey<P>) {
         let (pk, sk) = crate::kem::keygen(P::params(), rng);
+        let ek = EncapsulationKey {
+            bytes: pk.clone(),
+            _marker: PhantomData,
+        };
         (
-            EncapsulationKey::from_vec(pk),
-            DecapsulationKey::from_vec(sk),
+            EncapsulationKey {
+                bytes: pk,
+                _marker: PhantomData,
+            },
+            DecapsulationKey {
+                bytes: sk,
+                ek,
+                _marker: PhantomData,
+            },
         )
     }
 
@@ -305,9 +271,20 @@ impl<P: HqcParams> HqcKem<P> {
         seed: &[u8; 32],
     ) -> (EncapsulationKey<P>, DecapsulationKey<P>) {
         let (pk, sk) = crate::kem::keygen_deterministic(seed, P::params());
+        let ek = EncapsulationKey {
+            bytes: pk.clone(),
+            _marker: PhantomData,
+        };
         (
-            EncapsulationKey::from_vec(pk),
-            DecapsulationKey::from_vec(sk),
+            EncapsulationKey {
+                bytes: pk,
+                _marker: PhantomData,
+            },
+            DecapsulationKey {
+                bytes: sk,
+                ek,
+                _marker: PhantomData,
+            },
         )
     }
 }
@@ -317,7 +294,16 @@ impl<P: HqcParams> EncapsulationKey<P> {
     /// Encapsulate: produce a ciphertext and shared secret.
     pub fn encapsulate(&self, rng: &mut impl rand::CryptoRng) -> (Ciphertext<P>, SharedSecret<P>) {
         let (ss, ct) = crate::kem::encaps(&self.bytes, P::params(), rng);
-        (Ciphertext::from_vec(ct), SharedSecret::from_vec(ss))
+        (
+            Ciphertext {
+                bytes: ct,
+                _marker: PhantomData,
+            },
+            SharedSecret {
+                bytes: ss,
+                _marker: PhantomData,
+            },
+        )
     }
 
     /// Encapsulate deterministically from a message and salt.
@@ -340,7 +326,16 @@ impl<P: HqcParams> EncapsulationKey<P> {
             });
         }
         let (ss, ct) = crate::kem::encaps_deterministic(&self.bytes, m, salt, p);
-        Ok((Ciphertext::from_vec(ct), SharedSecret::from_vec(ss)))
+        Ok((
+            Ciphertext {
+                bytes: ct,
+                _marker: PhantomData,
+            },
+            SharedSecret {
+                bytes: ss,
+                _marker: PhantomData,
+            },
+        ))
     }
 }
 
@@ -349,7 +344,10 @@ impl<P: HqcParams> DecapsulationKey<P> {
     /// Decapsulate: recover shared secret from ciphertext.
     pub fn decapsulate(&self, ct: &Ciphertext<P>) -> SharedSecret<P> {
         let ss = crate::kem::decaps(&self.bytes, &ct.bytes, P::params());
-        SharedSecret::from_vec(ss)
+        SharedSecret {
+            bytes: ss,
+            _marker: PhantomData,
+        }
     }
 }
 
@@ -361,34 +359,44 @@ impl<P: HqcParams> DecapsulationKey<P> {
 mod serde_impl {
     use super::*;
 
-    impl<P: HqcParams> serde::Serialize for EncapsulationKey<P> {
-        fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-            serdect::slice::serialize_hex_lower_or_bin(&self.bytes, s)
-        }
+    macro_rules! ser_impl {
+        ($name:ident, ) => {
+            impl<P: HqcParams> serde::Serialize for $name<P> {
+                fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+                    serdect::slice::serialize_hex_lower_or_bin(&self.bytes, s)
+                }
+            }
+        };
     }
 
-    impl<'de, P: HqcParams> serde::Deserialize<'de> for EncapsulationKey<P> {
-        fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-            let mut buf = vec![0u8; P::PK_BYTES];
-            let _ = serdect::slice::deserialize_hex_or_bin(&mut buf, d)?;
-            Ok(Self {
-                bytes: buf,
-                _marker: PhantomData,
-            })
-        }
+    macro_rules! deser_impl {
+        ($name:ident, $bytes:expr) => {
+            impl<'de, P: HqcParams> serde::Deserialize<'de> for $name<P> {
+                fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+                    let mut buf = vec![0u8; $bytes];
+                    let _ = serdect::slice::deserialize_hex_or_bin(&mut buf, d)?;
+                    Ok(Self {
+                        bytes: buf,
+                        _marker: PhantomData,
+                    })
+                }
+            }
+        };
     }
 
-    impl<P: HqcParams> serde::Serialize for DecapsulationKey<P> {
-        fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-            serdect::slice::serialize_hex_lower_or_bin(&self.bytes, s)
-        }
-    }
+    ser_impl!(EncapsulationKey);
+    deser_impl!(EncapsulationKey, P::PK_BYTES);
+
+    ser_impl!(DecapsulationKey);
 
     impl<'de, P: HqcParams> serde::Deserialize<'de> for DecapsulationKey<P> {
         fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
             let mut buf = vec![0u8; P::SK_BYTES];
             let _ = serdect::slice::deserialize_hex_or_bin(&mut buf, d)?;
-            let ek = EncapsulationKey::from_vec(buf[..P::PK_BYTES].to_vec());
+            let ek = EncapsulationKey {
+                bytes: buf[..P::PK_BYTES].to_vec(),
+                _marker: PhantomData,
+            };
             Ok(Self {
                 bytes: buf,
                 ek,
@@ -397,37 +405,9 @@ mod serde_impl {
         }
     }
 
-    impl<P: HqcParams> serde::Serialize for Ciphertext<P> {
-        fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-            serdect::slice::serialize_hex_lower_or_bin(&self.bytes, s)
-        }
-    }
+    ser_impl!(Ciphertext);
+    deser_impl!(Ciphertext, P::CT_BYTES);
 
-    impl<'de, P: HqcParams> serde::Deserialize<'de> for Ciphertext<P> {
-        fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-            let mut buf = vec![0u8; P::CT_BYTES];
-            let _ = serdect::slice::deserialize_hex_or_bin(&mut buf, d)?;
-            Ok(Self {
-                bytes: buf,
-                _marker: PhantomData,
-            })
-        }
-    }
-
-    impl<P: HqcParams> serde::Serialize for SharedSecret<P> {
-        fn serialize<S: serde::Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-            serdect::slice::serialize_hex_lower_or_bin(&self.bytes, s)
-        }
-    }
-
-    impl<'de, P: HqcParams> serde::Deserialize<'de> for SharedSecret<P> {
-        fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-            let mut buf = vec![0u8; P::SS_BYTES];
-            let _ = serdect::slice::deserialize_hex_or_bin(&mut buf, d)?;
-            Ok(Self {
-                bytes: buf,
-                _marker: PhantomData,
-            })
-        }
-    }
+    ser_impl!(SharedSecret);
+    deser_impl!(SharedSecret, P::SS_BYTES);
 }

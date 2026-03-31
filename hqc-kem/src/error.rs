@@ -27,6 +27,14 @@ pub enum Error {
         /// Actual size.
         got: usize,
     },
+    /// Invalid shared secret size.
+    #[error("invalid shared secret size: expected {expected}, got {got}")]
+    InvalidSharedSecretSize {
+        /// Expected size.
+        expected: usize,
+        /// Actual size.
+        got: usize,
+    },
     /// Invalid message size for deterministic encapsulation.
     #[error("invalid message size: expected {expected}, got {got}")]
     InvalidMessageSize {
