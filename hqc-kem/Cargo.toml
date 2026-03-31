@@ -24,7 +24,7 @@ serde = ["dep:serdect", "dep:serde"]
 [dependencies]
 const-oid = { version = "0.10", optional = true }
 hex = "0.4"
-hybrid-array = { version = "0.4.7", optional = true, features = ["extra-sizes"] }
+hybrid-array = { version = "0.4.10", optional = true, features = ["extra-sizes"] }
 kem_traits = { package = "kem", version = "0.3.0-rc.6", optional = true }
 pkcs8 = { version = "0.11.0-rc.11", optional = true, default-features = false }
 rand = "0.10"
@@ -44,9 +44,6 @@ rand = { version = "0.10", features = ["thread_rng"] }
 [[bench]]
 name = "kem"
 harness = false
-
-[patch.crates-io]
-hybrid-array = { path = "hybrid-array-patch" }
 
 [lints.rust]
 missing_docs = "deny"
