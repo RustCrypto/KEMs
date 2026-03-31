@@ -2,7 +2,7 @@
 //!
 //! Generator (alpha) = 2.
 
-/// Powers of alpha: gf_exp[i] = alpha^i. Extended to 258 entries to avoid
+/// Powers of alpha: `gf_exp[i] = alpha^i`. Extended to 258 entries to avoid
 /// bounds checking in multiplication.
 pub(crate) static GF_EXP: [u16; 258] = [
     1, 2, 4, 8, 16, 32, 64, 128, 29, 58, 116, 232, 205, 135, 19, 38, 76, 152, 45, 90, 180, 117,
@@ -20,7 +20,7 @@ pub(crate) static GF_EXP: [u16; 258] = [
     131, 27, 54, 108, 216, 173, 71, 142, 1, 2, 4,
 ];
 
-/// Logarithm table: gf_log[v] = i where alpha^i = v. gf_log[0] = 0 by convention.
+/// Logarithm table: `gf_log[v] = i` where `alpha^i = v`. `gf_log[0] = 0` by convention.
 pub(crate) static GF_LOG: [u16; 256] = [
     0, 0, 1, 25, 2, 50, 26, 198, 3, 223, 51, 238, 27, 104, 199, 75, 4, 100, 224, 14, 52, 141, 239,
     129, 28, 193, 105, 248, 200, 8, 76, 113, 5, 138, 101, 47, 225, 36, 15, 33, 53, 147, 142, 218,

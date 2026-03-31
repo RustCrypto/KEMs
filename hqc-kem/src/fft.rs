@@ -149,7 +149,14 @@ fn fft_rec(w: &mut [u16], f: &mut [u16], f_coeffs: usize, m: usize, m_f: usize, 
     // Step 5: recurse
     let k = 1usize << (m - 1);
     let mut u = vec![0u16; k];
-    fft_rec(&mut u, &mut f0, f_coeffs.div_ceil(2), m - 1, m_f - 1, &deltas);
+    fft_rec(
+        &mut u,
+        &mut f0,
+        f_coeffs.div_ceil(2),
+        m - 1,
+        m_f - 1,
+        &deltas,
+    );
 
     if f_coeffs <= 3 {
         // f1 is constant

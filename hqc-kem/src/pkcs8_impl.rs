@@ -1,7 +1,7 @@
 //! PKCS#8 encoding support for HQC-KEM keys.
 //!
-//! When the `pkcs8` feature is enabled, [`DecodePrivateKey`] is impl'd for
-//! [`DecapsulationKey`], and [`DecodePublicKey`] is impl'd for [`EncapsulationKey`].
+//! When the `pkcs8` feature is enabled, [`pkcs8::DecodePrivateKey`] is impl'd for
+//! [`DecapsulationKey`], and [`pkcs8::DecodePublicKey`] is impl'd for [`EncapsulationKey`].
 //!
 //! When both `pkcs8` and `alloc` features are enabled, [`EncodePrivateKey`] is impl'd
 //! for [`DecapsulationKey`], and [`EncodePublicKey`] is impl'd for [`EncapsulationKey`].
@@ -10,7 +10,7 @@ pub use ::pkcs8::spki::AssociatedAlgorithmIdentifier;
 pub use const_oid::AssociatedOid;
 
 use crate::{
-    params::{HqcParams, Hqc128Params, Hqc192Params, Hqc256Params, SEED_BYTES},
+    params::{Hqc128Params, Hqc192Params, Hqc256Params, HqcParams, SEED_BYTES},
     types::{DecapsulationKey, EncapsulationKey},
 };
 use ::pkcs8::{
@@ -175,8 +175,7 @@ where
         .to_der()?;
 
         let private_key = OctetStringRef::new(&seed_der)?;
-        let private_key_info =
-            pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, private_key);
+        let private_key_info = pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, private_key);
         pkcs8::SecretDocument::encode_msg(&private_key_info).map_err(pkcs8::Error::Asn1)
     }
 }
@@ -191,9 +190,7 @@ where
 {
     type Error = ::pkcs8::Error;
 
-    fn try_from(
-        private_key_info_ref: ::pkcs8::PrivateKeyInfoRef<'_>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(private_key_info_ref: ::pkcs8::PrivateKeyInfoRef<'_>) -> Result<Self, Self::Error> {
         let _ = private_key_info_ref
             .algorithm
             .assert_algorithm_oid(P::ALGORITHM_IDENTIFIER.oid)?;

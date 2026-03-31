@@ -5,7 +5,6 @@ use crate::sizes;
 use crate::types::{DecapsulationKey, EncapsulationKey};
 use hybrid_array::Array;
 
-
 macro_rules! impl_hqc_kem {
     ($params:ty, $pk_size:ty, $ct_size:ty) => {
         // -- Kem on the parameter marker type --
@@ -35,9 +34,7 @@ macro_rules! impl_hqc_kem {
 
         // -- EncapsulationKey: TryKeyInit --
         impl kem_traits::common::TryKeyInit for EncapsulationKey<$params> {
-            fn new(
-                key: &kem_traits::Key<Self>,
-            ) -> Result<Self, kem_traits::InvalidKey> {
+            fn new(key: &kem_traits::Key<Self>) -> Result<Self, kem_traits::InvalidKey> {
                 let bytes = key.as_slice();
                 if bytes.len() != <$params>::PK_BYTES {
                     return Err(kem_traits::InvalidKey);
@@ -69,8 +66,7 @@ macro_rules! impl_hqc_kem {
             where
                 R: rand::CryptoRng + ?Sized,
             {
-                let (ss_vec, ct_vec) =
-                    crate::kem::encaps(self.as_ref(), <$params>::params(), rng);
+                let (ss_vec, ct_vec) = crate::kem::encaps(self.as_ref(), <$params>::params(), rng);
 
                 let mut ct = Array::<u8, $ct_size>::default();
                 ct.as_mut_slice().copy_from_slice(&ct_vec);
@@ -94,8 +90,7 @@ macro_rules! impl_hqc_kem {
                     .as_slice()
                     .try_into()
                     .expect("seed is exactly 32 bytes");
-                let (pk, sk) =
-                    crate::kem::keygen_deterministic(&seed_arr, <$params>::params());
+                let (pk, sk) = crate::kem::keygen_deterministic(&seed_arr, <$params>::params());
                 let _ = pk; // pk is embedded in sk
                 DecapsulationKey::<$params>::from_vec(sk)
             }
@@ -107,17 +102,14 @@ macro_rules! impl_hqc_kem {
                 let sk = self.as_ref();
                 let seed_start = sk.len() - crate::params::SEED_BYTES;
                 let mut arr = Array::<u8, typenum::consts::U32>::default();
-                arr.as_mut_slice()
-                    .copy_from_slice(&sk[seed_start..]);
+                arr.as_mut_slice().copy_from_slice(&sk[seed_start..]);
                 arr
             }
         }
 
         // -- DecapsulationKey: Generate --
         impl kem_traits::common::Generate for DecapsulationKey<$params> {
-            fn try_generate_from_rng<R>(
-                rng: &mut R,
-            ) -> Result<Self, <R as rand::TryRng>::Error>
+            fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as rand::TryRng>::Error>
             where
                 R: rand::TryCryptoRng + ?Sized,
             {
@@ -132,9 +124,7 @@ macro_rules! impl_hqc_kem {
         impl kem_traits::Decapsulator for DecapsulationKey<$params> {
             type Kem = $params;
 
-            fn encapsulation_key(
-                &self,
-            ) -> &kem_traits::EncapsulationKey<Self::Kem> {
+            fn encapsulation_key(&self) -> &kem_traits::EncapsulationKey<Self::Kem> {
                 self.encapsulation_key()
             }
         }
@@ -145,8 +135,7 @@ macro_rules! impl_hqc_kem {
                 &self,
                 ct: &kem_traits::Ciphertext<Self::Kem>,
             ) -> kem_traits::SharedKey<Self::Kem> {
-                let ss_vec =
-                    crate::kem::decaps(self.as_ref(), ct.as_slice(), <$params>::params());
+                let ss_vec = crate::kem::decaps(self.as_ref(), ct.as_slice(), <$params>::params());
                 let mut ss = Array::<u8, typenum::consts::U32>::default();
                 ss.as_mut_slice().copy_from_slice(&ss_vec);
                 ss
@@ -155,21 +144,9 @@ macro_rules! impl_hqc_kem {
     };
 }
 
-impl_hqc_kem!(
-    crate::params::Hqc128Params,
-    sizes::U2241,
-    sizes::U4433
-);
-impl_hqc_kem!(
-    crate::params::Hqc192Params,
-    sizes::U4514,
-    sizes::U8978
-);
-impl_hqc_kem!(
-    crate::params::Hqc256Params,
-    sizes::U7237,
-    sizes::U14421
-);
+impl_hqc_kem!(crate::params::Hqc128Params, sizes::U2241, sizes::U4433);
+impl_hqc_kem!(crate::params::Hqc192Params, sizes::U4514, sizes::U8978);
+impl_hqc_kem!(crate::params::Hqc256Params, sizes::U7237, sizes::U14421);
 
 #[cfg(test)]
 mod tests {
