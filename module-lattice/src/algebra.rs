@@ -230,6 +230,19 @@ impl<F: Field> Neg for &Polynomial<F> {
     }
 }
 
+#[cfg(feature = "ctutils")]
+impl<F: Field> CtEq for Polynomial<F>
+where
+    F::Int: CtEq,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+#[cfg(feature = "ctutils")]
+impl<F: Field<Int: CtEq>> CtEqSlice for Polynomial<F> {}
+
 /// A `Vector` is a vector of polynomials from `R_q` of length `K`.
 ///
 /// Vectors can be added, subtracted, negated, and multiplied by field elements.
@@ -302,6 +315,19 @@ impl<F: Field, K: ArraySize> Neg for &Vector<F, K> {
         Vector(self.0.iter().map(|x| -x).collect())
     }
 }
+
+#[cfg(feature = "ctutils")]
+impl<F: Field, K: ArraySize> CtEq for Vector<F, K>
+where
+    F::Int: CtEq,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+#[cfg(feature = "ctutils")]
+impl<F: Field<Int: CtEq>, K: ArraySize> CtEqSlice for Vector<F, K> {}
 
 /// An `NttPolynomial` is a member of the NTT algebra `T_q = Z_q[X]^256` of 256-tuples of field
 /// elements.
@@ -537,3 +563,16 @@ where
         NttVector(self.0.iter().map(|x| x * rhs).collect())
     }
 }
+
+#[cfg(feature = "ctutils")]
+impl<F: Field, K: ArraySize, L: ArraySize> CtEq for NttMatrix<F, K, L>
+where
+    F::Int: CtEq,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+#[cfg(feature = "ctutils")]
+impl<F: Field<Int: CtEq>, K: ArraySize, L: ArraySize> CtEqSlice for NttMatrix<F, K, L> {}
