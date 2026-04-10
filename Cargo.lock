@@ -808,6 +808,7 @@ dependencies = [
 name = "module-lattice"
 version = "0.2.1"
 dependencies = [
+ "criterion",
  "ctutils",
  "getrandom",
  "hybrid-array",

@@ -1,6 +1,9 @@
 use super::truncate::Truncate;
 
-use array::{Array, ArraySize, typenum::U256};
+use array::{
+    Array, ArraySize,
+    typenum::{U256, Unsigned},
+};
 use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
 use num_traits::PrimInt;
@@ -528,11 +531,21 @@ where
     type Output = NttPolynomial<F>;
 
     fn mul(self, rhs: &NttVector<F, K>) -> NttPolynomial<F> {
-        self.0
-            .iter()
-            .zip(rhs.0.iter())
-            .map(|(x, y)| x * y)
-            .fold(NttPolynomial::default(), |x, y| &x + &y)
+        let zero = <F::Long as num_traits::Zero>::zero();
+        let mut acc = [zero; <U256 as Unsigned>::USIZE];
+        for (pa, pb) in self.0.iter().zip(rhs.0.iter()) {
+            for (i, (&x, &y)) in pa.0.iter().zip(pb.0.iter()).enumerate() {
+                let lx: F::Long = x.0.into();
+                let ly: F::Long = y.0.into();
+                acc[i] = acc[i] + lx * ly;
+            }
+        }
+        // Barrett-reduce once per coefficient instead of after every multiply.
+        NttPolynomial::new(
+            acc.iter()
+                .map(|&v| Elem::new(F::barrett_reduce(v)))
+                .collect(),
+        )
     }
 }
 

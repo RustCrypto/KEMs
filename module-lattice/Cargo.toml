@@ -24,7 +24,12 @@ ctutils = { version = "0.4", optional = true }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
+criterion = "0.7"
 getrandom = { version = "0.4", features = ["sys_rng"] }
+
+[[bench]]
+name = "algebra"
+harness = false
 
 [features]
 ctutils = ["dep:ctutils", "array/ctutils"]
