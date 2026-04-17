@@ -130,9 +130,11 @@ pub fn byte_decode<F: Field, D: EncodingSize>(bytes: &EncodedPolynomial<D>) -> D
             let val = F::Int::truncate(x >> (D::USIZE * j));
             vj.0 = val & mask;
 
-            // Special case for FIPS 203
+            // Special case for FIPS 203. For 12-bit values (max 4095) with Q = 3329,
+            // the masked value is always in [0, 2Q), so `small_reduce` is exact and
+            // avoids the hardware UDIV that `% F::Q` would emit.
             if D::USIZE == 12 {
-                vj.0 = vj.0 % F::Q;
+                vj.0 = F::small_reduce(vj.0);
             }
         }
     }
