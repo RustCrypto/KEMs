@@ -16,6 +16,10 @@ mod algebra;
 /// Packing of polynomials into coefficients with a specified number of bits.
 mod encoding;
 
+/// Fixed-width integer values in `Z_{2^d}`, used to represent the codomain of
+/// the FIPS 203 `Compress_d` operation distinctly from prime-field elements.
+mod fixed_width;
+
 /// Support for optional heap offload gated on the `alloc` feature.
 mod maybe_box;
 
@@ -23,12 +27,13 @@ mod maybe_box;
 mod truncate;
 
 pub use algebra::{
-    Elem, Field, MultiplyNtt, NttMatrix, NttPolynomial, NttVector, Polynomial, Vector,
+    Elem, Field, MultiplyNtt, NttMatrix, NttPolynomial, NttVector, Polynomial, PrimeField, Vector,
 };
 pub use encoding::{
     ArraySize, DecodedValue, Encode, EncodedPolynomial, EncodedPolynomialSize, EncodedVector,
     EncodedVectorSize, EncodingSize, VectorEncodingSize, byte_decode, byte_encode,
 };
+pub use fixed_width::{FixedWidthInt, FixedWidthPolynomial, FixedWidthVector};
 pub use maybe_box::MaybeBox;
 pub use truncate::Truncate;
 
