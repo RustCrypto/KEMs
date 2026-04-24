@@ -3,13 +3,13 @@ use crate::algebra::{
     Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, matrix_sample_ntt, sample_poly_cbd,
     sample_poly_vec_cbd,
 };
-use crate::compress::Compress;
+use crate::compress::{Compress, Decompress};
 use crate::crypto::{G, PRF};
 use crate::param::{EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use array::typenum::{U1, Unsigned};
 use kem::{Ciphertext, InvalidKey};
 use module_lattice::{
-    Encode,
+    Encode, FixedWidthPolynomial, FixedWidthVector,
     ctutils::{Choice, CtEq},
 };
 
@@ -90,16 +90,16 @@ where
     pub(crate) fn decrypt(&self, ciphertext: &Ciphertext<P>) -> B32 {
         let (c1, c2) = P::split_ct(ciphertext);
 
-        let mut u: Vector<P::K> = Encode::<P::Du>::decode(c1);
-        u.decompress::<P::Du>();
+        let u_compressed: FixedWidthVector<_, P::K, P::Du> = Encode::<P::Du>::decode(c1);
+        let u: Vector<P::K> = u_compressed.decompress();
 
-        let mut v: Polynomial = Encode::<P::Dv>::decode(c2);
-        v.decompress::<P::Dv>();
+        let v_compressed: FixedWidthPolynomial<_, P::Dv> = Encode::<P::Dv>::decode(c2);
+        let v: Polynomial = v_compressed.decompress();
 
         let u_hat = u.ntt();
         let sTu = (&self.s_hat * &u_hat).ntt_inverse();
-        let mut w = &v - &sTu;
-        Encode::<U1>::encode(w.compress::<U1>())
+        let w = &v - &sTu;
+        Encode::<U1>::encode(&Compress::<U1>::compress(w))
     }
 
     /// Represent this decryption key as a byte array `(s_hat)`
@@ -141,16 +141,16 @@ where
         let A_hat_t: NttMatrix<P::K> = matrix_sample_ntt(&self.rho, true);
         let r_hat: NttVector<P::K> = r.ntt();
         let ATr: Vector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
-        let mut u = ATr + e1;
+        let u = ATr + e1;
 
-        let mut mu: Polynomial = Encode::<U1>::decode(message);
-        mu.decompress::<U1>();
+        let mu_compressed: FixedWidthPolynomial<_, U1> = Encode::<U1>::decode(message);
+        let mu: Polynomial = mu_compressed.decompress();
 
         let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
-        let mut v = &(&tTr + &e2) + &mu;
+        let v = &(&tTr + &e2) + &mu;
 
-        let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());
-        let c2 = Encode::<P::Dv>::encode(v.compress::<P::Dv>());
+        let c1 = Encode::<P::Du>::encode(&Compress::<P::Du>::compress(u));
+        let c2 = Encode::<P::Dv>::encode(&Compress::<P::Dv>::compress(v));
         P::concat_ct(c1, c2)
     }
 

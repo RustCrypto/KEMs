@@ -1,7 +1,8 @@
 use crate::algebra::{BaseField, Elem, Int, Polynomial, Vector};
-use array::ArraySize;
-use module_lattice::EncodingSize;
-use module_lattice::{Field, Truncate};
+use module_lattice::{
+    ArraySize, EncodingSize, Field, FixedWidthInt, FixedWidthPolynomial, FixedWidthVector,
+    Truncate,
+};
 
 // A convenience trait to allow us to associate some constants with a typenum
 pub(crate) trait CompressionFactor: EncodingSize {
@@ -22,68 +23,75 @@ where
     const DIV_MUL: u64 = (1 << T::DIV_SHIFT) / BaseField::QLL;
 }
 
-// Traits for objects that allow compression / decompression
-pub(crate) trait Compress {
-    fn compress<D: CompressionFactor>(&mut self) -> &Self;
-    fn decompress<D: CompressionFactor>(&mut self) -> &Self;
+/// Compress a prime-field representation into its `Z_{2^D}` fixed-width form.
+pub(crate) trait Compress<D: CompressionFactor> {
+    type Output;
+    fn compress(self) -> Self::Output;
 }
 
-impl Compress for Elem {
+/// Decompress a `Z_{2^D}` fixed-width representation back into the prime field.
+pub(crate) trait Decompress<D: CompressionFactor> {
+    type Output;
+    fn decompress(self) -> Self::Output;
+}
+
+impl<D: CompressionFactor> Compress<D> for Elem {
+    type Output = FixedWidthInt<BaseField, D>;
+
     // Equation 4.5: Compress_d(x) = round((2^d / q) x)
     //
     // Here and in decompression, we leverage the following facts:
     //
     //   round(a / b) = floor((a + b/2) / b)
     //   a / q ~= (a * x) >> s where x >> s ~= 1/q
-    fn compress<D: CompressionFactor>(&mut self) -> &Self {
+    fn compress(self) -> FixedWidthInt<BaseField, D> {
         const Q_HALF: u64 = (BaseField::QLL + 1) >> 1;
         let x = u64::from(self.0);
         let y = (((x << D::USIZE) + Q_HALF) * D::DIV_MUL) >> D::DIV_SHIFT;
-        self.0 = u16::truncate(y) & D::MASK;
-        self
+        FixedWidthInt::new(u16::truncate(y) & D::MASK)
     }
+}
+
+impl<D: CompressionFactor> Decompress<D> for FixedWidthInt<BaseField, D> {
+    type Output = Elem;
 
     // Equation 4.6: Decompress_d(x) = round((q / 2^d) x)
-    fn decompress<D: CompressionFactor>(&mut self) -> &Self {
-        let x = u32::from(self.0);
+    fn decompress(self) -> Elem {
+        let x = u32::from(self.value());
         let y = ((x * BaseField::QL) + D::POW2_HALF) >> D::USIZE;
-        self.0 = Truncate::truncate(y);
-        self
-    }
-}
-impl Compress for Polynomial {
-    fn compress<D: CompressionFactor>(&mut self) -> &Self {
-        for x in &mut self.0 {
-            x.compress::<D>();
-        }
-
-        self
-    }
-
-    fn decompress<D: CompressionFactor>(&mut self) -> &Self {
-        for x in &mut self.0 {
-            x.decompress::<D>();
-        }
-
-        self
+        Elem::new(Truncate::truncate(y))
     }
 }
 
-impl<K: ArraySize> Compress for Vector<K> {
-    fn compress<D: CompressionFactor>(&mut self) -> &Self {
-        for x in &mut self.0 {
-            x.compress::<D>();
-        }
+impl<D: CompressionFactor> Compress<D> for Polynomial {
+    type Output = FixedWidthPolynomial<BaseField, D>;
 
-        self
+    fn compress(self) -> FixedWidthPolynomial<BaseField, D> {
+        FixedWidthPolynomial::new(self.0.into_iter().map(Compress::<D>::compress).collect())
     }
+}
 
-    fn decompress<D: CompressionFactor>(&mut self) -> &Self {
-        for x in &mut self.0 {
-            x.decompress::<D>();
-        }
+impl<D: CompressionFactor> Decompress<D> for FixedWidthPolynomial<BaseField, D> {
+    type Output = Polynomial;
 
-        self
+    fn decompress(self) -> Polynomial {
+        Polynomial::new(self.0.into_iter().map(Decompress::<D>::decompress).collect())
+    }
+}
+
+impl<K: ArraySize, D: CompressionFactor> Compress<D> for Vector<K> {
+    type Output = FixedWidthVector<BaseField, K, D>;
+
+    fn compress(self) -> FixedWidthVector<BaseField, K, D> {
+        FixedWidthVector::new(self.0.into_iter().map(Compress::<D>::compress).collect())
+    }
+}
+
+impl<K: ArraySize, D: CompressionFactor> Decompress<D> for FixedWidthVector<BaseField, K, D> {
+    type Output = Vector<K>;
+
+    fn decompress(self) -> Vector<K> {
+        Vector::new(self.0.into_iter().map(Decompress::<D>::decompress).collect())
     }
 }
 
@@ -111,11 +119,10 @@ pub(crate) mod tests {
         let error_threshold = i32::from(Ratio::new(BaseField::Q, 1 << D::USIZE).to_integer());
 
         for x in 0..BaseField::Q {
-            let mut y = Elem::new(x);
-            y.compress::<D>();
-            y.decompress::<D>();
+            let compressed = Compress::<D>::compress(Elem::new(x));
+            let decompressed = Decompress::<D>::decompress(compressed);
 
-            let mut error = i32::from(y.0) - i32::from(x) + QI32;
+            let mut error = i32::from(decompressed.0) - i32::from(x) + QI32;
             if error > (QI32 - 1) / 2 {
                 error -= QI32;
             }
@@ -131,19 +138,17 @@ pub(crate) mod tests {
 
     fn decompression_compression_equality<D: CompressionFactor>() {
         for x in 0..(1 << D::USIZE) {
-            let mut y = Elem::new(x);
-            y.decompress::<D>();
-            y.compress::<D>();
+            let decompressed = Decompress::<D>::decompress(FixedWidthInt::<BaseField, D>::new(x));
+            let recompressed = Compress::<D>::compress(decompressed);
 
-            assert_eq!(y.0, x, "failed for x: {}, D: {}", x, D::USIZE);
+            assert_eq!(recompressed.value(), x, "failed for x: {}, D: {}", x, D::USIZE);
         }
     }
 
     fn decompress_KAT<D: CompressionFactor>() {
         for y in 0..(1 << D::USIZE) {
             let x_expected = rational_decompress::<D>(y);
-            let mut x_actual = Elem::new(y);
-            x_actual.decompress::<D>();
+            let x_actual = Decompress::<D>::decompress(FixedWidthInt::<BaseField, D>::new(y));
 
             assert_eq!(x_expected, x_actual.0);
         }
@@ -152,10 +157,9 @@ pub(crate) mod tests {
     fn compress_KAT<D: CompressionFactor>() {
         for x in 0..BaseField::Q {
             let y_expected = rational_compress::<D>(x);
-            let mut y_actual = Elem::new(x);
-            y_actual.compress::<D>();
+            let y_actual = Compress::<D>::compress(Elem::new(x));
 
-            assert_eq!(y_expected, y_actual.0, "for x: {}, D: {}", x, D::USIZE);
+            assert_eq!(y_expected, y_actual.value(), "for x: {}, D: {}", x, D::USIZE);
         }
     }
 
