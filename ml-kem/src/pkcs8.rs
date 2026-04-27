@@ -159,7 +159,7 @@ where
     /// Serialize the given `DecapsulationKey` into DER format.
     /// Returns a `SecretDocument` which wraps the DER document in case of success.
     fn to_pkcs8_der(&self) -> ::pkcs8::Result<pkcs8::SecretDocument> {
-        let seed = self.to_seed().ok_or(pkcs8::Error::KeyMalformed)?;
+        let seed = self.to_seed().ok_or(pkcs8::KeyError::Invalid)?;
 
         let seed_der = SeedString {
             tag_mode: TagMode::Implicit,
@@ -189,12 +189,12 @@ where
 
         let mut reader = SliceReader::new(private_key_info_ref.private_key.as_bytes())?;
         let seed_string = SeedString::decode_implicit(&mut reader, SEED_TAG_NUMBER)?
-            .ok_or(pkcs8::Error::KeyMalformed)?;
+            .ok_or(pkcs8::KeyError::Invalid)?;
         let seed = seed_string
             .value
             .as_bytes()
             .try_into()
-            .map_err(|_| pkcs8::Error::KeyMalformed)?;
+            .map_err(|_| pkcs8::KeyError::Invalid)?; // TODO(tarcieri): more specific error
         reader.finish()?;
 
         Ok(Self::from_seed(seed))
