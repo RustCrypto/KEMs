@@ -5,7 +5,7 @@ Functionality shared between the `ml-kem` and `ml-dsa` crates, including linear 
 degree-256 polynomials over a prime-order field, vectors of such polynomials, and NTT polynomials
 and vectors, as well as packing of polynomials into coefficients with a specified number of bits
 """
-version = "0.2.1"
+version = "0.2.2"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
