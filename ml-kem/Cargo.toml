@@ -26,7 +26,7 @@ zeroize = ["module-lattice/zeroize", "dep:zeroize"]
 
 [dependencies]
 array = { version = "0.4.8", package = "hybrid-array", features = ["ctutils", "extra-sizes"] }
-module-lattice = { version = "0.2", features = ["ctutils"] }
+module-lattice = { version = "0.2.2", features = ["ctutils"] }
 kem = "0.3"
 rand_core = "0.10"
 sha3 = { version = "0.11", default-features = false }
