@@ -474,7 +474,7 @@ checksum = "d9c4f5dac5e15c24eb999c26181a6ca40b39fe946cbe4c263c7209467bc83af2"
 
 [[package]]
 name = "frodo-kem"
-version = "0.1.0-pre.3"
+version = "0.1.0"
 dependencies = [
  "aes",
  "chacha20",
