@@ -19,7 +19,7 @@ kem = "0.3"
 rand_core = "0.10"
 
 # optional dependencies
-elliptic-curve = { version = "0.14.0-rc.28", optional = true, default-features = false }
+elliptic-curve = { version = "0.14.0-rc.29", optional = true, default-features = false }
 k256 = { version = "0.14.0-rc.7", optional = true, default-features = false, features = ["arithmetic"] }
 p256 = { version = "0.14.0-rc.7", optional = true, default-features = false, features = ["arithmetic"] }
 p384 = { version = "0.14.0-rc.7", optional = true, default-features = false, features = ["arithmetic"] }
