@@ -37,7 +37,7 @@ pkcs8 = { version = "0.11", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
-criterion = "0.7"
+criterion = "0.8"
 getrandom = { version = "0.4", features = ["sys_rng"] }
 hex = { version = "0.4.3", features = ["serde"] }
 hex-literal = "1"
