@@ -37,6 +37,15 @@ pub trait Field: Copy + Default + Debug + PartialEq {
     fn barrett_reduce(x: Self::Long) -> Self::Int;
 }
 
+/// Marker trait for a [`Field`] whose modulus is prime.
+///
+/// Multiplication on [`Elem<F>`] is gated on `F: PrimeField` because the
+/// reduction-based arithmetic in this crate (Barrett reduction, NTT) is
+/// only valid for prime-order fields.  A non-prime-order representation
+/// such as Z_{2^d} can still impl [`Field`] for storage purposes (see
+/// [`FixedWidthInt`]) without claiming the multiplicative group structure.
+pub trait PrimeField: Field {}
+
 /// The `define_field` macro creates a zero-sized struct and an implementation of the [`Field`]
 /// trait for that struct.  The caller must specify:
 ///
@@ -89,6 +98,8 @@ macro_rules! define_field {
                 Self::small_reduce($crate::Truncate::truncate(remainder))
             }
         }
+
+        impl $crate::PrimeField for $field {}
     };
 }
 
@@ -157,7 +168,7 @@ impl<F: Field> Sub<Elem<F>> for Elem<F> {
     }
 }
 
-impl<F: Field> Mul<Elem<F>> for Elem<F> {
+impl<F: PrimeField> Mul<Elem<F>> for Elem<F> {
     type Output = Elem<F>;
 
     fn mul(self, rhs: Elem<F>) -> Elem<F> {
@@ -220,7 +231,7 @@ impl<F: Field> Sub<&Polynomial<F>> for &Polynomial<F> {
     }
 }
 
-impl<F: Field> Mul<&Polynomial<F>> for Elem<F> {
+impl<F: PrimeField> Mul<&Polynomial<F>> for Elem<F> {
     type Output = Polynomial<F>;
 
     fn mul(self, rhs: &Polynomial<F>) -> Polynomial<F> {
@@ -306,7 +317,7 @@ impl<F: Field, K: ArraySize> Sub<&Vector<F, K>> for &Vector<F, K> {
     }
 }
 
-impl<F: Field, K: ArraySize> Mul<&Vector<F, K>> for Elem<F> {
+impl<F: PrimeField, K: ArraySize> Mul<&Vector<F, K>> for Elem<F> {
     type Output = Vector<F, K>;
 
     fn mul(self, rhs: &Vector<F, K>) -> Vector<F, K> {
@@ -382,7 +393,7 @@ impl<F: Field> Sub<&NttPolynomial<F>> for &NttPolynomial<F> {
     }
 }
 
-impl<F: Field> Mul<&NttPolynomial<F>> for Elem<F> {
+impl<F: PrimeField> Mul<&NttPolynomial<F>> for Elem<F> {
     type Output = NttPolynomial<F>;
 
     fn mul(self, rhs: &NttPolynomial<F>) -> NttPolynomial<F> {
