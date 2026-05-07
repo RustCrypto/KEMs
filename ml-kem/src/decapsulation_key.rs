@@ -2,7 +2,7 @@ use crate::{
     B32, EncapsulationKey, Seed, SharedKey,
     crypto::{G, J},
     param::{DecapsulationKeySize, ExpandedDecapsulationKey, KemParams},
-    pke::{DecryptionKey, EncryptionKey},
+    pke::{Ciphertext1, Ciphertext2, DecryptionKey, EncryptionKey},
 };
 use array::{
     Array, ArraySize,
@@ -109,6 +109,16 @@ where
         let ek = EncapsulationKey::from_encryption_key(ek_pke);
         let d = Some(d);
         Self { dk_pke, ek, d, z }
+    }
+
+    /// Decapsulates the given [`Ciphertext1`] and [`Ciphertext2`] a.k.a. "incremental encapsulated key".
+    pub fn decapsulate_incremental(&self, c1: &Ciphertext1<P>, c2: &Ciphertext2<P>) -> SharedKey {
+        let mp = self.dk_pke.decrypt_split(c1, c2);
+        let (Kp, rp) = G(&[&mp, &self.ek.h()]);
+        let Kbar = J(&[self.z.as_slice(), c1.as_ref(), c2.as_ref()]);
+        let cp = self.ek.ek_pke().encrypt(&mp, &rp);
+        let (cp1, cp2) = P::split_ct(&cp);
+        B32::conditional_select(&Kbar, &Kp, cp1.ct_eq(c1) & cp2.ct_eq(c2))
     }
 }
 
