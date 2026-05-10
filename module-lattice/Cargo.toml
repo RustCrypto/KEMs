@@ -27,6 +27,7 @@ zeroize = { version = "1.8.1", optional = true, default-features = false }
 getrandom = { version = "0.4", features = ["sys_rng"] }
 
 [features]
+alloc = []
 ctutils = ["dep:ctutils", "array/ctutils"]
 zeroize = ["array/zeroize", "dep:zeroize"]
 
