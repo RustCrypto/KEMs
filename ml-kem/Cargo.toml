@@ -16,7 +16,7 @@ keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-alloc = ["pkcs8?/alloc"]
+alloc = ["module-lattice/alloc", "pkcs8?/alloc"]
 
 getrandom = ["kem/getrandom"]
 hazmat = []
