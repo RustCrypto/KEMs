@@ -197,12 +197,12 @@ where
 
         let mut reader = SliceReader::new(private_key_info_ref.private_key.as_bytes())?;
         let seed_string = SeedString::decode_implicit(&mut reader, SEED_TAG_NUMBER)?
-            .ok_or(pkcs8::Error::KeyMalformed)?;
+            .ok_or(pkcs8::KeyError::Invalid)?;
         let seed: [u8; SEED_BYTES] = seed_string
             .value
             .as_bytes()
             .try_into()
-            .map_err(|_| pkcs8::Error::KeyMalformed)?;
+            .map_err(|_| pkcs8::KeyError::Invalid)?;
         reader.finish()?;
 
         let (_pk, sk) = crate::kem::keygen_deterministic(&seed, P::params());
