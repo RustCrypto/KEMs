@@ -7,13 +7,6 @@ use crate::params::HqcParameters;
 /// Polynomial addition: o = v1 XOR v2.
 #[inline]
 pub(crate) fn vect_add(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize) {
-    #[cfg(target_arch = "x86_64")]
-    if std::is_x86_feature_detected!("avx2") {
-        // Safety: AVX2 detected; pointers valid for `size` elements.
-        unsafe {
-            return vect_add_avx2(o, v1, v2, size);
-        }
-    }
     for i in 0..size {
         o[i] = v1[i] ^ v2[i];
     }
@@ -22,12 +15,6 @@ pub(crate) fn vect_add(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize) {
 /// In-place polynomial addition: v ^= rhs.
 #[inline]
 pub(crate) fn vect_add_assign(v: &mut [u64], rhs: &[u64], size: usize) {
-    #[cfg(target_arch = "x86_64")]
-    if std::is_x86_feature_detected!("avx2") {
-        unsafe {
-            return vect_add_assign_avx2(v, rhs, size);
-        }
-    }
     for i in 0..size {
         v[i] ^= rhs[i];
     }
@@ -149,12 +136,6 @@ fn karatsuba_add1(
     size_l: usize,
     size_h: usize,
 ) {
-    #[cfg(target_arch = "x86_64")]
-    if std::is_x86_feature_detected!("avx2") {
-        unsafe {
-            return karatsuba_add1_avx2(alh, blh, a, b, size_l, size_h);
-        }
-    }
     for i in 0..size_h {
         alh[i] = a[i] ^ a[i + size_l];
         blh[i] = b[i] ^ b[i + size_l];
@@ -167,12 +148,6 @@ fn karatsuba_add1(
 
 #[inline]
 fn karatsuba_add2(o: &mut [u64], tmp1: &mut [u64], tmp2: &[u64], size_l: usize, size_h: usize) {
-    #[cfg(target_arch = "x86_64")]
-    if std::is_x86_feature_detected!("avx2") {
-        unsafe {
-            return karatsuba_add2_avx2(o, tmp1, tmp2, size_l, size_h);
-        }
-    }
     for i in 0..(2 * size_l) {
         tmp1[i] ^= o[i];
     }
@@ -247,12 +222,6 @@ fn karatsuba(o: &mut [u64], a: &[u64], b: &[u64], size: usize, stack: &mut [u64]
 
 /// Reduce polynomial modulo X^n - 1.
 fn reduce(o: &mut [u64], a: &[u64], n: usize, vec_n_size_64: usize) {
-    #[cfg(target_arch = "x86_64")]
-    if std::is_x86_feature_detected!("avx2") {
-        unsafe {
-            return reduce_avx2(o, a, n, vec_n_size_64);
-        }
-    }
     let shift = n & 0x3f;
     for i in 0..vec_n_size_64 {
         let r = a[i + vec_n_size_64 - 1] >> shift;
@@ -309,199 +278,6 @@ pub(crate) fn store8_arr(out: &mut [u8], inp: &[u64]) {
     }
 }
 
-// ---- AVX2 SIMD acceleration (x86-64 only) ----
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn vect_add_avx2(o: &mut [u64], v1: &[u64], v2: &[u64], size: usize) {
-    use std::arch::x86_64::*;
-    let chunks = size / 4;
-    unsafe {
-        let p1 = v1.as_ptr() as *const __m256i;
-        let p2 = v2.as_ptr() as *const __m256i;
-        let po = o.as_mut_ptr() as *mut __m256i;
-        for i in 0..chunks {
-            _mm256_storeu_si256(
-                po.add(i),
-                _mm256_xor_si256(_mm256_loadu_si256(p1.add(i)), _mm256_loadu_si256(p2.add(i))),
-            );
-        }
-    }
-    for i in (chunks * 4)..size {
-        o[i] = v1[i] ^ v2[i];
-    }
-}
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn vect_add_assign_avx2(v: &mut [u64], rhs: &[u64], size: usize) {
-    use std::arch::x86_64::*;
-    let chunks = size / 4;
-    unsafe {
-        let pv = v.as_mut_ptr() as *mut __m256i;
-        let pr = rhs.as_ptr() as *const __m256i;
-        for i in 0..chunks {
-            _mm256_storeu_si256(
-                pv.add(i),
-                _mm256_xor_si256(
-                    _mm256_loadu_si256(pv.add(i) as *const __m256i),
-                    _mm256_loadu_si256(pr.add(i)),
-                ),
-            );
-        }
-    }
-    for i in (chunks * 4)..size {
-        v[i] ^= rhs[i];
-    }
-}
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn karatsuba_add1_avx2(
-    alh: &mut [u64],
-    blh: &mut [u64],
-    a: &[u64],
-    b: &[u64],
-    size_l: usize,
-    size_h: usize,
-) {
-    use std::arch::x86_64::*;
-    let chunks = size_h / 4;
-    for i in 0..chunks {
-        let idx = i * 4;
-        unsafe {
-            let a_lo = _mm256_loadu_si256(a.as_ptr().add(idx) as *const __m256i);
-            let a_hi = _mm256_loadu_si256(a.as_ptr().add(idx + size_l) as *const __m256i);
-            _mm256_storeu_si256(
-                alh.as_mut_ptr().add(idx) as *mut __m256i,
-                _mm256_xor_si256(a_lo, a_hi),
-            );
-            let b_lo = _mm256_loadu_si256(b.as_ptr().add(idx) as *const __m256i);
-            let b_hi = _mm256_loadu_si256(b.as_ptr().add(idx + size_l) as *const __m256i);
-            _mm256_storeu_si256(
-                blh.as_mut_ptr().add(idx) as *mut __m256i,
-                _mm256_xor_si256(b_lo, b_hi),
-            );
-        }
-    }
-    for i in (chunks * 4)..size_h {
-        alh[i] = a[i] ^ a[i + size_l];
-        blh[i] = b[i] ^ b[i + size_l];
-    }
-    if size_h < size_l {
-        alh[size_h] = a[size_h];
-        blh[size_h] = b[size_h];
-    }
-}
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-#[allow(clippy::cast_ptr_alignment)]
-unsafe fn karatsuba_add2_avx2(
-    o: &mut [u64],
-    tmp1: &mut [u64],
-    tmp2: &[u64],
-    size_l: usize,
-    size_h: usize,
-) {
-    use std::arch::x86_64::*;
-    let len1 = 2 * size_l;
-    let len2 = 2 * size_h;
-
-    // tmp1[i] ^= o[i] for i in 0..2*size_l
-    let chunks1 = len1 / 4;
-    for i in 0..chunks1 {
-        let idx = i * 4;
-        unsafe {
-            let pt = tmp1.as_mut_ptr().add(idx) as *mut __m256i;
-            _mm256_storeu_si256(
-                pt,
-                _mm256_xor_si256(
-                    _mm256_loadu_si256(pt as *const __m256i),
-                    _mm256_loadu_si256(o.as_ptr().add(idx) as *const __m256i),
-                ),
-            );
-        }
-    }
-    for i in (chunks1 * 4)..len1 {
-        tmp1[i] ^= o[i];
-    }
-
-    // tmp1[i] ^= tmp2[i] for i in 0..2*size_h
-    let chunks2 = len2 / 4;
-    for i in 0..chunks2 {
-        let idx = i * 4;
-        unsafe {
-            let pt = tmp1.as_mut_ptr().add(idx) as *mut __m256i;
-            _mm256_storeu_si256(
-                pt,
-                _mm256_xor_si256(
-                    _mm256_loadu_si256(pt as *const __m256i),
-                    _mm256_loadu_si256(tmp2.as_ptr().add(idx) as *const __m256i),
-                ),
-            );
-        }
-    }
-    for i in (chunks2 * 4)..len2 {
-        tmp1[i] ^= tmp2[i];
-    }
-
-    // o[i + size_l] ^= tmp1[i] for i in 0..2*size_l
-    for i in 0..chunks1 {
-        let idx = i * 4;
-        unsafe {
-            let po = o.as_mut_ptr().add(idx + size_l) as *mut __m256i;
-            _mm256_storeu_si256(
-                po,
-                _mm256_xor_si256(
-                    _mm256_loadu_si256(po as *const __m256i),
-                    _mm256_loadu_si256(tmp1.as_ptr().add(idx) as *const __m256i),
-                ),
-            );
-        }
-    }
-    for i in (chunks1 * 4)..len1 {
-        o[i + size_l] ^= tmp1[i];
-    }
-}
-
-#[cfg(target_arch = "x86_64")]
-#[target_feature(enable = "avx2")]
-unsafe fn reduce_avx2(o: &mut [u64], a: &[u64], n: usize, vec_n: usize) {
-    use std::arch::x86_64::*;
-    let shift = (n & 0x3f) as i64;
-    let inv_shift = 64 - shift;
-    let chunks = vec_n / 4;
-
-    unsafe {
-        let shift_v = _mm_set_epi64x(0, shift);
-        let inv_shift_v = _mm_set_epi64x(0, inv_shift);
-
-        for i in 0..chunks {
-            let idx = i * 4;
-            let base = _mm256_loadu_si256(a.as_ptr().add(idx) as *const __m256i);
-            let hi_prev = _mm256_loadu_si256(a.as_ptr().add(idx + vec_n - 1) as *const __m256i);
-            let hi_next = _mm256_loadu_si256(a.as_ptr().add(idx + vec_n) as *const __m256i);
-            let r = _mm256_srl_epi64(hi_prev, shift_v);
-            let carry = _mm256_sll_epi64(hi_next, inv_shift_v);
-            _mm256_storeu_si256(
-                o.as_mut_ptr().add(idx) as *mut __m256i,
-                _mm256_xor_si256(base, _mm256_xor_si256(r, carry)),
-            );
-        }
-    }
-    // Scalar remainder
-    let shift_s = n & 0x3f;
-    for i in (chunks * 4)..vec_n {
-        let r = a[i + vec_n - 1] >> shift_s;
-        let carry = if i + vec_n < a.len() {
-            a[i + vec_n] << (64 - shift_s)
-        } else {
-            0
-        };
-        o[i] = a[i] ^ r ^ carry;
-    }
-}
 
 /// Resize vector: copy and potentially truncate.
 pub(crate) fn vect_resize(o: &mut [u64], size_o: usize, v: &[u64], size_v: usize) {
