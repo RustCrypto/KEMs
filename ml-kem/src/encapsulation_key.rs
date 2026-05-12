@@ -7,6 +7,7 @@ use crate::{
 };
 use array::sizes::U32;
 use kem::{Ciphertext, Encapsulate, Generate};
+use module_lattice::MaybeBox;
 use rand_core::CryptoRng;
 
 /// An `EncapsulationKey` provides the ability to encapsulate a shared key so that it can only be
@@ -16,7 +17,7 @@ pub struct EncapsulationKey<P>
 where
     P: KemParams,
 {
-    ek_pke: EncryptionKey<P>,
+    ek_pke: MaybeBox<EncryptionKey<P>>,
     h: B32,
 }
 
@@ -40,6 +41,7 @@ where
     /// Do NOT use this function unless you know what you're doing. If you fail to use all uniform
     /// random bytes even once, you can have catastrophic security failure.
     #[cfg_attr(not(feature = "hazmat"), doc(hidden))]
+    #[must_use]
     pub fn encapsulate_deterministic(&self, m: &B32) -> (Ciphertext<P>, SharedKey) {
         let (K, r) = G(&[m, &self.h]);
         let c = self.ek_pke.encrypt(m, &r);
@@ -47,9 +49,13 @@ where
     }
 
     /// Convert from an `EncryptionKey`.
+    #[inline]
     pub(crate) fn from_encryption_key(ek_pke: EncryptionKey<P>) -> Self {
         let h = H(ek_pke.to_bytes());
-        Self { ek_pke, h }
+        Self {
+            ek_pke: MaybeBox::new(ek_pke),
+            h,
+        }
     }
 
     /// Borrow the encryption key.

@@ -12,7 +12,10 @@ use kem::{
     Ciphertext, Decapsulate, Decapsulator, Generate, InvalidKey, Kem, KeyExport, KeyInit,
     KeySizeUser,
 };
-use module_lattice::ctutils::{CtEq, CtSelect};
+use module_lattice::{
+    MaybeBox,
+    ctutils::{CtEq, CtSelect},
+};
 use rand_core::{TryCryptoRng, TryRng};
 
 #[cfg(feature = "zeroize")]
@@ -25,10 +28,17 @@ pub struct DecapsulationKey<P>
 where
     P: KemParams,
 {
-    dk_pke: DecryptionKey<P>,
+    /// Decryption key.
+    dk_pke: MaybeBox<DecryptionKey<P>>,
+
+    /// Associated encapsulation key.
     ek: EncapsulationKey<P>,
-    d: Option<B32>,
-    z: B32,
+
+    /// Seed this key was initialized from.
+    d: Option<MaybeBox<B32>>,
+
+    /// Random string used during the implicit rejection process.
+    z: MaybeBox<B32>,
 }
 
 impl<P> DecapsulationKey<P>
@@ -45,15 +55,15 @@ where
 
     /// Initialize a [`DecapsulationKey`] from the serialized expanded key form.
     ///
-    /// Note that this form is deprecated in practice; prefer to use
-    /// [`DecapsulationKey::from_seed`]. See [`ExpandedKeyEncoding`] for more information.
+    /// Note that this form is deprecated in practice; use [`DecapsulationKey::from_seed`].
+    /// See [`ExpandedKeyEncoding`] for more information.
     ///
     /// # Errors
     /// - Returns [`InvalidKey`] in the event the expanded key failed validation
     #[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
     pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, InvalidKey> {
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
-        let dk_pke = DecryptionKey::from_bytes(dk_pke);
+        let dk_pke = MaybeBox::new(DecryptionKey::from_bytes(dk_pke));
         let ek_pke = EncryptionKey::from_bytes(ek_pke)?;
 
         let ek = EncapsulationKey::from_encryption_key(ek_pke);
@@ -65,7 +75,7 @@ where
             dk_pke,
             ek,
             d: None,
-            z: z.clone(),
+            z: MaybeBox::new(z.clone()),
         })
     }
 
@@ -82,11 +92,13 @@ where
     /// - `Some` if the [`DecapsulationKey`] was initialized using `from_seed` or `generate`.
     /// - `None` if the [`DecapsulationKey`] was initialized from the expanded form.
     #[inline]
+    #[must_use]
     pub fn to_seed(&self) -> Option<Seed> {
-        self.d.map(|d| d.concat(self.z))
+        self.d.as_ref().map(|d| d.concat(*self.z))
     }
 
     /// Get the [`EncapsulationKey`] which corresponds to this [`DecapsulationKey`].
+    #[must_use]
     pub fn encapsulation_key(&self) -> &EncapsulationKey<P> {
         &self.ek
     }
@@ -107,7 +119,11 @@ where
     pub(crate) fn generate_deterministic(d: B32, z: B32) -> Self {
         let (dk_pke, ek_pke) = DecryptionKey::generate(&d);
         let ek = EncapsulationKey::from_encryption_key(ek_pke);
-        let d = Some(d);
+
+        let dk_pke = MaybeBox::new(dk_pke);
+        let d = Some(MaybeBox::new(d));
+        let z = MaybeBox::new(z);
+
         Self { dk_pke, ek, d, z }
     }
 }
@@ -130,7 +146,9 @@ where
 {
     fn drop(&mut self) {
         self.dk_pke.zeroize();
-        self.d.zeroize();
+        if let Some(d) = self.d.as_mut() {
+            d.zeroize();
+        }
         self.z.zeroize();
     }
 }
@@ -258,6 +276,6 @@ where
     fn to_expanded_bytes(&self) -> ExpandedDecapsulationKey<P> {
         let dk_pke = self.dk_pke.to_bytes();
         let ek = self.ek.to_bytes();
-        P::concat_dk(dk_pke, ek, self.ek.h(), self.z.clone())
+        P::concat_dk(dk_pke, ek, self.ek.h(), *self.z)
     }
 }

@@ -4,7 +4,7 @@ description = """
 Pure Rust implementation of the Module-Lattice-Based Key-Encapsulation Mechanism Standard
 (formerly known as Kyber) as described in FIPS 203
 """
-version = "0.3.0-rc.1"
+version = "0.3.2"
 edition = "2024"
 rust-version = "1.85"
 license = "Apache-2.0 OR MIT"
@@ -16,7 +16,8 @@ keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 exclude = ["tests/key-gen.rs", "tests/key-gen.json", "tests/encap-decap.rs", "tests/encap-decap.json"]
 
 [features]
-alloc = ["pkcs8?/alloc"]
+default = ["alloc"]
+alloc = ["module-lattice/alloc", "pkcs8?/alloc"]
 
 getrandom = ["kem/getrandom"]
 hazmat = []
@@ -26,14 +27,14 @@ zeroize = ["module-lattice/zeroize", "dep:zeroize"]
 
 [dependencies]
 array = { version = "0.4.8", package = "hybrid-array", features = ["ctutils", "extra-sizes"] }
-module-lattice = { version = "0.2", features = ["ctutils"] }
-kem = "0.3.0-rc.6"
+module-lattice = { version = "0.2.3", features = ["ctutils"] }
+kem = "0.3"
 rand_core = "0.10"
-sha3 = { version = "0.11.0-rc.9", default-features = false }
+sha3 = { version = "0.11", default-features = false }
 
 # optional dependencies
 const-oid = { version = "0.10.1", optional = true, default-features = false, features = ["db"] }
-pkcs8 = { version = "0.11.0-rc.11", optional = true, default-features = false }
+pkcs8 = { version = "0.11", optional = true, default-features = false }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
