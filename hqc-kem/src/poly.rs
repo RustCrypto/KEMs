@@ -278,7 +278,6 @@ pub(crate) fn store8_arr(out: &mut [u8], inp: &[u64]) {
     }
 }
 
-
 /// Resize vector: copy and potentially truncate.
 pub(crate) fn vect_resize(o: &mut [u64], size_o: usize, v: &[u64], size_v: usize) {
     if size_o < size_v {
