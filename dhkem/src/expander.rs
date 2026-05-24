@@ -12,17 +12,17 @@ const PREFIXES_MAX: usize = 256;
 /// Maximum size of input key material or info after applying prefixes.
 const LABELED_INPUT_MAX: usize = PREFIXES_MAX + 64;
 
-/// HPKE version identifier from `RFC9810 §4`.
+/// HPKE version identifier from `RFC9180 §4`.
 const HPKE_VERSION_ID: &[u8] = b"HPKE-v1";
 
-/// HPKE suite ID from `RFC9810 §4`.
+/// HPKE suite ID from `RFC9180 §4`.
 const HPKE_SUITE_ID: &[u8] = b"KEM\x00\x10";
 
 /// Expander: wrapper for [RFC5869] HKDF-Expand operation which can be used for HPKE's
-/// `LabeledExtract` and `LabeledExpand` as described in [RFC9810 §4].
+/// `LabeledExtract` and `LabeledExpand` as described in [RFC9180 §4].
 ///
 /// [RFC5869]: https://datatracker.ietf.org/doc/html/rfc5869
-/// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+/// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
 #[derive(Debug)]
 pub struct Expander<D: EagerHash> {
     /// Inner HKDF instance
@@ -65,12 +65,12 @@ impl<D: EagerHash> Expander<D> {
     }
 
     /// Create a new expander which uses the prefixes that implement HPKE `LabeledExtract` as
-    /// described in [RFC9810 §4].
+    /// described in [RFC9180 §4].
     ///
     /// # Errors
     /// Returns [`InvalidLength`] if the concatenated prefixes are too long.
     ///
-    /// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+    /// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
     pub fn new_labeled_hpke(
         salt: &[u8],
         label: &[u8],
@@ -92,7 +92,7 @@ impl<D: EagerHash> Expander<D> {
     /// Returns [`InvalidLength`] if info is too long.
     ///
     /// [RFC5869]: https://datatracker.ietf.org/doc/html/rfc5869
-    /// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+    /// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
     pub fn expand(&self, info: &[u8], okm: &mut [u8]) -> Result<(), InvalidLength> {
         self.hkdf.expand(info, okm)
     }
@@ -115,12 +115,12 @@ impl<D: EagerHash> Expander<D> {
     }
 
     /// Create a new expander which uses the prefixes that implement HPKE `LabeledExpand` as
-    /// described in [RFC9810 §4].
+    /// described in [RFC9180 §4].
     ///
     /// # Errors
     /// Returns [`InvalidLength`] if label and/or info is too long.
     ///
-    /// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+    /// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
     pub fn expand_labeled_hpke(
         &self,
         label: &[u8],
