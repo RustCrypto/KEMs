@@ -119,6 +119,7 @@ where
     Eta: CbdSamplingSize,
     K: ArraySize,
 {
+    #[allow(unstable_name_collisions, reason = "TODO")]
     Vector::new(Array::from_fn(|i| {
         let N = start_n + u8::truncate(i);
         let prf_output = PRF::<Eta>(sigma, N);
