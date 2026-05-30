@@ -35,6 +35,7 @@ impl Compress for Elem {
     //
     //   round(a / b) = floor((a + b/2) / b)
     //   a / q ~= (a * x) >> s where x >> s ~= 1/q
+    #[allow(unstable_name_collisions, reason = "TODO")]
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
         const Q_HALF: u64 = (BaseField::QLL + 1) >> 1;
         let x = u64::from(self.0);
