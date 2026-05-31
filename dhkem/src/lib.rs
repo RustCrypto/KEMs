@@ -31,7 +31,10 @@
 
 mod expander;
 
-pub use expander::{Expander, InvalidLength};
+pub use expander::{
+    Expander, HPKE_DHKEM_P256_HKDF_SHA256_KEM_ID, HPKE_DHKEM_P384_HKDF_SHA384_KEM_ID,
+    HPKE_DHKEM_P521_HKDF_SHA512_KEM_ID, HPKE_DHKEM_X25519_HKDF_SHA256_KEM_ID, InvalidLength,
+};
 pub use kem::{self, Decapsulator, Encapsulate, Generate, Kem, TryDecapsulate};
 
 #[cfg(feature = "ecdh")]
