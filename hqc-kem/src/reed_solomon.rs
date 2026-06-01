@@ -141,8 +141,9 @@ fn compute_error_values(error_values: &mut [u16], z: &[u16], error: &[u8; 256], 
         for j in 0..p.delta {
             // Proper constant-time eq: both are u16
             let diff = (j as u16) ^ delta_counter;
+            let diff_u32 = diff as u32;
             let zero_mask =
-                0u16.wrapping_sub(((diff as u32 | diff.wrapping_neg() as u32) >> 31) as u16);
+                0u16.wrapping_sub(((diff_u32 | diff_u32.wrapping_neg()) >> 31) as u16);
             let eq_mask2 = !zero_mask; // 0xFFFF if j == delta_counter
 
             beta_j[j] ^= found_mask & eq_mask2 & GF_EXP[i];
@@ -184,8 +185,9 @@ fn compute_error_values(error_values: &mut [u16], z: &[u16], error: &[u8; 256], 
 
         for j in 0..p.delta {
             let diff = (j as u16) ^ delta_counter;
+            let diff_u32 = diff as u32;
             let zero_mask =
-                0u16.wrapping_sub(((diff as u32 | diff.wrapping_neg() as u32) >> 31) as u16);
+                0u16.wrapping_sub(((diff_u32 | diff_u32.wrapping_neg()) >> 31) as u16);
             let eq_mask = !zero_mask;
 
             error_values[i] ^= found_mask & eq_mask & e_j[j];
