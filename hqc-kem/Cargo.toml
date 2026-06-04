@@ -28,7 +28,7 @@ hybrid-array = { version = "0.4.10", optional = true, features = ["extra-sizes"]
 kem_traits = { package = "kem", version = "0.3.0-rc.6", optional = true }
 pkcs8 = { version = "0.11", optional = true, default-features = false }
 rand = "0.10"
-sha3 = "0.10"
+sha3 = "0.11"
 serdect = { version = "0.4", optional = true }
 serde = { version = "1", features = ["derive"], optional = true }
 subtle = "2"
