@@ -1028,10 +1028,7 @@ impl<P: Params> Expanded for FrodoShake<P> {
     const METHOD: &'static str = "SHAKE";
 
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
-        use shake::{
-            Shake128,
-            digest::{ExtendableOutputReset, Update},
-        };
+        use shake::{Shake128, Update, digest::ExtendableOutputReset};
 
         debug_assert_eq!(a.len(), P::N_X_N);
         debug_assert_eq!(seed_a.len(), P::BYTES_SEED_A);

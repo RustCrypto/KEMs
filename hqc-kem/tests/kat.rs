@@ -14,7 +14,7 @@ struct KatRng {
 
 impl KatRng {
     fn new(seed: &[u8]) -> Self {
-        use shake::digest::{ExtendableOutput, Update};
+        use shake::{ExtendableOutput, Update};
         let mut hasher = shake::Shake256::default();
         hasher.update(seed);
         hasher.update(&[0x00]); // KAT PRNG domain byte
@@ -40,7 +40,7 @@ impl rand::TryRng for KatRng {
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-        use shake::digest::XofReader;
+        use shake::XofReader;
         self.reader.read(dest);
         Ok(())
     }
