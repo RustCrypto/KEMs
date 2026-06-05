@@ -2,10 +2,8 @@
 
 use crate::{B32, param::CbdSamplingSize};
 use module_lattice::EncodedPolynomial;
-use sha3::{
-    Digest, Sha3_256, Sha3_512, Shake128, Shake256,
-    digest::{ExtendableOutput, Update, XofReader},
-};
+use sha3::{Digest, Sha3_256, Sha3_512};
+use shake::{ExtendableOutput, Shake128, Shake256, Update, XofReader};
 
 pub(crate) fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
     let mut h = Sha3_512::new();

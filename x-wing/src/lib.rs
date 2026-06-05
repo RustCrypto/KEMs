@@ -41,10 +41,8 @@ use ml_kem::{
     ml_kem_768,
 };
 use rand_core::{CryptoRng, TryCryptoRng, TryRng};
-use sha3::{
-    Sha3_256, Shake256, Shake256Reader,
-    digest::{ExtendableOutput, XofReader},
-};
+use sha3::Sha3_256;
+use shake::{ExtendableOutput, Shake256, Shake256Reader, XofReader};
 use x25519_dalek::{PublicKey, StaticSecret};
 
 #[cfg(feature = "zeroize")]

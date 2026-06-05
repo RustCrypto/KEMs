@@ -1,12 +1,13 @@
-/// SHAKE256-based seed expander and domain-separated hash functions.
-///
-/// v5.0.0 domain bytes:
-/// - 0x00: G function (SHA3-512), KAT PRNG
-/// - 0x01: H function (SHA3-256), XOF seed expander
-/// - 0x02: I function (SHA3-512, PKE keygen)
-/// - 0x03: J function (SHA3-256, rejection key)
-use sha3::digest::{ExtendableOutput, Update, XofReader};
-use sha3::{Digest, Sha3_256, Sha3_512, Shake256};
+//! SHAKE256-based seed expander and domain-separated hash functions.
+//!
+//! v5.0.0 domain bytes:
+//! - 0x00: G function (SHA3-512), KAT PRNG
+//! - 0x01: H function (SHA3-256), XOF seed expander
+//! - 0x02: I function (SHA3-512, PKE keygen)
+//! - 0x03: J function (SHA3-256, rejection key)
+
+use sha3::{Digest, Sha3_256, Sha3_512};
+use shake::{ExtendableOutput, Shake256, Update, XofReader};
 
 /// Domain separation bytes.
 pub(crate) const DOMAIN_G: u8 = 0x00;
