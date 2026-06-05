@@ -9,13 +9,13 @@ use hqc_kem::{hqc128, hqc192, hqc256};
 /// KAT PRNG: wraps the internal SHAKE256-based PRNG.
 /// Implements rand TryRng + TryCryptoRng (rand 0.10) for use with the API.
 struct KatRng {
-    reader: sha3::digest::core_api::XofReaderCoreWrapper<sha3::Shake256ReaderCore>,
+    reader: shake::Shake256Reader,
 }
 
 impl KatRng {
     fn new(seed: &[u8]) -> Self {
-        use sha3::digest::{ExtendableOutput, Update};
-        let mut hasher = sha3::Shake256::default();
+        use shake::digest::{ExtendableOutput, Update};
+        let mut hasher = shake::Shake256::default();
         hasher.update(seed);
         hasher.update(&[0x00]); // KAT PRNG domain byte
         Self {
@@ -40,7 +40,7 @@ impl rand::TryRng for KatRng {
     }
 
     fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-        use sha3::digest::XofReader;
+        use shake::digest::XofReader;
         self.reader.read(dest);
         Ok(())
     }

@@ -686,7 +686,7 @@ pub struct Frodo640;
 
 #[cfg(any(feature = "frodo640aes", feature = "frodo640shake",))]
 impl Params for Frodo640 {
-    type Shake = sha3::Shake128;
+    type Shake = shake::Shake128;
 
     const CDF_TABLE: &'static [u16] = InnerFrodo640::CDF_TABLE;
     const CLAIMED_NIST_LEVEL: usize = InnerFrodo640::CLAIMED_NIST_LEVEL;
@@ -704,7 +704,7 @@ pub struct EphemeralFrodo640;
 
 #[cfg(any(feature = "efrodo640aes", feature = "efrodo640shake",))]
 impl Params for EphemeralFrodo640 {
-    type Shake = sha3::Shake128;
+    type Shake = shake::Shake128;
 
     const BYTES_SALT: usize = 0;
     const BYTES_SEED_SE: usize = Self::SHARED_SECRET_LENGTH;
@@ -749,7 +749,7 @@ pub struct Frodo976;
 
 #[cfg(any(feature = "frodo976aes", feature = "frodo976shake",))]
 impl Params for Frodo976 {
-    type Shake = sha3::Shake256;
+    type Shake = shake::Shake256;
 
     const CDF_TABLE: &'static [u16] = InnerFrodo976::CDF_TABLE;
     const CLAIMED_NIST_LEVEL: usize = InnerFrodo976::CLAIMED_NIST_LEVEL;
@@ -767,7 +767,7 @@ pub struct EphemeralFrodo976;
 
 #[cfg(any(feature = "efrodo976aes", feature = "efrodo976shake",))]
 impl Params for EphemeralFrodo976 {
-    type Shake = sha3::Shake256;
+    type Shake = shake::Shake256;
 
     const BYTES_SALT: usize = 0;
     const BYTES_SEED_SE: usize = InnerFrodo976::SHARED_SECRET_LENGTH;
@@ -810,7 +810,7 @@ pub struct Frodo1344;
 
 #[cfg(any(feature = "frodo1344aes", feature = "frodo1344shake",))]
 impl Params for Frodo1344 {
-    type Shake = sha3::Shake256;
+    type Shake = shake::Shake256;
 
     const CDF_TABLE: &'static [u16] = InnerFrodo1344::CDF_TABLE;
     const CLAIMED_NIST_LEVEL: usize = InnerFrodo1344::CLAIMED_NIST_LEVEL;
@@ -828,7 +828,7 @@ pub struct EphemeralFrodo1344;
 
 #[cfg(any(feature = "efrodo1344aes", feature = "efrodo1344shake",))]
 impl Params for EphemeralFrodo1344 {
-    type Shake = sha3::Shake256;
+    type Shake = shake::Shake256;
 
     const BYTES_SALT: usize = 0;
     const BYTES_SEED_SE: usize = Self::SHARED_SECRET_LENGTH;
@@ -1028,7 +1028,7 @@ impl<P: Params> Expanded for FrodoShake<P> {
     const METHOD: &'static str = "SHAKE";
 
     fn expand_a(&self, seed_a: &[u8], a: &mut [u16]) {
-        use sha3::{
+        use shake::{
             Shake128,
             digest::{ExtendableOutputReset, Update},
         };
