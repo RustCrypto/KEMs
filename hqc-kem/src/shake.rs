@@ -7,10 +7,7 @@
 //! - 0x03: J function (SHA3-256, rejection key)
 
 use sha3::{Digest, Sha3_256, Sha3_512};
-use shake::{
-    Shake256,
-    digest::{ExtendableOutput, Update, XofReader},
-};
+use shake::{ExtendableOutput, Shake256, Update, XofReader};
 
 /// Domain separation bytes.
 pub(crate) const DOMAIN_G: u8 = 0x00;
