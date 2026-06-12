@@ -16,7 +16,9 @@ commonly used in transport encryption protocols (e.g. [TLS]) and hybrid cryptosy
 |----------------------|---------------------------------------------------------------------------------------------|------------------------------------------------------------------------------|--------------------|
 | [`dhkem`](./dhkem)   | [![crates.io](https://img.shields.io/crates/v/dhkem.svg?logo=rust)](https://crates.io/crates/dhkem)   | [![Documentation](https://docs.rs/dhkem/badge.svg)](https://docs.rs/dhkem)   | Diffie-Hellman KEM |
 | [`frodo‑kem`](./frodo-kem) | [![crates.io](https://img.shields.io/crates/v/frodo-kem.svg?logo=rust)](https://crates.io/crates/frodo-kem) | [![Documentation](https://docs.rs/frodo-kem/badge.svg)](https://docs.rs/frodo-kem) | Frodo KEM      |
+| [`hqc‑kem`](./hqc-kem) | [![crates.io](https://img.shields.io/crates/v/hqc-kem.svg?logo=rust)](https://crates.io/crates/hqc-kem) | [![Documentation](https://docs.rs/hqc-kem/badge.svg)](https://docs.rs/hqc-kem) | HQC Code-based KEM |
 | [`ml‑kem`](./ml-kem) | [![crates.io](https://img.shields.io/crates/v/ml-kem.svg?logo=rust)](https://crates.io/crates/ml-kem) | [![Documentation](https://docs.rs/ml-kem/badge.svg)](https://docs.rs/ml-kem) | Module Lattice KEM |
+| [`sntrup‑kem`](./sntrup-kem) | [![crates.io](https://img.shields.io/crates/v/sntrup-kem.svg?logo=rust)](https://crates.io/crates/sntrup-kem) | [![Documentation](https://docs.rs/sntrup-kem/badge.svg)](https://docs.rs/sntrup-kem) | Streamlined NTRU Prime KEM |
 | [`x‑wing`](./x-wing) | [![crates.io](https://img.shields.io/crates/v/x-wing.svg?logo=rust)](https://crates.io/crates/x-wing) | [![Documentation](https://docs.rs/x-wing/badge.svg)](https://docs.rs/x-wing) | Hybrid PQ KEM      |
 
 ## License
