@@ -88,7 +88,10 @@ pub(crate) const SNTRUP953: SntrupParameters = SntrupParameters {
     sk_size: 2254,
     ct_size: 1349,
     barrett1: 165,
-    barrett2: 42313,
+    // floor(2^28 / 6343). The previous value (42313) sat one below the valid
+    // Barrett window [42314, 42339], so ~0.7% of reductions misreduced — causing
+    // rare sntrup953 decapsulation/roundtrip failures on every platform.
+    barrett2: 42319,
 };
 
 /// sntrup1013 parameters.

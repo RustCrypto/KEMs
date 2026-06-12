@@ -8,6 +8,8 @@
 //! # Usage
 //!
 //! ```rust
+//! # #[cfg(all(feature = "kgen", feature = "ecap", feature = "dcap"))]
+//! # {
 //! use sntrup_kem::{Sntrup761, SntrupKem};
 //!
 //! let mut rng = rand::rng();
@@ -15,6 +17,7 @@
 //! let (ct, ss1) = ek.encapsulate(&mut rng);
 //! let ss2 = dk.decapsulate(&ct);
 //! assert_eq!(ss1, ss2);
+//! # }
 //! ```
 //!
 //! # Security Levels
@@ -43,6 +46,17 @@
 //! - `ecap`: Encapsulation (default)
 //! - `dcap`: Decapsulation (default)
 //! - `serde`: Serde serialization support via `serdect`
+
+// The `kgen`/`ecap`/`dcap` features select which KEM operations are compiled.
+// Building with a subset (or none) of them leaves some shared internal helpers
+// (`ct`, `r3`, `rq`, `zx`, `utils`, and their imports) without a caller — that is
+// expected, not a defect. Dead-code/unused-import enforcement is therefore scoped
+// to the full-feature build (default + `--all-features`); partial builds tolerate
+// the uncalled helpers so the crate stays warning-clean under `-D warnings`.
+#![cfg_attr(
+    not(all(feature = "kgen", feature = "ecap", feature = "dcap")),
+    allow(dead_code, unused_imports)
+)]
 
 mod ct;
 mod error;
