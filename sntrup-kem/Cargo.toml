@@ -1,0 +1,68 @@
+[package]
+name = "sntrup-kem"
+version = "0.1.0"
+authors = ["Michael Lodder <redmike7@gmail.com>"]
+license = "MIT OR Apache-2.0"
+keywords = ["sntrup", "kem", "post-quantum", "cryptography", "NTRU"]
+description = "Pure Rust implementation of the Streamlined NTRU Prime KEM for all parameter sizes"
+homepage = "https://github.com/RustCrypto/KEMs/tree/master/sntrup-kem"
+repository = "https://github.com/RustCrypto/KEMs"
+categories = ["algorithms", "cryptography"]
+readme = "README.md"
+edition = "2024"
+
+[features]
+default = ["kgen", "ecap", "dcap"]
+kgen = []
+ecap = []
+dcap = []
+alloc = []
+force-scalar = []
+std = []
+serde = ["dep:serdect", "dep:serde"]
+js = ["getrandom/wasm_js"]
+
+[dependencies]
+hex = "0.4"
+rand = "0.10.0"
+rand_chacha = "0.10.0"
+subtle = "2"
+getrandom = { version = "0.4", optional = true }
+serde = { version = "1", optional = true, default-features = false }
+serdect = { version = "0.4", optional = true }
+# sha2 0.11 dropped the `asm` feature; hardware SHA acceleration is now selected
+# automatically per-target, so a single unconditional dependency suffices.
+sha2 = "0.11"
+thiserror = "2.0"
+zeroize = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+serde_json = "1"
+
+[[bench]]
+name = "mod"
+harness = false
+
+[lints.rust]
+missing_docs = "deny"
+missing_debug_implementations = "deny"
+trivial_casts = "deny"
+trivial_numeric_casts = "deny"
+unstable_features = "deny"
+unused_import_braces = "deny"
+unused_parens = "deny"
+unused_lifetimes = "deny"
+unused_qualifications = "deny"
+unused_extern_crates = "deny"
+
+[lints.clippy]
+unwrap_used = "deny"
+cast_precision_loss = "warn"
+cast_possible_truncation = "warn"
+cast_possible_wrap = "warn"
+cast_sign_loss = "warn"
+checked_conversions = "warn"
+mod_module_files = "warn"
+panic = "warn"
+panic_in_result_fn = "warn"
