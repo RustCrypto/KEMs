@@ -104,7 +104,7 @@ pub fn product(z: &mut [i16], n: usize, x: &[i16], c: i16, q: i32, b1: i32, b2: 
     }
 }
 
-/// Fused minus_product and shift: z[i+1] = freeze(z[i] - y[i]*c), z[0] = 0.
+/// Fused minus_product and shift: `z[i+1] = freeze(z[i] - y[i]*c)`, `z[0] = 0`.
 /// Processes backward to avoid overwrite conflicts, eliminating a separate memmove.
 #[inline(always)]
 pub fn minus_product_shift(z: &mut [i16], n: usize, y: &[i16], c: i16, q: i32, b1: i32, b2: i32) {

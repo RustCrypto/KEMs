@@ -145,7 +145,7 @@ pub mod random {
         }
     }
 
-    /// Process one pass of comparators: minmax(x[i+off0], x[i+off1])
+    /// Process one pass of comparators: `minmax(x[i+off0], x[i+off1])`
     /// for all i in 0..(n-off1) where i & p_mask == 0.
     #[cfg(all(
         target_arch = "x86_64",

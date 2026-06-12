@@ -196,7 +196,7 @@ unsafe fn product_neon(z: &mut [i8], n: usize, x: &[i8], c: i8) {
     }
 }
 
-/// Fused minus_product and shift: z[i+1] = freeze(z[i] - y[i]*c), z[0] = 0.
+/// Fused minus_product and shift: `z[i+1] = freeze(z[i] - y[i]*c)`, `z[0] = 0`.
 /// Processes backward to avoid overwrite conflicts, eliminating a separate memmove.
 #[inline(always)]
 pub fn minus_product_shift(z: &mut [i8], n: usize, y: &[i8], c: i8) {
