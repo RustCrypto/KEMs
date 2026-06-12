@@ -6,6 +6,7 @@ members = [
     "ml-kem",
     "hqc-kem",
     "module-lattice",
+    "sntrup-kem",
     "x-wing"
 ]
 
