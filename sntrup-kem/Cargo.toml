@@ -37,7 +37,7 @@ thiserror = "2.0"
 zeroize = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = "0.7"
 serde_json = "1"
 
 [[bench]]
