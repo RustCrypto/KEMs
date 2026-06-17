@@ -130,7 +130,7 @@ where
     ) -> Result<SharedKey<EcdhKem<C>>, Error> {
         let encapsulated_key = PublicKey::<C>::from_sec1_bytes(encapsulated_key)?;
         let shared_secret = self.dk.diffie_hellman(&encapsulated_key);
-        Ok(shared_secret.raw_secret_bytes().clone())
+        Ok(*shared_secret.raw_secret_bytes())
     }
 }
 
@@ -222,6 +222,6 @@ where
         let ss = sk.diffie_hellman(&self.0);
 
         let pk = sk.public_key().to_uncompressed_point();
-        (pk, ss.raw_secret_bytes().clone())
+        (pk, *ss.raw_secret_bytes())
     }
 }
