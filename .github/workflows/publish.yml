@@ -6,6 +6,7 @@ on:
       "frodo-kem/v**",
       "ml-kem/v**",
       "module-lattice/v**",
+      "sntrup-kem/v**",
       "x-wing/v**"
     ]
 
