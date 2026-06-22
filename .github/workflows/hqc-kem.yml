@@ -43,7 +43,7 @@ jobs:
           - ${{needs.set-msrv.outputs.msrv}}
           - stable
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: RustCrypto/actions/cargo-cache@master
@@ -67,7 +67,7 @@ jobs:
             rust: stable
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
       - uses: dtolnay/rust-toolchain@master
