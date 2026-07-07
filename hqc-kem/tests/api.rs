@@ -61,6 +61,15 @@ fn try_from_roundtrip_256() {
 /// (in-place accumulated Karatsuba) removes the 8n-word scratch and tightens
 /// them substantially.
 fn stack_probe<P: HqcParams + Send + 'static>(stack_bytes: usize) {
+    // Budgets are calibrated for optimized builds. Debug builds use several
+    // times more stack (no inlining, no stack-slot reuse) and overflow the
+    // tight bounds, so scale them up — 16x is deliberate slack, not a measured
+    // bound; the release-mode cross job still enforces the documented budgets.
+    let stack_bytes = if cfg!(debug_assertions) {
+        stack_bytes * 16
+    } else {
+        stack_bytes
+    };
     std::thread::Builder::new()
         .stack_size(stack_bytes)
         .spawn(|| {
