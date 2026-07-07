@@ -45,7 +45,7 @@ impl SeedExpander {
     }
 }
 
-/// G function: SHA3-512(parts[0] || parts[1] || ... || 0x00). Returns 64 bytes.
+/// G function: `SHA3-512(parts[0] || parts[1] || ... || 0x00)`. Returns 64 bytes.
 ///
 /// Streaming absorption of `parts` is byte-equivalent to hashing their
 /// concatenation, without materializing a concatenated buffer.
@@ -83,7 +83,7 @@ pub(crate) fn hash_i(data: &[u8]) -> [u8; 64] {
     out
 }
 
-/// J function: SHA3-256(parts[0] || parts[1] || ... || 0x03). Returns 32 bytes.
+/// J function: `SHA3-256(parts[0] || parts[1] || ... || 0x03)`. Returns 32 bytes.
 ///
 /// Streaming absorption of `parts` is byte-equivalent to hashing their
 /// concatenation, without materializing a concatenated buffer.

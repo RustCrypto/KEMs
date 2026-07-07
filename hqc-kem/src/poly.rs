@@ -267,7 +267,7 @@ fn base_mul_acc(c: &mut [u64], a: u64, b: u64) {
 }
 
 /// Base word multiply: Algorithm `mul1` from Brent–Gaudry–Thomé–Zimmermann,
-/// "Faster multiplication in GF(2)[x]" (2007), 3-bit window with top-bit
+/// "Faster multiplication in GF(2)\[x\]" (2007), 3-bit window with top-bit
 /// repair. Structure adapted from NicsTr/hqc-kem (MIT License,
 /// Copyright (c) 2026 Nics); repair uses mask arithmetic instead of ctutils.
 mod acc_bgtz {

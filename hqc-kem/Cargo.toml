@@ -39,7 +39,7 @@ typenum = { version = "1", optional = true }
 zeroize = { version = "1", features = ["derive"], default-features = false }
 
 [dev-dependencies]
-criterion = "0.8"
+criterion = "0.7"
 hex = "0.4"
 rand = { version = "0.10", features = ["thread_rng"] }
 
