@@ -72,13 +72,20 @@ fn radix(f0: &mut [u16], f1: &mut [u16], f: &[u16], m_f: usize) {
 
 /// Radix conversion for larger sizes.
 fn radix_big(f0: &mut [u16], f1: &mut [u16], f: &[u16], m_f: usize) {
+    // m_f <= fft parameter (max 5), so n <= 8; buffers bounded accordingly.
     let n = 1usize << (m_f - 2);
-    let mut q = vec![0u16; 2 * n + 1];
-    let mut r = vec![0u16; 4 * n];
-    let mut q0 = vec![0u16; n];
-    let mut q1 = vec![0u16; n];
-    let mut r0 = vec![0u16; n];
-    let mut r1 = vec![0u16; n];
+    let mut q = [0u16; 17];
+    let q = &mut q[..2 * n + 1];
+    let mut r = [0u16; 32];
+    let r = &mut r[..4 * n];
+    let mut q0 = [0u16; 8];
+    let q0 = &mut q0[..n];
+    let mut q1 = [0u16; 8];
+    let q1 = &mut q1[..n];
+    let mut r0 = [0u16; 8];
+    let r0 = &mut r0[..n];
+    let mut r1 = [0u16; 8];
+    let r1 = &mut r1[..n];
 
     q[..n].copy_from_slice(&f[3 * n..4 * n]);
     q[n..2 * n].copy_from_slice(&f[3 * n..4 * n]);
@@ -89,8 +96,8 @@ fn radix_big(f0: &mut [u16], f1: &mut [u16], f: &[u16], m_f: usize) {
         r[n + i] ^= q[i];
     }
 
-    radix(&mut q0, &mut q1, &q, m_f - 1);
-    radix(&mut r0, &mut r1, &r, m_f - 1);
+    radix(q0, q1, q, m_f - 1);
+    radix(r0, r1, r, m_f - 1);
 
     f0[..n].copy_from_slice(&r0[..n]);
     f0[n..2 * n].copy_from_slice(&q0[..n]);
@@ -116,9 +123,12 @@ fn fft_rec(w: &mut [u16], f: &mut [u16], f_coeffs: usize, m: usize, m_f: usize, 
         return;
     }
 
+    // m_f <= 5 throughout the recursion, so half_size <= 16.
     let half_size = 1 << (m_f - 1);
-    let mut f0 = vec![0u16; half_size];
-    let mut f1 = vec![0u16; half_size];
+    let mut f0 = [0u16; 16];
+    let f0 = &mut f0[..half_size];
+    let mut f1 = [0u16; 16];
+    let f1 = &mut f1[..half_size];
 
     // Step 2: twist by beta_m
     if betas[m - 1] != 1 {
@@ -131,32 +141,29 @@ fn fft_rec(w: &mut [u16], f: &mut [u16], f_coeffs: usize, m: usize, m_f: usize, 
     }
 
     // Step 3: radix
-    radix(&mut f0, &mut f1, f, m_f);
+    radix(f0, f1, f, m_f);
 
-    // Step 4: compute gammas and deltas
-    let mut gammas = vec![0u16; m];
-    let mut deltas = vec![0u16; m];
+    // Step 4: compute gammas and deltas (m <= PARAM_M - 1 = 7)
+    let mut gammas = [0u16; 8];
+    let gammas = &mut gammas[..m];
+    let mut deltas = [0u16; 8];
+    let deltas = &mut deltas[..m];
     let inv_beta_m = gf_inverse(betas[m - 1]);
     for i in 0..m - 1 {
         gammas[i] = gf_mul(betas[i], inv_beta_m);
         deltas[i] = gf_square(gammas[i]) ^ gammas[i];
     }
 
-    // Compute gamma sums
-    let mut gammas_sums = vec![0u16; 1 << (m - 1)];
-    compute_subset_sums(&mut gammas_sums, &gammas, m - 1);
+    // Compute gamma sums (1 << (m - 1) <= 64)
+    let mut gammas_sums = [0u16; 64];
+    let gammas_sums = &mut gammas_sums[..1 << (m - 1)];
+    compute_subset_sums(gammas_sums, gammas, m - 1);
 
-    // Step 5: recurse
+    // Step 5: recurse (k <= 64)
     let k = 1usize << (m - 1);
-    let mut u = vec![0u16; k];
-    fft_rec(
-        &mut u,
-        &mut f0,
-        f_coeffs.div_ceil(2),
-        m - 1,
-        m_f - 1,
-        &deltas,
-    );
+    let mut u = [0u16; 64];
+    let u = &mut u[..k];
+    fft_rec(u, f0, f_coeffs.div_ceil(2), m - 1, m_f - 1, deltas);
 
     if f_coeffs <= 3 {
         // f1 is constant
@@ -167,8 +174,9 @@ fn fft_rec(w: &mut [u16], f: &mut [u16], f_coeffs: usize, m: usize, m_f: usize, 
             w[k + i] = w[i] ^ f1[0];
         }
     } else {
-        let mut v = vec![0u16; k];
-        fft_rec(&mut v, &mut f1, f_coeffs / 2, m - 1, m_f - 1, &deltas);
+        let mut v = [0u16; 64];
+        let v = &mut v[..k];
+        fft_rec(v, f1, f_coeffs / 2, m - 1, m_f - 1, deltas);
 
         // Step 6: combine
         w[k..k + k].copy_from_slice(&v[..k]);
@@ -191,14 +199,18 @@ pub(crate) fn fft(w: &mut [u16; 256], f: &[u16], f_coeffs: usize, fft_param: usi
     let mut betas_sums = [0u16; 1 << (PARAM_M - 1)];
     compute_subset_sums(&mut betas_sums, &betas, PARAM_M - 1);
 
+    // fft_param <= 5, so fft_size <= 32 and half <= 16.
     let fft_size = 1 << fft_param;
-    let mut f_padded = vec![0u16; fft_size];
+    let mut f_padded = [0u16; 32];
+    let f_padded = &mut f_padded[..fft_size];
     f_padded[..f_coeffs.min(fft_size)].copy_from_slice(&f[..f_coeffs.min(fft_size)]);
 
     let half = fft_size >> 1;
-    let mut f0 = vec![0u16; half];
-    let mut f1 = vec![0u16; half];
-    radix(&mut f0, &mut f1, &f_padded, fft_param);
+    let mut f0 = [0u16; 16];
+    let f0 = &mut f0[..half];
+    let mut f1 = [0u16; 16];
+    let f1 = &mut f1[..half];
+    radix(f0, f1, f_padded, fft_param);
 
     let mut deltas = [0u16; PARAM_M - 1];
     for i in 0..(PARAM_M - 1) {
@@ -206,12 +218,12 @@ pub(crate) fn fft(w: &mut [u16; 256], f: &[u16], f_coeffs: usize, fft_param: usi
     }
 
     let k = 1usize << (PARAM_M - 1);
-    let mut u = vec![0u16; k];
-    let mut v = vec![0u16; k];
+    let mut u = [0u16; 1 << (PARAM_M - 1)];
+    let mut v = [0u16; 1 << (PARAM_M - 1)];
 
     fft_rec(
         &mut u,
-        &mut f0,
+        f0,
         f_coeffs.div_ceil(2),
         PARAM_M - 1,
         fft_param - 1,
@@ -219,7 +231,7 @@ pub(crate) fn fft(w: &mut [u16; 256], f: &[u16], f_coeffs: usize, fft_param: usi
     );
     fft_rec(
         &mut v,
-        &mut f1,
+        f1,
         f_coeffs / 2,
         PARAM_M - 1,
         fft_param - 1,

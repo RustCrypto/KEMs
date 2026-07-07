@@ -1,36 +1,48 @@
-/// Fixed-weight vector sampling.
+/// Fixed-weight vector sampling (official reference @ commit 161cd4f).
 ///
-/// Two methods per v5.0.0:
 /// - `sample_fixed_wt_mod`: modular mapping, used in encrypt (r2, e, r1).
 /// - `sample_fixed_wt_rej`: rejection sampling, used in keygen (y, x).
 /// - `sample_vect`: uniform random vector via XOF.
-use crate::params::HqcParameters;
+use crate::params::{HqcParameters, MAX_W};
 use crate::shake::SeedExpander;
+use ctutils::{CtLt, CtSelect};
+use zeroize::Zeroize;
 
 /// Sample a random binary vector of n bits via XOF.
-pub(crate) fn sample_vect(xof: &mut SeedExpander, v: &mut [u64], p: &HqcParameters) {
-    let mut rand_bytes = vec![0u8; p.n_bytes];
-    xof.get_bytes(&mut rand_bytes);
-    crate::poly::load8_arr(v, &rand_bytes);
+///
+/// `rand_bytes` is a caller-provided buffer of at least `p.n_bytes` bytes
+/// ([`HqcParams::NBytesBuf`](crate::params::HqcParams)).
+pub(crate) fn sample_vect(
+    xof: &mut SeedExpander,
+    v: &mut [u64],
+    rand_bytes: &mut [u8],
+    p: &HqcParameters,
+) {
+    let rand_bytes = &mut rand_bytes[..p.n_bytes];
+    xof.get_bytes(rand_bytes);
+    crate::poly::load8_arr(v, rand_bytes);
     if p.vec_n_size_64 > 0 {
         v[p.vec_n_size_64 - 1] &= p.red_mask;
     }
 }
 
-/// Sample a fixed-weight vector using modular mapping (v5.0.0 encrypt).
+/// Sample a fixed-weight vector using modular mapping (encrypt path).
 ///
-/// Reads 4*weight bytes from XOF (with alignment waste), maps each u32
-/// to position via multiplication-based reduction, deduplicates.
+/// Reads 4*weight bytes from the XOF, maps each u32 to a position via
+/// multiplication-based reduction, deduplicates.
 pub(crate) fn sample_fixed_wt_mod(
     xof: &mut SeedExpander,
     v: &mut [u64],
     weight: usize,
     p: &HqcParameters,
 ) {
-    let mut rand_bytes = vec![0u8; 4 * weight];
-    xof.get_bytes(&mut rand_bytes);
+    debug_assert!(weight <= MAX_W);
+    let mut rand_bytes = [0u8; 4 * MAX_W];
+    let rand_bytes = &mut rand_bytes[..4 * weight];
+    xof.get_bytes(rand_bytes);
 
-    let mut pos = vec![0u32; weight];
+    let mut pos = [0u32; MAX_W];
+    let pos = &mut pos[..weight];
     for i in 0..weight {
         let u = u32::from_le_bytes([
             rand_bytes[4 * i],
@@ -38,16 +50,18 @@ pub(crate) fn sample_fixed_wt_mod(
             rand_bytes[4 * i + 2],
             rand_bytes[4 * i + 3],
         ]);
-        // v5.0.0 modular mapping: pos = ((u * (n-i)) >> 32) + i
+        // Modular mapping: pos = ((u * (n-i)) >> 32) + i
         let n_minus_i = (p.n - i) as u64;
         pos[i] = (((u as u64 * n_minus_i) >> 32) + i as u64) as u32;
     }
 
-    // Dedup backwards (v5.0.0 style): for each i from wt-1 down to 1,
-    // check if any j < i has the same position. If so, set pos[i] = i.
-    for i in (1..weight).rev() {
+    // Dedup (reference `vect_generate_random_support2`): for each i from
+    // weight-2 down to 0, if any LATER j holds the same position, set
+    // pos[i] = i (keep-last semantics — the direction matters for KAT
+    // equivalence whenever a sampling collision occurs).
+    for i in (0..weight.saturating_sub(1)).rev() {
         let mut found = 0u32;
-        for j in 0..i {
+        for j in (i + 1)..weight {
             // Constant-time equality check
             let diff = pos[j] ^ pos[i];
             let is_zero = (diff as u64 | (diff as u64).wrapping_neg()) >> 63; // 1 if non-zero
@@ -68,6 +82,10 @@ pub(crate) fn sample_fixed_wt_mod(
             v[idx] |= 1u64 << bit;
         }
     }
+
+    // Zeroize transient secret material (raw XOF bytes and support positions).
+    rand_bytes.zeroize();
+    pos.zeroize();
 }
 
 /// Barrett reduction: val mod n using precomputed reciprocal.
@@ -77,19 +95,21 @@ pub(crate) fn sample_fixed_wt_mod(
 #[inline]
 fn barrett_reduce(val: u32, n: u32, reciprocal: u32) -> u32 {
     let q = ((val as u64 * reciprocal as u64) >> 32) as u32;
-    let mut r = val.wrapping_sub(q.wrapping_mul(n));
-    // At most one correction needed: if r >= n, subtract n.
-    // Constant-time: mask is all-ones if r >= n, all-zeros otherwise.
-    let correction = n & 0u32.wrapping_sub((r >= n) as u32);
-    r = r.wrapping_sub(correction);
-    r
+    let r = val.wrapping_sub(q.wrapping_mul(n));
+    // At most one correction needed: subtract n iff r >= n, selected
+    // branchlessly via ctutils (no compare-flag-dependent instruction).
+    r.wrapping_sub(u32::ct_select(&n, &0u32, r.ct_lt(&n)))
 }
 
-/// Sample a fixed-weight vector using rejection sampling (v5.0.0 keygen).
+/// Sample a fixed-weight vector using rejection sampling (keygen path).
 ///
-/// Reads 3*weight bytes per XOF chunk (matching reference implementation),
-/// parses as big-endian 3-byte values, rejects if >= n_rej or duplicate.
-/// Uses Barrett reduction instead of modulo to avoid variable-time division.
+/// Reference commit 161cd4f semantics: reads exactly 3 bytes per candidate
+/// from the XOF, assembles them little-endian (`b0 | b1<<8 | b2<<16`),
+/// rejects candidates >= n_rej, Barrett-reduces, and skips duplicates.
+/// The duplicate check here is branchless (the reference uses an early-exit
+/// scan that is variable-time on secret support positions); both strategies
+/// consume identical XOF bytes and accept/reject identically, so outputs
+/// match the reference KATs exactly.
 pub(crate) fn sample_fixed_wt_rej(
     xof: &mut SeedExpander,
     v: &mut [u64],
@@ -98,7 +118,6 @@ pub(crate) fn sample_fixed_wt_rej(
 ) {
     let n = p.n as u32;
     let n_rej = ((1u32 << 24) / n) * n;
-    let chunk_size = 3 * weight;
 
     // Clear output vector
     for i in 0..p.vec_n_size_64.min(v.len()) {
@@ -106,26 +125,20 @@ pub(crate) fn sample_fixed_wt_rej(
     }
 
     let mut count = 0usize;
-    let mut rand_bytes = vec![0u8; chunk_size];
-    let mut j = chunk_size; // Start at chunk_size to trigger first read
+    let mut rand_bytes = [0u8; 3];
 
-    // Maximum iteration bound to prevent potential DoS from degenerate XOF output.
-    // Expected iterations ≈ weight * (2^24 / n_rej). Bound at 16x weight.
+    // Maximum attempt bound to prevent potential DoS from degenerate XOF output.
+    // Expected attempts ~ weight * (2^24 / n_rej). Bound at 16x weight.
     let max_iters = 16 * weight;
     let mut iters = 0usize;
 
     while count < weight && iters < max_iters {
-        if j >= chunk_size {
-            xof.get_bytes(&mut rand_bytes);
-            j = 0;
-        }
-
-        // Big-endian 3-byte read
-        let val = ((rand_bytes[j] as u32) << 16)
-            | ((rand_bytes[j + 1] as u32) << 8)
-            | (rand_bytes[j + 2] as u32);
-        j += 3;
+        xof.get_bytes(&mut rand_bytes);
         iters += 1;
+
+        // Little-endian 3-byte candidate (reference commit 161cd4f)
+        let val =
+            (rand_bytes[0] as u32) | ((rand_bytes[1] as u32) << 8) | ((rand_bytes[2] as u32) << 16);
 
         if val < n_rej {
             // Barrett reduction: constant-time modular reduction (no div instruction)
@@ -134,8 +147,8 @@ pub(crate) fn sample_fixed_wt_rej(
             let bit = pos & 0x3f;
             if idx < v.len() {
                 let bit_mask = 1u64 << bit;
-                // Branchless duplicate check: only set bit and increment count
-                // if this position is not already set.
+                // Branchless duplicate check: only count the position as new
+                // if this bit was not already set.
                 let already_set = (v[idx] >> bit) & 1;
                 let is_new = 1u64.wrapping_sub(already_set); // 1 if new, 0 if dup
                 v[idx] |= bit_mask; // harmless if already set
@@ -143,4 +156,7 @@ pub(crate) fn sample_fixed_wt_rej(
             }
         }
     }
+
+    // Zeroize the transient candidate buffer.
+    rand_bytes.zeroize();
 }

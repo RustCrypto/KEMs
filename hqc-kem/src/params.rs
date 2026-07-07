@@ -159,6 +159,26 @@ pub(crate) const HQC_256: HqcParameters = HqcParameters {
 pub(crate) const MAX_N1: usize = 90;
 #[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 pub(crate) const MAX_DELTA: usize = 29;
+/// Maximum fixed-vector Hamming weight across all levels (w_e/w_r of HQC-256).
+#[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
+pub(crate) const MAX_W: usize = 149;
+
+/// Fixed-size buffer abstraction over `[T; N]` arrays.
+///
+/// Lets generic code allocate exact per-level stack buffers through the
+/// associated types on [`HqcParams`] without heap allocation or unstable
+/// `generic_const_exprs`.
+#[doc(hidden)]
+pub trait Buffer<T: Copy + Default>: AsRef<[T]> + AsMut<[T]> + Clone {
+    /// A zero-initialized buffer.
+    fn zeroed() -> Self;
+}
+
+impl<T: Copy + Default, const N: usize> Buffer<T> for [T; N] {
+    fn zeroed() -> Self {
+        [T::default(); N]
+    }
+}
 
 mod sealed {
     /// Sealed trait preventing external implementations of [`HqcParams`](super::HqcParams).
@@ -181,6 +201,34 @@ pub trait HqcParams: sealed::Sealed + 'static {
     /// Shared secret size in bytes (always 32).
     const SS_BYTES: usize = SS_BYTES;
 
+    /// n-bit vector as u64 words: `[u64; ceil(n/64)]`.
+    #[doc(hidden)]
+    type VecN: Buffer<u64>;
+    /// n1n2-bit vector as u64 words: `[u64; ceil(n1n2/64)]`.
+    #[doc(hidden)]
+    type VecN1N2: Buffer<u64>;
+    /// Full Karatsuba product: `[u64; 2*ceil(n/64)]`.
+    #[doc(hidden)]
+    type ProdBuf: Buffer<u64>;
+    /// n-bit vector as bytes: `[u8; ceil(n/8)]`.
+    #[doc(hidden)]
+    type NBytesBuf: Buffer<u8>;
+    /// Message buffer: `[u8; k]`.
+    #[doc(hidden)]
+    type KBuf: Buffer<u8>;
+    /// Public key bytes: `[u8; PK_BYTES]`.
+    #[doc(hidden)]
+    type PkBuf: Buffer<u8>;
+    /// Secret key bytes: `[u8; SK_BYTES]`.
+    #[doc(hidden)]
+    type SkBuf: Buffer<u8>;
+    /// Ciphertext bytes: `[u8; CT_BYTES]`.
+    #[doc(hidden)]
+    type CtBuf: Buffer<u8>;
+    /// PKE ciphertext bytes (u || v, no salt): `[u8; n_bytes + n1n2_bytes]`.
+    #[doc(hidden)]
+    type CPkeBuf: Buffer<u8>;
+
     /// Runtime parameter struct for internal operations.
     #[doc(hidden)]
     fn params() -> &'static HqcParameters;
@@ -197,6 +245,15 @@ impl HqcParams for Hqc128Params {
     const PK_BYTES: usize = 2241;
     const SK_BYTES: usize = 2321;
     const CT_BYTES: usize = 4433;
+    type VecN = [u64; 277];
+    type VecN1N2 = [u64; 276];
+    type ProdBuf = [u64; 554];
+    type NBytesBuf = [u8; 2209];
+    type KBuf = [u8; 16];
+    type PkBuf = [u8; 2241];
+    type SkBuf = [u8; 2321];
+    type CtBuf = [u8; 4433];
+    type CPkeBuf = [u8; 4417];
     fn params() -> &'static HqcParameters {
         &HQC_128
     }
@@ -213,6 +270,15 @@ impl HqcParams for Hqc192Params {
     const PK_BYTES: usize = 4514;
     const SK_BYTES: usize = 4602;
     const CT_BYTES: usize = 8978;
+    type VecN = [u64; 561];
+    type VecN1N2 = [u64; 560];
+    type ProdBuf = [u64; 1122];
+    type NBytesBuf = [u8; 4482];
+    type KBuf = [u8; 24];
+    type PkBuf = [u8; 4514];
+    type SkBuf = [u8; 4602];
+    type CtBuf = [u8; 8978];
+    type CPkeBuf = [u8; 8962];
     fn params() -> &'static HqcParameters {
         &HQC_192
     }
@@ -229,6 +295,15 @@ impl HqcParams for Hqc256Params {
     const PK_BYTES: usize = 7237;
     const SK_BYTES: usize = 7333;
     const CT_BYTES: usize = 14421;
+    type VecN = [u64; 901];
+    type VecN1N2 = [u64; 900];
+    type ProdBuf = [u64; 1802];
+    type NBytesBuf = [u8; 7205];
+    type KBuf = [u8; 32];
+    type PkBuf = [u8; 7237];
+    type SkBuf = [u8; 7333];
+    type CtBuf = [u8; 14421];
+    type CPkeBuf = [u8; 14405];
     fn params() -> &'static HqcParameters {
         &HQC_256
     }

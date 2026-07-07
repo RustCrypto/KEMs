@@ -4,10 +4,10 @@
 /// - keygen: XOF(seed_kem) → seed_pke, sigma; pke_keygen(seed_pke)
 /// - encaps: m, salt from RNG; H(ek), G(H||m||salt) → kk, theta; encrypt(ek, m, theta)
 /// - decaps: decrypt → m'; re-encrypt; constant-time comparison; implicit rejection
-use crate::params::{HqcParameters, SALT_BYTES, SEED_BYTES, SS_BYTES};
+use crate::params::{Buffer, HqcParams, SALT_BYTES, SEED_BYTES, SS_BYTES};
 use crate::pke;
-use crate::poly;
 use crate::shake::{self, SeedExpander};
+#[cfg(any(feature = "kgen", feature = "ecap"))]
 use rand::CryptoRng;
 use zeroize::Zeroize;
 
@@ -17,19 +17,20 @@ use zeroize::Zeroize;
 /// - pk = ek_pke (seed_pke_ek || s_bytes)
 /// - sk = ek_pke || dk_pke || sigma || seed_kem
 #[cfg(feature = "kgen")]
-pub(crate) fn keygen_deterministic(
+pub(crate) fn keygen_deterministic<P: HqcParams>(
     seed_kem: &[u8; SEED_BYTES],
-    p: &HqcParameters,
-) -> (Vec<u8>, Vec<u8>) {
+) -> (P::PkBuf, P::SkBuf) {
+    let p = P::params();
+
     // XOF(seed_kem || 0x01) → raw read seed_pke + sigma
     let mut ctx_kem = SeedExpander::new(seed_kem);
     let mut seed_pke = [0u8; SEED_BYTES];
-    let mut sigma = vec![0u8; p.k];
-    ctx_kem.read_raw(&mut seed_pke);
-    ctx_kem.read_raw(&mut sigma);
+    let mut sigma = P::KBuf::zeroed();
+    ctx_kem.get_bytes(&mut seed_pke);
+    ctx_kem.get_bytes(sigma.as_mut());
 
     // PKE keygen
-    let (ek_pke, dk_pke) = pke::pke_keygen(&seed_pke, p);
+    let (ek_pke, mut dk_pke) = pke::pke_keygen::<P>(&seed_pke);
 
     // Zeroize intermediate seed_pke — no longer needed after pke_keygen
     seed_pke.zeroize();
@@ -38,14 +39,18 @@ pub(crate) fn keygen_deterministic(
     let pk = ek_pke.clone();
 
     // sk = ek_pke || dk_pke || sigma || seed_kem
-    let mut sk = Vec::with_capacity(p.sk_bytes);
-    sk.extend_from_slice(&ek_pke);
-    sk.extend_from_slice(&dk_pke);
-    sk.extend_from_slice(&sigma);
-    sk.extend_from_slice(seed_kem);
+    let mut sk = P::SkBuf::zeroed();
+    {
+        let sk = sk.as_mut();
+        sk[..p.pk_bytes].copy_from_slice(ek_pke.as_ref());
+        sk[p.pk_bytes..p.pk_bytes + SEED_BYTES].copy_from_slice(&dk_pke);
+        sk[p.pk_bytes + SEED_BYTES..p.pk_bytes + SEED_BYTES + p.k].copy_from_slice(sigma.as_ref());
+        sk[p.pk_bytes + SEED_BYTES + p.k..].copy_from_slice(seed_kem);
+    }
 
-    // Zeroize sigma intermediate — now copied into sk
-    sigma.zeroize();
+    // Zeroize intermediates — now copied into sk
+    dk_pke.zeroize();
+    sigma.as_mut().zeroize();
 
     (pk, sk)
 }
@@ -54,10 +59,10 @@ pub(crate) fn keygen_deterministic(
 ///
 /// Samples a random seed, then delegates to [`keygen_deterministic`].
 #[cfg(feature = "kgen")]
-pub(crate) fn keygen(p: &HqcParameters, rng: &mut impl CryptoRng) -> (Vec<u8>, Vec<u8>) {
+pub(crate) fn keygen<P: HqcParams>(rng: &mut impl CryptoRng) -> (P::PkBuf, P::SkBuf) {
     let mut seed_kem = [0u8; SEED_BYTES];
     rng.fill_bytes(&mut seed_kem);
-    let result = keygen_deterministic(&seed_kem, p);
+    let result = keygen_deterministic::<P>(&seed_kem);
     seed_kem.zeroize();
     result
 }
@@ -66,36 +71,38 @@ pub(crate) fn keygen(p: &HqcParameters, rng: &mut impl CryptoRng) -> (Vec<u8>, V
 ///
 /// Returns (shared_secret, ciphertext).
 #[cfg(feature = "ecap")]
-pub(crate) fn encaps_deterministic(
+pub(crate) fn encaps_deterministic<P: HqcParams>(
     ek_kem: &[u8],
     m: &[u8],
     salt: &[u8; SALT_BYTES],
-    p: &HqcParameters,
-) -> (Vec<u8>, Vec<u8>) {
+) -> ([u8; SS_BYTES], P::CtBuf) {
+    let p = P::params();
+
     // H(ek_kem || 0x01) → 32-byte hash of public key
     let tmp_h = shake::hash_h(ek_kem);
 
     // G(H || m || salt || 0x00) → 64 bytes: kk || theta
-    let mut g_input = Vec::with_capacity(32 + m.len() + SALT_BYTES);
-    g_input.extend_from_slice(&tmp_h);
-    g_input.extend_from_slice(m);
-    g_input.extend_from_slice(salt);
-    let mut tmp_g = shake::hash_g(&g_input);
-    g_input.zeroize();
+    let mut tmp_g = shake::hash_g(&[&tmp_h, m, salt]);
 
-    let kk = tmp_g[..SS_BYTES].to_vec();
-    let theta = tmp_g[SS_BYTES..2 * SS_BYTES].to_vec();
+    let mut kk = [0u8; SS_BYTES];
+    kk.copy_from_slice(&tmp_g[..SS_BYTES]);
+    let mut theta = [0u8; SS_BYTES];
+    theta.copy_from_slice(&tmp_g[SS_BYTES..2 * SS_BYTES]);
 
     // Encrypt
-    let c_pke = pke::pke_encrypt(ek_kem, m, &theta, p);
+    let c_pke = pke::pke_encrypt::<P>(ek_kem, m, &theta);
 
     // Zeroize intermediates
     tmp_g.zeroize();
+    theta.zeroize();
 
     // Ciphertext = c_pke || salt
-    let mut ct = Vec::with_capacity(p.ct_bytes);
-    ct.extend_from_slice(&c_pke);
-    ct.extend_from_slice(salt);
+    let mut ct = P::CtBuf::zeroed();
+    {
+        let ct = ct.as_mut();
+        ct[..p.ct_bytes - SALT_BYTES].copy_from_slice(c_pke.as_ref());
+        ct[p.ct_bytes - SALT_BYTES..].copy_from_slice(salt);
+    }
 
     (kk, ct)
 }
@@ -104,17 +111,16 @@ pub(crate) fn encaps_deterministic(
 ///
 /// Samples random message and salt, then delegates to [`encaps_deterministic`].
 #[cfg(feature = "ecap")]
-pub(crate) fn encaps(
+pub(crate) fn encaps<P: HqcParams>(
     ek_kem: &[u8],
-    p: &HqcParameters,
     rng: &mut (impl CryptoRng + ?Sized),
-) -> (Vec<u8>, Vec<u8>) {
-    let mut m = vec![0u8; p.k];
+) -> ([u8; SS_BYTES], P::CtBuf) {
+    let mut m = P::KBuf::zeroed();
     let mut salt = [0u8; SALT_BYTES];
-    rng.fill_bytes(&mut m);
+    rng.fill_bytes(m.as_mut());
     rng.fill_bytes(&mut salt);
-    let result = encaps_deterministic(ek_kem, &m, &salt, p);
-    m.zeroize();
+    let result = encaps_deterministic::<P>(ek_kem, m.as_ref(), &salt);
+    m.as_mut().zeroize();
     salt.zeroize();
     result
 }
@@ -123,7 +129,9 @@ pub(crate) fn encaps(
 ///
 /// Returns shared secret (SS_BYTES).
 #[cfg(feature = "dcap")]
-pub(crate) fn decaps(dk_kem: &[u8], c_kem: &[u8], p: &HqcParameters) -> Vec<u8> {
+pub(crate) fn decaps<P: HqcParams>(dk_kem: &[u8], c_kem: &[u8]) -> [u8; SS_BYTES] {
+    let p = P::params();
+
     // Parse secret key: ek_kem || dk_pke || sigma || seed_kem
     let ek_kem = &dk_kem[..p.pk_bytes];
     let dk_pke = &dk_kem[p.pk_bytes..p.pk_bytes + SEED_BYTES];
@@ -135,52 +143,46 @@ pub(crate) fn decaps(dk_kem: &[u8], c_kem: &[u8], p: &HqcParameters) -> Vec<u8> 
     let salt = &c_kem[c_pke_len..c_pke_len + SALT_BYTES];
 
     // Decrypt
-    let mut m_prime = pke::pke_decrypt(dk_pke, c_pke, p);
+    let mut m_prime = pke::pke_decrypt::<P>(dk_pke, c_pke);
 
     // Re-derive theta
     let tmp_h = shake::hash_h(ek_kem);
 
-    let mut g_input = Vec::with_capacity(32 + p.k + SALT_BYTES);
-    g_input.extend_from_slice(&tmp_h);
-    g_input.extend_from_slice(&m_prime);
-    g_input.extend_from_slice(salt);
-    let mut tmp_g = shake::hash_g(&g_input);
-    g_input.zeroize();
+    // G(H || m' || salt || 0x00) → 64 bytes: kk' || theta'
+    let mut tmp_g = shake::hash_g(&[&tmp_h, m_prime.as_ref(), salt]);
 
     let kk_prime = &tmp_g[..SS_BYTES];
     let theta_prime = &tmp_g[SS_BYTES..2 * SS_BYTES];
 
     // Re-encrypt
-    let c_pke_prime = pke::pke_encrypt(ek_kem, &m_prime, theta_prime, p);
+    let c_pke_prime = pke::pke_encrypt::<P>(ek_kem, m_prime.as_ref(), theta_prime);
 
     // Zeroize decrypted message — no longer needed
-    m_prime.zeroize();
-
-    // Ciphertext for comparison: c_pke_prime || salt
-    let mut c_kem_prime = Vec::with_capacity(p.ct_bytes);
-    c_kem_prime.extend_from_slice(&c_pke_prime);
-    c_kem_prime.extend_from_slice(salt);
+    m_prime.as_mut().zeroize();
 
     // J function for rejection key: SHA3-256(H || sigma || c_kem || 0x03)
-    let mut j_input = Vec::with_capacity(32 + p.k + p.ct_bytes);
-    j_input.extend_from_slice(&tmp_h);
-    j_input.extend_from_slice(sigma);
-    j_input.extend_from_slice(c_kem);
-    let mut k_rej = shake::hash_j(&j_input);
-    j_input.zeroize();
+    let mut k_rej = shake::hash_j(&[&tmp_h, sigma, c_kem]);
 
-    // Constant-time comparison of ciphertexts
-    let cmp_result = poly::vect_compare(&c_kem[..c_pke_len + SALT_BYTES], &c_kem_prime);
+    // Constant-time comparison of ciphertexts (the received salt is compared
+    // against its own copy implicitly and is always equal, so comparing the
+    // c_pke halves is output-identical to comparing full ciphertexts).
+    let equal = {
+        use ctutils::CtEq;
+        c_pke.ct_eq(c_pke_prime.as_ref())
+    };
 
-    // Select between kk_prime and k_rej in constant time
-    // cmp_result is 0 if equal (use kk_prime), non-zero if different (use k_rej)
-    let mask = 0u8.wrapping_sub(cmp_result); // 0xFF if mismatch, 0x00 if match
-    let mut ss = vec![0u8; SS_BYTES];
+    // Implicit rejection: k_rej unless the re-encryption matched, selected
+    // per byte in constant time.
+    let mut ss = [0u8; SS_BYTES];
     for i in 0..SS_BYTES {
-        ss[i] = (kk_prime[i] & !mask) | (k_rej[i] & mask);
+        use ctutils::CtSelect;
+        ss[i] = k_rej[i].ct_select(&kk_prime[i], equal);
     }
 
-    // Zeroize remaining sensitive intermediates
+    // Zeroize remaining sensitive intermediates (c_pke_prime derives from the
+    // secret m' whenever the FO comparison fails).
+    let mut c_pke_prime = c_pke_prime;
+    c_pke_prime.as_mut().zeroize();
     tmp_g.zeroize();
     k_rej.zeroize();
 

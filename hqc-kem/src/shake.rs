@@ -1,6 +1,9 @@
 //! SHAKE256-based seed expander and domain-separated hash functions.
 //!
-//! v5.0.0 domain bytes:
+//! Tracks the official reference at commit 161cd4f (2026-02-10): XOF reads
+//! are plain sequential squeezes with no 8-byte alignment padding.
+//!
+//! Domain bytes:
 //! - 0x00: G function (SHA3-512), KAT PRNG
 //! - 0x01: H function (SHA3-256), XOF seed expander
 //! - 0x02: I function (SHA3-512, PKE keygen)
@@ -16,7 +19,7 @@ pub(crate) const DOMAIN_I: u8 = 0x02;
 pub(crate) const DOMAIN_J: u8 = 0x03;
 pub(crate) const DOMAIN_XOF: u8 = 0x01;
 
-/// SHAKE256-based seed expander with 8-byte aligned reads.
+/// SHAKE256-based seed expander (plain sequential squeezing).
 pub(crate) struct SeedExpander {
     reader: <Shake256 as ExtendableOutput>::Reader,
 }
@@ -32,29 +35,25 @@ impl SeedExpander {
         }
     }
 
-    /// Read `sz` bytes with 8-byte alignment waste.
+    /// Read bytes from the XOF stream.
     ///
-    /// After reading `sz` bytes, discards `(8 - sz%8) % 8` bytes to maintain
-    /// 8-byte alignment of the XOF stream. This matches the v5.0.0 `xof_get_bytes`.
+    /// Matches `xof_get_bytes` at reference commit 161cd4f: a plain squeeze
+    /// with no alignment padding (v5.0.0's 8-byte alignment waste was removed
+    /// upstream on 2026-02-10).
     pub(crate) fn get_bytes(&mut self, output: &mut [u8]) {
-        self.reader.read(output);
-        let remainder = output.len() % 8;
-        if remainder != 0 {
-            let mut waste = [0u8; 8];
-            self.reader.read(&mut waste[..8 - remainder]);
-        }
-    }
-
-    /// Raw squeeze without alignment waste. Used in KEM keygen for seed_pke and sigma.
-    pub(crate) fn read_raw(&mut self, output: &mut [u8]) {
         self.reader.read(output);
     }
 }
 
-/// G function: SHA3-512(data || 0x00). Returns 64 bytes.
-pub(crate) fn hash_g(data: &[u8]) -> [u8; 64] {
+/// G function: SHA3-512(parts[0] || parts[1] || ... || 0x00). Returns 64 bytes.
+///
+/// Streaming absorption of `parts` is byte-equivalent to hashing their
+/// concatenation, without materializing a concatenated buffer.
+pub(crate) fn hash_g(parts: &[&[u8]]) -> [u8; 64] {
     let mut hasher = Sha3_512::default();
-    Update::update(&mut hasher, data);
+    for part in parts {
+        Update::update(&mut hasher, part);
+    }
     Update::update(&mut hasher, &[DOMAIN_G]);
     let result = hasher.finalize();
     let mut out = [0u8; 64];
@@ -84,10 +83,15 @@ pub(crate) fn hash_i(data: &[u8]) -> [u8; 64] {
     out
 }
 
-/// J function: SHA3-256(data || 0x03). Returns 32 bytes.
-pub(crate) fn hash_j(data: &[u8]) -> [u8; 32] {
+/// J function: SHA3-256(parts[0] || parts[1] || ... || 0x03). Returns 32 bytes.
+///
+/// Streaming absorption of `parts` is byte-equivalent to hashing their
+/// concatenation, without materializing a concatenated buffer.
+pub(crate) fn hash_j(parts: &[&[u8]]) -> [u8; 32] {
     let mut hasher = Sha3_256::default();
-    Update::update(&mut hasher, data);
+    for part in parts {
+        Update::update(&mut hasher, part);
+    }
     Update::update(&mut hasher, &[DOMAIN_J]);
     let result = hasher.finalize();
     let mut out = [0u8; 32];

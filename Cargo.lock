@@ -639,6 +639,7 @@ version = "0.1.0"
 dependencies = [
  "const-oid",
  "criterion",
+ "ctutils",
  "hex",
  "hybrid-array",
  "kem",

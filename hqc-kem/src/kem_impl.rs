@@ -20,9 +20,9 @@ macro_rules! impl_hqc_kem {
                 kem_traits::DecapsulationKey<Self>,
                 kem_traits::EncapsulationKey<Self>,
             ) {
-                let (pk, sk) = crate::kem::keygen(<$params>::params(), rng);
-                let ek = EncapsulationKey::<$params>::from_vec(pk);
-                let dk = DecapsulationKey::<$params>::from_vec(sk);
+                let (pk, sk) = crate::kem::keygen::<$params>(rng);
+                let ek = EncapsulationKey::<$params>::from_slice(pk.as_ref());
+                let dk = DecapsulationKey::<$params>::from_slice(sk.as_ref());
                 (dk, ek)
             }
         }
@@ -39,7 +39,7 @@ macro_rules! impl_hqc_kem {
                 if bytes.len() != <$params>::PK_BYTES {
                     return Err(kem_traits::InvalidKey);
                 }
-                Ok(EncapsulationKey::<$params>::from_vec(bytes.to_vec()))
+                Ok(EncapsulationKey::<$params>::from_slice(bytes))
             }
         }
 
@@ -66,13 +66,13 @@ macro_rules! impl_hqc_kem {
             where
                 R: rand::CryptoRng + ?Sized,
             {
-                let (ss_vec, ct_vec) = crate::kem::encaps(self.as_ref(), <$params>::params(), rng);
+                let (ss_arr, ct_arr) = crate::kem::encaps::<$params>(self.as_ref(), rng);
 
                 let mut ct = Array::<u8, $ct_size>::default();
-                ct.as_mut_slice().copy_from_slice(&ct_vec);
+                ct.as_mut_slice().copy_from_slice(ct_arr.as_ref());
 
                 let mut ss = Array::<u8, typenum::consts::U32>::default();
-                ss.as_mut_slice().copy_from_slice(&ss_vec);
+                ss.as_mut_slice().copy_from_slice(&ss_arr);
 
                 (ct, ss)
             }
@@ -90,9 +90,9 @@ macro_rules! impl_hqc_kem {
                     .as_slice()
                     .try_into()
                     .expect("seed is exactly 32 bytes");
-                let (pk, sk) = crate::kem::keygen_deterministic(&seed_arr, <$params>::params());
+                let (pk, sk) = crate::kem::keygen_deterministic::<$params>(&seed_arr);
                 let _ = pk; // pk is embedded in sk
-                DecapsulationKey::<$params>::from_vec(sk)
+                DecapsulationKey::<$params>::from_slice(sk.as_ref())
             }
         }
 
@@ -135,9 +135,9 @@ macro_rules! impl_hqc_kem {
                 &self,
                 ct: &kem_traits::Ciphertext<Self::Kem>,
             ) -> kem_traits::SharedKey<Self::Kem> {
-                let ss_vec = crate::kem::decaps(self.as_ref(), ct.as_slice(), <$params>::params());
+                let ss_arr = crate::kem::decaps::<$params>(self.as_ref(), ct.as_slice());
                 let mut ss = Array::<u8, typenum::consts::U32>::default();
-                ss.as_mut_slice().copy_from_slice(&ss_vec);
+                ss.as_mut_slice().copy_from_slice(&ss_arr);
                 ss
             }
         }
