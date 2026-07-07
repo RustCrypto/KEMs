@@ -40,7 +40,7 @@
 //! The core KEM (`kgen`/`ecap`/`dcap`) is `no_std` and performs no heap
 //! allocation.
 
-#![cfg_attr(not(feature = "std"), no_std)]
+#![no_std]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
