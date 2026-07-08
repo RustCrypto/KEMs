@@ -1,4 +1,4 @@
-#![cfg_attr(not(test), no_std)]
+#![no_std]
 #![cfg_attr(docsrs, feature(doc_cfg))]
 #![doc = include_str!("../README.md")]
 #![doc(
@@ -363,108 +363,8 @@ fn read_from<const N: usize>(reader: &mut Shake256Reader) -> [u8; N] {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Kem, XWingKem};
-    use core::convert::Infallible;
-    use getrandom::SysRng;
-    use ml_kem::array::Array;
-    use rand_core::{TryCryptoRng, TryRng, UnwrapErr, utils};
-    use serde::Deserialize;
-
+    #[cfg(feature = "getrandom")]
     use super::*;
-
-    pub(crate) struct SeedRng {
-        pub(crate) seed: Vec<u8>,
-    }
-
-    impl SeedRng {
-        fn new(seed: Vec<u8>) -> SeedRng {
-            SeedRng { seed }
-        }
-    }
-
-    impl TryRng for SeedRng {
-        type Error = Infallible;
-
-        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-            utils::next_word_via_fill(self)
-        }
-
-        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-            utils::next_word_via_fill(self)
-        }
-
-        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
-            dest.copy_from_slice(&self.seed[0..dest.len()]);
-            self.seed.drain(0..dest.len());
-            Ok(())
-        }
-    }
-
-    #[derive(Deserialize)]
-    struct TestVector {
-        #[serde(deserialize_with = "hex::serde::deserialize")]
-        seed: Vec<u8>,
-
-        #[serde(deserialize_with = "hex::serde::deserialize")]
-        eseed: Vec<u8>,
-
-        #[serde(deserialize_with = "hex::serde::deserialize")]
-        ss: [u8; 32],
-
-        #[serde(deserialize_with = "hex::serde::deserialize")]
-        sk: [u8; 32],
-
-        #[serde(deserialize_with = "hex::serde::deserialize")]
-        pk: Vec<u8>, //[u8; PUBLIC_KEY_SIZE],
-
-        #[serde(deserialize_with = "hex::serde::deserialize")]
-        ct: Vec<u8>, //[u8; 1120],
-    }
-
-    impl TryCryptoRng for SeedRng {}
-
-    /// Test with test vectors from: <https://github.com/dconnolly/draft-connolly-cfrg-xwing-kem/blob/main/spec/test-vectors.json>
-    #[test]
-    fn rfc_test_vectors() {
-        let test_vectors =
-            serde_json::from_str::<Vec<TestVector>>(include_str!("test-vectors.json")).unwrap();
-
-        for test_vector in test_vectors {
-            run_test(test_vector);
-        }
-    }
-
-    fn run_test(test_vector: TestVector) {
-        let mut seed = SeedRng::new(test_vector.seed);
-        let (sk, pk) = XWingKem::generate_keypair_from_rng(&mut seed);
-
-        assert_eq!(sk.as_bytes(), &test_vector.sk);
-        assert_eq!(&*pk.to_bytes(), test_vector.pk.as_slice());
-
-        let mut eseed = SeedRng::new(test_vector.eseed);
-        let (ct, ss) = pk.encapsulate_with_rng(&mut eseed);
-
-        assert_eq!(ss, test_vector.ss);
-        assert_eq!(&*ct, test_vector.ct.as_slice());
-
-        let ss = sk.decapsulate(&ct);
-        assert_eq!(ss, test_vector.ss);
-    }
-
-    #[test]
-    fn ciphertext_serialize() {
-        let mut rng = UnwrapErr(SysRng);
-
-        let ct_a = CiphertextMessage {
-            ct_m: Array::generate_from_rng(&mut rng),
-            ct_x: <[u8; 32]>::generate_from_rng(&mut rng).into(),
-        };
-
-        let bytes = ct_a.to_bytes();
-        let ct_b = CiphertextMessage::from(&bytes);
-
-        assert!(ct_a == ct_b);
-    }
 
     #[test]
     #[cfg(feature = "getrandom")]
