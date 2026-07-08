@@ -13,7 +13,8 @@ HQC uses concatenated Reed-Solomon + Reed-Muller error correction with the Fujis
 - [NIST FIPS 207 (HQC)](https://csrc.nist.gov/pubs/fips/207/ipd) - HQC Initial Public Draft
 - [NIST Post-Quantum Cryptography](https://csrc.nist.gov/projects/post-quantum-cryptography) - NIST PQC project page
 - [HQC Official Site](https://pqc-hqc.org/) - Reference implementations, specifications, and KAT vectors
-- [HQC v5.0.0 Specification](https://pqc-hqc.org/doc/hqc-spec-2025-02-10.pdf) - Full specification document
+- [HQC v5.0.0 Specification](https://pqc-hqc.org/doc/hqc-spec-2025-08-22.pdf) - Full specification document
+- Tracks the [official reference implementation](https://gitlab.com/pqc-hqc/hqc) at commit `161cd4f` (2026-02-10, post-v5.0.0 sampling update); all 100 official KAT vectors per level are verified
 
 ## Security Levels
 

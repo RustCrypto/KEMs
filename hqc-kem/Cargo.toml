@@ -11,31 +11,32 @@ repository = "https://github.com/RustCrypto/KEMs"
 version = "0.1.0"
 
 [features]
-default = ["kgen", "ecap", "dcap"]
+default = ["kgen", "ecap", "dcap", "std"]
+std = ["alloc"]
+alloc = ["pkcs8?/alloc"]
 kgen = []
 ecap = []
 dcap = []
 kem = ["dep:kem_traits", "dep:hybrid-array", "dep:typenum", "kgen", "ecap", "dcap"]
-pkcs8 = ["dep:const-oid", "dep:pkcs8"]
+pkcs8 = ["dep:const-oid", "dep:pkcs8", "alloc", "kgen"]
 pem = ["pkcs8/pem"]
-alloc = ["pkcs8?/alloc"]
 serde = ["dep:serdect", "dep:serde"]
 
 [dependencies]
 const-oid = { version = "0.10", optional = true }
-hex = "0.4"
 hybrid-array = { version = "0.4.10", optional = true, features = ["extra-sizes"] }
-kem_traits = { package = "kem", version = "0.3.0-rc.6", optional = true }
+kem_traits = { package = "kem", version = "0.3", optional = true }
 pkcs8 = { version = "0.11", optional = true, default-features = false }
-rand = "0.10"
+ctutils = { version = "0.4", default-features = false }
+rand = { version = "0.10", default-features = false }
 sha3 = { version = "0.12", default-features = false }
 shake = { version = "0.1", default-features = false }
-serdect = { version = "0.4", optional = true }
-serde = { version = "1", features = ["derive"], optional = true }
-subtle = "2"
-thiserror = "2"
+serdect = { version = "0.4", optional = true, default-features = false }
+serde = { version = "1", features = ["derive"], optional = true, default-features = false }
+subtle = { version = "2", default-features = false }
+thiserror = { version = "2", default-features = false }
 typenum = { version = "1", optional = true }
-zeroize = { version = "1", features = ["derive"] }
+zeroize = { version = "1", features = ["derive"], default-features = false }
 
 [dev-dependencies]
 criterion = "0.7"

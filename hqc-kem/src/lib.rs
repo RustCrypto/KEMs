@@ -31,10 +31,21 @@
 //! - `ecap`: Encapsulation (default)
 //! - `dcap`: Decapsulation (default)
 //! - `kem`: RustCrypto [`kem`](https://crates.io/crates/kem) 0.3 trait implementations
-//! - `pkcs8`: PKCS#8 key encoding/decoding
+//! - `pkcs8`: PKCS#8 key encoding/decoding (requires `alloc`)
 //! - `pem`: PEM encoding (enables `pkcs8/pem`)
-//! - `alloc`: Enables PKCS#8 encoding (requires `alloc`)
+//! - `alloc`: `Vec`/`Box` conversions and PKCS#8 encoding
 //! - `serde`: Serde serialization support
+//! - `std`: Standard library (default; enables runtime CPU feature detection)
+//!
+//! The core KEM (`kgen`/`ecap`/`dcap`) is `no_std` and performs no heap
+//! allocation.
+
+#![no_std]
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "std")]
+extern crate std;
 
 #[cfg(any(feature = "kgen", feature = "ecap", feature = "dcap"))]
 mod code;

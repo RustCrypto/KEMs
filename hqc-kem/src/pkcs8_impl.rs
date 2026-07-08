@@ -150,7 +150,7 @@ where
             return Err(spki::Error::KeyMalformed);
         }
 
-        Ok(EncapsulationKey::from_vec(bytes.to_vec()))
+        Ok(EncapsulationKey::from_slice(bytes))
     }
 }
 
@@ -205,8 +205,8 @@ where
             .map_err(|_| pkcs8::KeyError::Invalid)?;
         reader.finish()?;
 
-        let (_pk, sk) = crate::kem::keygen_deterministic(&seed, P::params());
-        Ok(DecapsulationKey::from_vec(sk))
+        let (_pk, sk) = crate::kem::keygen_deterministic::<P>(&seed);
+        Ok(DecapsulationKey::from_slice(sk.as_ref()))
     }
 }
 
