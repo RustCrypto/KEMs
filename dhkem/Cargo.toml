@@ -20,10 +20,10 @@ rand_core = "0.10"
 
 # optional dependencies
 elliptic-curve = { version = "0.14", optional = true, default-features = false }
-k256 = { version = "0.14.0-rc.14", optional = true, default-features = false, features = ["arithmetic"] }
-p256 = { version = "0.14.0-rc.14", optional = true, default-features = false, features = ["arithmetic"] }
-p384 = { version = "0.14.0-rc.14", optional = true, default-features = false, features = ["arithmetic"] }
-p521 = { version = "0.14.0-rc.14", optional = true, default-features = false, features = ["arithmetic"] }
+k256 = { version = "0.14", optional = true, default-features = false, features = ["arithmetic"] }
+p256 = { version = "0.14", optional = true, default-features = false, features = ["arithmetic"] }
+p384 = { version = "0.14", optional = true, default-features = false, features = ["arithmetic"] }
+p521 = { version = "0.14", optional = true, default-features = false, features = ["arithmetic"] }
 x25519 = { version = "3", package = "x25519-dalek", optional = true, default-features = false }
 zeroize = { version = "1.9", optional = true, default-features = false }
 
