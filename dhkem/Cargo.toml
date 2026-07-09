@@ -14,6 +14,7 @@ keywords = ["crypto", "ecdh", "ecc"]
 readme = "README.md"
 
 [dependencies]
+ctutils = "0.4"
 hkdf = "0.13"
 kem = "0.3"
 rand_core = "0.10"

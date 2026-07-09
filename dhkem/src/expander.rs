@@ -1,7 +1,7 @@
-pub use hkdf::InvalidLength;
+pub use hkdf::{InvalidLength, hmac::digest::block_api::EagerHash};
 
 use core::iter;
-use hkdf::{Hkdf, hmac::digest::block_api::EagerHash};
+use hkdf::Hkdf;
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
@@ -12,17 +12,32 @@ const PREFIXES_MAX: usize = 256;
 /// Maximum size of input key material or info after applying prefixes.
 const LABELED_INPUT_MAX: usize = PREFIXES_MAX + 64;
 
-/// HPKE version identifier from `RFC9810 §4`.
+/// HPKE version identifier from `RFC9180 §4`.
 const HPKE_VERSION_ID: &[u8] = b"HPKE-v1";
 
-/// HPKE suite ID from `RFC9810 §4`.
-const HPKE_SUITE_ID: &[u8] = b"KEM\x00\x10";
+/// Type representing an HPKE suite identifier with `KEM` prefix.
+type HpkeSuiteId = [u8; 5];
+
+/// Associates a given HPKE KEM ID with the given type.
+pub trait HpkeKemId {
+    /// Identifier for a particular KEM, from [RFC9180 §7.1].
+    ///
+    /// [RFC9180 §7.1]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1
+    const KEM_ID: u16;
+
+    /// Compute the full HPKE suite ID for this type.
+    #[must_use]
+    fn suite_id() -> HpkeSuiteId {
+        let [b0, b1] = Self::KEM_ID.to_be_bytes();
+        [b'K', b'E', b'M', b0, b1]
+    }
+}
 
 /// Expander: wrapper for [RFC5869] HKDF-Expand operation which can be used for HPKE's
-/// `LabeledExtract` and `LabeledExpand` as described in [RFC9810 §4].
+/// `LabeledExtract` and `LabeledExpand` as described in [RFC9180 §4].
 ///
 /// [RFC5869]: https://datatracker.ietf.org/doc/html/rfc5869
-/// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+/// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
 #[derive(Debug)]
 pub struct Expander<D: EagerHash> {
     /// Inner HKDF instance
@@ -65,20 +80,20 @@ impl<D: EagerHash> Expander<D> {
     }
 
     /// Create a new expander which uses the prefixes that implement HPKE `LabeledExtract` as
-    /// described in [RFC9810 §4].
+    /// described in [RFC9180 §4].
     ///
     /// # Errors
     /// Returns [`InvalidLength`] if the concatenated prefixes are too long.
     ///
-    /// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
-    pub fn new_labeled_hpke(
+    /// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+    pub fn new_labeled_hpke<K: HpkeKemId>(
         salt: &[u8],
         label: &[u8],
         input_key_material: &[u8],
     ) -> Result<Self, InvalidLength> {
         Self::new_prefixed(
             salt,
-            &[HPKE_VERSION_ID, HPKE_SUITE_ID, label],
+            &[HPKE_VERSION_ID, &K::suite_id(), label],
             input_key_material,
         )
     }
@@ -92,7 +107,7 @@ impl<D: EagerHash> Expander<D> {
     /// Returns [`InvalidLength`] if info is too long.
     ///
     /// [RFC5869]: https://datatracker.ietf.org/doc/html/rfc5869
-    /// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+    /// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
     pub fn expand(&self, info: &[u8], okm: &mut [u8]) -> Result<(), InvalidLength> {
         self.hkdf.expand(info, okm)
     }
@@ -115,13 +130,13 @@ impl<D: EagerHash> Expander<D> {
     }
 
     /// Create a new expander which uses the prefixes that implement HPKE `LabeledExpand` as
-    /// described in [RFC9810 §4].
+    /// described in [RFC9180 §4].
     ///
     /// # Errors
     /// Returns [`InvalidLength`] if label and/or info is too long.
     ///
-    /// [RFC9810 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
-    pub fn expand_labeled_hpke(
+    /// [RFC9180 §4]: https://datatracker.ietf.org/doc/html/rfc9180#section-4
+    pub fn expand_labeled_hpke<K: HpkeKemId>(
         &self,
         label: &[u8],
         info: &[u8],
@@ -132,7 +147,7 @@ impl<D: EagerHash> Expander<D> {
             &[
                 &okm_len.to_be_bytes(),
                 HPKE_VERSION_ID,
-                HPKE_SUITE_ID,
+                &K::suite_id(),
                 label,
                 info,
             ],

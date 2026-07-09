@@ -29,10 +29,15 @@
 //! [RFC9180]: https://datatracker.ietf.org/doc/html/rfc9180#name-dh-based-kem-dhkem
 //! [TLS KEM combiner]: https://datatracker.ietf.org/doc/html/draft-ietf-tls-hybrid-design-10
 
+mod error;
 mod expander;
 
-pub use expander::{Expander, InvalidLength};
-pub use kem::{self, Decapsulator, Encapsulate, Generate, Kem, TryDecapsulate};
+pub use crate::{
+    error::Error,
+    expander::{EagerHash, Expander, HpkeKemId, InvalidLength},
+};
+pub use kem::{self, Ciphertext, Decapsulator, Encapsulate, Generate, Kem, TryDecapsulate};
+use rand_core::CryptoRng;
 
 #[cfg(feature = "ecdh")]
 mod ecdh_kem;
@@ -40,15 +45,9 @@ mod ecdh_kem;
 mod x25519_kem;
 
 #[cfg(feature = "ecdh")]
-pub use ecdh_kem::{EcdhDecapsulationKey, EcdhEncapsulationKey, EcdhKem};
+pub use ecdh_kem::*;
 #[cfg(feature = "x25519")]
-pub use x25519_kem::{X25519DecapsulationKey, X25519EncapsulationKey, X25519Kem};
-
-#[cfg(feature = "ecdh")]
-use elliptic_curve::{
-    CurveArithmetic, PublicKey, bigint,
-    sec1::{self, FromSec1Point, ToSec1Point},
-};
+pub use x25519_kem::*;
 
 #[cfg(feature = "zeroize")]
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -63,7 +62,27 @@ pub struct DecapsulationKey<DK, EK> {
 }
 
 impl<DK, EK> DecapsulationKey<DK, EK> {
-    /// Consumes `self` and returns the wrapped value
+    /// Perform decapsulation and initialize an [`Expander`] using the resulting shared secret.
+    ///
+    /// # Errors
+    /// - Returns [`Error::Decapsulation`] if the decapsulation operation failed.
+    /// - Returns [`Error::Length`] if `salt` or `label` are too long.
+    pub fn decapsulate_and_expand<D>(
+        &self,
+        salt: &[u8],
+        label: &[u8],
+        ciphertext: &Ciphertext<<Self as Decapsulator>::Kem>,
+    ) -> Result<Expander<D>, Error>
+    where
+        Self: TryDecapsulate<Error = Error> + Decapsulator<Kem: HpkeKemId>,
+        D: EagerHash,
+    {
+        let ikm = self.try_decapsulate(ciphertext)?;
+        let ex = Expander::new_labeled_hpke::<<Self as Decapsulator>::Kem>(salt, label, &ikm)?;
+        Ok(ex)
+    }
+
+    /// Consumes `self` and returns the inner decapsulation key.
     pub fn into_inner(self) -> DK {
         self.dk
     }
@@ -90,39 +109,52 @@ where
 pub struct EncapsulationKey<EK>(EK);
 
 impl<EK> EncapsulationKey<EK> {
-    /// Consumes `self` and returns the wrapped value
+    /// Consumes `self` and returns the inner encapsulation key.
     pub fn into_inner(self) -> EK {
         self.0
+    }
+}
+
+impl<EK> EncapsulationKey<EK>
+where
+    Self: Encapsulate<Kem: HpkeKemId>,
+{
+    /// Generate a new shared secret from the system's RNG, then encrypt it, returning its
+    /// ciphertext and an [`Expander`] which has been initialized with it.
+    ///
+    /// # Errors
+    /// Returns [`Error::Length`] if `salt` or `label` are too long.
+    #[cfg(feature = "getrandom")]
+    pub fn encapsulate_and_expand<D: EagerHash>(
+        &self,
+        salt: &[u8],
+        label: &[u8],
+    ) -> Result<(Ciphertext<<Self as Encapsulate>::Kem>, Expander<D>), InvalidLength> {
+        let (ct, ikm) = self.encapsulate();
+        let expander = Expander::new_labeled_hpke::<<Self as Encapsulate>::Kem>(salt, label, &ikm)?;
+        Ok((ct, expander))
+    }
+
+    /// Generate a new shared secret from the provided `rng`, then encrypt it, returning its
+    /// ciphertext and an [`Expander`] which has been initialized with it.
+    ///
+    /// # Errors
+    /// Returns [`Error::Length`] if `salt` or `label` are too long.
+    pub fn encapsulate_with_rng_and_expand<D: EagerHash, R: CryptoRng + ?Sized>(
+        &self,
+        rng: &mut R,
+        salt: &[u8],
+        label: &[u8],
+    ) -> Result<(Ciphertext<<Self as Encapsulate>::Kem>, Expander<D>), InvalidLength> {
+        let (ct, ikm) = self.encapsulate_with_rng(rng);
+        let expander = Expander::new_labeled_hpke::<<Self as Encapsulate>::Kem>(salt, label, &ikm)?;
+        Ok((ct, expander))
     }
 }
 
 impl<EK> From<EK> for EncapsulationKey<EK> {
     fn from(inner: EK) -> Self {
         Self(inner)
-    }
-}
-
-#[cfg(feature = "ecdh")]
-impl<C> FromSec1Point<C> for EcdhEncapsulationKey<C>
-where
-    C: CurveArithmetic,
-    C::FieldBytesSize: sec1::ModulusSize,
-    PublicKey<C>: FromSec1Point<C>,
-{
-    fn from_sec1_point(point: &sec1::Sec1Point<C>) -> bigint::CtOption<Self> {
-        PublicKey::<C>::from_sec1_point(point).map(Into::into)
-    }
-}
-
-#[cfg(feature = "ecdh")]
-impl<C> ToSec1Point<C> for EcdhEncapsulationKey<C>
-where
-    C: CurveArithmetic,
-    C::FieldBytesSize: sec1::ModulusSize,
-    PublicKey<C>: ToSec1Point<C>,
-{
-    fn to_sec1_point(&self, compress: bool) -> sec1::Sec1Point<C> {
-        self.0.to_sec1_point(compress)
     }
 }
 
@@ -135,43 +167,3 @@ impl<DK: Zeroize, EK> Zeroize for DecapsulationKey<DK, EK> {
 
 #[cfg(feature = "zeroize")]
 impl<DK: ZeroizeOnDrop, EK> ZeroizeOnDrop for DecapsulationKey<DK, EK> {}
-
-/// NIST P-256 DHKEM.
-#[cfg(feature = "p256")]
-pub type NistP256Kem = EcdhKem<p256::NistP256>;
-/// NIST P-256 ECDH Decapsulation Key.
-#[cfg(feature = "p256")]
-pub type NistP256DecapsulationKey = EcdhDecapsulationKey<p256::NistP256>;
-/// NIST P-256 ECDH Encapsulation Key.
-#[cfg(feature = "p256")]
-pub type NistP256EncapsulationKey = EcdhEncapsulationKey<p256::NistP256>;
-
-/// NIST P-256 DHKEM.
-#[cfg(feature = "p384")]
-pub type NistP384Kem = EcdhKem<p384::NistP384>;
-/// NIST P-384 ECDH Decapsulation Key.
-#[cfg(feature = "p384")]
-pub type NistP384DecapsulationKey = EcdhDecapsulationKey<p384::NistP384>;
-/// NIST P-384 ECDH Encapsulation Key.
-#[cfg(feature = "p384")]
-pub type NistP384EncapsulationKey = EcdhEncapsulationKey<p384::NistP384>;
-
-/// NIST P-521 DHKEM.
-#[cfg(feature = "p521")]
-pub type NistP521Kem = EcdhKem<p521::NistP521>;
-/// NIST P-521 ECDH Decapsulation Key.
-#[cfg(feature = "p521")]
-pub type NistP521DecapsulationKey = EcdhDecapsulationKey<p521::NistP521>;
-/// NIST P-521 ECDH Encapsulation Key.
-#[cfg(feature = "p521")]
-pub type NistP521EncapsulationKey = EcdhEncapsulationKey<p521::NistP521>;
-
-/// secp256k1 DHKEM.
-#[cfg(feature = "k256")]
-pub type Secp256k1Kem = EcdhKem<k256::Secp256k1>;
-/// secp256k1 ECDH Decapsulation Key.
-#[cfg(feature = "k256")]
-pub type Secp256k1DecapsulationKey = EcdhDecapsulationKey<k256::Secp256k1>;
-/// secp256k1 ECDH Encapsulation Key.
-#[cfg(feature = "k256")]
-pub type Secp256k1EncapsulationKey = EcdhEncapsulationKey<k256::Secp256k1>;

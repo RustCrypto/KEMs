@@ -362,6 +362,7 @@ dependencies = [
 name = "dhkem"
 version = "0.1.0-rc.1"
 dependencies = [
+ "ctutils",
  "elliptic-curve",
  "getrandom",
  "hex-literal",
