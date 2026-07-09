@@ -29,6 +29,7 @@
 pub use kem::{
     self, Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport,
     KeyInit, KeySizeUser, TryKeyInit,
+    common::rand_core::{CryptoRng, TryCryptoRng},
 };
 
 use core::fmt::{self, Debug};
@@ -40,7 +41,6 @@ use ml_kem::{
     },
     ml_kem_768,
 };
-use rand_core::{CryptoRng, TryCryptoRng, TryRng};
 use sha3::Sha3_256;
 use shake::{ExtendableOutput, Shake256, Shake256Reader, XofReader};
 use x25519_dalek::{PublicKey, StaticSecret};
@@ -239,7 +239,7 @@ impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKey {
 }
 
 impl Generate for DecapsulationKey {
-    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, <R as TryRng>::Error>
+    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, R::Error>
     where
         R: TryCryptoRng + ?Sized,
     {
