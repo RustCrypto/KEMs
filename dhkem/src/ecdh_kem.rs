@@ -1,10 +1,11 @@
 //! Generic Elliptic Curve Diffie-Hellman KEM adapter.
 
-use crate::{DecapsulationKey, EncapsulationKey};
+use crate::{DecapsulationKey, EncapsulationKey, Error, HpkeKemId};
 use core::marker::PhantomData;
 use elliptic_curve::{
-    AffinePoint, CurveArithmetic, Error, FieldBytes, FieldBytesSize, PublicKey, SecretKey,
+    AffinePoint, CurveArithmetic, FieldBytes, FieldBytesSize, PublicKey, SecretKey, bigint,
     ecdh::EphemeralSecret,
+    sec1,
     sec1::{FromSec1Point, ModulusSize, ToSec1Point, UncompressedPoint, UncompressedPointSize},
 };
 use kem::{
@@ -124,11 +125,14 @@ where
 {
     type Error = Error;
 
+    #[inline]
     fn try_decapsulate(
         &self,
         encapsulated_key: &Ciphertext<EcdhKem<C>>,
     ) -> Result<SharedKey<EcdhKem<C>>, Error> {
-        let encapsulated_key = PublicKey::<C>::from_sec1_bytes(encapsulated_key)?;
+        let encapsulated_key =
+            PublicKey::<C>::from_sec1_bytes(encapsulated_key).map_err(|_| Error::Decapsulation)?;
+
         let shared_secret = self.dk.diffie_hellman(&encapsulated_key);
         Ok(*shared_secret.raw_secret_bytes())
     }
@@ -225,3 +229,77 @@ where
         (pk, *ss.raw_secret_bytes())
     }
 }
+
+impl<C> FromSec1Point<C> for EcdhEncapsulationKey<C>
+where
+    C: CurveArithmetic,
+    C::FieldBytesSize: ModulusSize,
+    PublicKey<C>: FromSec1Point<C>,
+{
+    fn from_sec1_point(point: &sec1::Sec1Point<C>) -> bigint::CtOption<Self> {
+        PublicKey::<C>::from_sec1_point(point).map(Into::into)
+    }
+}
+
+impl<C> ToSec1Point<C> for EcdhEncapsulationKey<C>
+where
+    C: CurveArithmetic,
+    C::FieldBytesSize: ModulusSize,
+    PublicKey<C>: ToSec1Point<C>,
+{
+    fn to_sec1_point(&self, compress: bool) -> sec1::Sec1Point<C> {
+        self.0.to_sec1_point(compress)
+    }
+}
+
+/// NIST P-256 ECDH Decapsulation Key.
+#[cfg(feature = "p256")]
+pub type NistP256DecapsulationKey = EcdhDecapsulationKey<p256::NistP256>;
+/// NIST P-256 ECDH Encapsulation Key.
+#[cfg(feature = "p256")]
+pub type NistP256EncapsulationKey = EcdhEncapsulationKey<p256::NistP256>;
+/// NIST P-256 DHKEM.
+#[cfg(feature = "p256")]
+pub type NistP256Kem = EcdhKem<p256::NistP256>;
+#[cfg(feature = "p256")]
+impl HpkeKemId for NistP256Kem {
+    const KEM_ID: u16 = 0x10;
+}
+
+/// NIST P-384 ECDH Decapsulation Key.
+#[cfg(feature = "p384")]
+pub type NistP384DecapsulationKey = EcdhDecapsulationKey<p384::NistP384>;
+/// NIST P-384 ECDH Encapsulation Key.
+#[cfg(feature = "p384")]
+pub type NistP384EncapsulationKey = EcdhEncapsulationKey<p384::NistP384>;
+/// NIST P-384 DHKEM.
+#[cfg(feature = "p384")]
+pub type NistP384Kem = EcdhKem<p384::NistP384>;
+#[cfg(feature = "p384")]
+impl HpkeKemId for NistP384Kem {
+    const KEM_ID: u16 = 0x11;
+}
+
+/// NIST P-521 ECDH Decapsulation Key.
+#[cfg(feature = "p521")]
+pub type NistP521DecapsulationKey = EcdhDecapsulationKey<p521::NistP521>;
+/// NIST P-521 ECDH Encapsulation Key.
+#[cfg(feature = "p521")]
+pub type NistP521EncapsulationKey = EcdhEncapsulationKey<p521::NistP521>;
+/// NIST P-521 DHKEM.
+#[cfg(feature = "p521")]
+pub type NistP521Kem = EcdhKem<p521::NistP521>;
+#[cfg(feature = "p521")]
+impl HpkeKemId for NistP521Kem {
+    const KEM_ID: u16 = 0x12;
+}
+
+/// secp256k1 ECDH Decapsulation Key.
+#[cfg(feature = "k256")]
+pub type Secp256k1DecapsulationKey = EcdhDecapsulationKey<k256::Secp256k1>;
+/// secp256k1 ECDH Encapsulation Key.
+#[cfg(feature = "k256")]
+pub type Secp256k1EncapsulationKey = EcdhEncapsulationKey<k256::Secp256k1>;
+/// secp256k1 DHKEM.
+#[cfg(feature = "k256")]
+pub type Secp256k1Kem = EcdhKem<k256::Secp256k1>;

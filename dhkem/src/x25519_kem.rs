@@ -1,7 +1,10 @@
-use crate::{DecapsulationKey, EncapsulationKey};
+//! KEM which uses the X25519 Diffie-Hellman function.
+
+use crate::{DecapsulationKey, EncapsulationKey, Error, HpkeKemId};
+use ctutils::CtEq;
 use kem::{
-    Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit,
-    KeySizeUser, TryKeyInit,
+    Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit, KeySizeUser,
+    TryDecapsulate, TryKeyInit,
     common::array::{Array, sizes::U32},
 };
 use rand_core::{CryptoRng, TryCryptoRng};
@@ -27,6 +30,10 @@ impl Kem for X25519Kem {
     type EncapsulationKey = X25519EncapsulationKey;
     type CiphertextSize = U32;
     type SharedKeySize = U32;
+}
+
+impl HpkeKemId for X25519Kem {
+    const KEM_ID: u16 = 0x20;
 }
 
 /// Elliptic Curve Diffie-Hellman Decapsulation Key (i.e. secret decryption key)
@@ -87,10 +94,23 @@ impl Generate for X25519DecapsulationKey {
 /// To produce something suitable for e.g. symmetric key(s), use the [`Expander`] type to derive
 /// output keys.
 /// </div>
-impl Decapsulate for X25519DecapsulationKey {
-    fn decapsulate(&self, encapsulated_key: &Ciphertext) -> SharedKey {
+impl TryDecapsulate for X25519DecapsulationKey {
+    type Error = Error;
+
+    #[inline]
+    fn try_decapsulate(&self, encapsulated_key: &Ciphertext) -> Result<SharedKey, Error> {
         let public_key = PublicKey::from(encapsulated_key.0);
-        self.dk.diffie_hellman(&public_key).to_bytes().into()
+        let sk = self.dk.diffie_hellman(&public_key).to_bytes();
+
+        // From RFC9810 §7.1.4. Validation of Inputs and Outputs:
+        // > For X25519 and X448, public keys and Diffie-Hellman outputs MUST be validated as
+        // > described in RFC7748. In particular, recipients MUST check whether the Diffie-Hellman
+        // > shared secret is the all-zero value and abort if so.
+        if sk.ct_eq(&[0u8; 32]).into() {
+            return Err(Error::Decapsulation);
+        }
+
+        Ok(sk.into())
     }
 }
 

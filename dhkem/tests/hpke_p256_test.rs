@@ -5,7 +5,7 @@
 #![allow(clippy::unwrap_used, reason = "tests")]
 
 use core::convert::Infallible;
-use dhkem::NistP256DecapsulationKey;
+use dhkem::{HpkeKemId, NistP256DecapsulationKey, NistP256Kem};
 use hex_literal::hex;
 use kem::{Encapsulate, KeyExport, TryDecapsulate, TryKeyInit};
 use rand_core::{TryCryptoRng, TryRng};
@@ -42,11 +42,11 @@ impl TryRng for ConstantRng<'_> {
 // this is only ever ok for testing
 impl TryCryptoRng for ConstantRng<'_> {}
 
-fn extract_and_expand(shared_secret: &[u8], kem_context: &[u8]) -> [u8; 32] {
+fn extract_and_expand<K: HpkeKemId>(shared_secret: &[u8], kem_context: &[u8]) -> [u8; 32] {
     let mut out = [0u8; 32];
-    let expander = Expander::new_labeled_hpke(b"", b"eae_prk", shared_secret).unwrap();
+    let expander = Expander::new_labeled_hpke::<K>(b"", b"eae_prk", shared_secret).unwrap();
     expander
-        .expand_labeled_hpke(b"shared_secret", kem_context, &mut out)
+        .expand_labeled_hpke::<K>(b"shared_secret", kem_context, &mut out)
         .unwrap();
 
     out
@@ -81,7 +81,7 @@ fn test_dhkem_p256_hkdf_sha256() {
     assert_eq!(ss1, ss2);
 
     let kem_context = [example_pke, example_pkr].concat();
-    let shared_secret = extract_and_expand(&ss1, &kem_context);
+    let shared_secret = extract_and_expand::<NistP256Kem>(&ss1, &kem_context);
 
     assert_eq!(&shared_secret, &example_shared_secret);
 }
