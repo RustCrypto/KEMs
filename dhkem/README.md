@@ -1,4 +1,4 @@
-# [RustCrypto]: Diffie-Hellman-Based KEM
+# [RustCrypto]: Diffie-Hellman-based KEM
 
 [![crate][crate-image]][crate-link]
 [![Docs][docs-image]][docs-link]
