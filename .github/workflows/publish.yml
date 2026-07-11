@@ -4,6 +4,7 @@ on:
     tags: [
       "dhkem/v**",
       "frodo-kem/v**",
+      "hqc-kem/v**",
       "ml-kem/v**",
       "module-lattice/v**",
       "x-wing/v**"
