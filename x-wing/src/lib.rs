@@ -281,11 +281,17 @@ fn expand_key(
     shaker.update(sk);
     let mut expanded: Shake256Reader = shaker.finalize_xof();
 
-    let seed = read_from(&mut expanded).into();
+    #[allow(unused_mut)]
+    let mut seed = read_from(&mut expanded).into();
     let (sk_m, pk_m) = MlKem768::from_seed(&seed);
+    #[cfg(feature = "zeroize")]
+    seed.zeroize();
 
-    let sk_x = read_from(&mut expanded);
-    let sk_x = StaticSecret::from(sk_x);
+    #[allow(unused_mut)]
+    let mut sk_x_raw = read_from(&mut expanded);
+    let sk_x = StaticSecret::from(sk_x_raw);
+    #[cfg(feature = "zeroize")]
+    sk_x_raw.zeroize();
     let pk_x = PublicKey::from(&sk_x);
 
     (sk_m, sk_x, pk_m, pk_x)
