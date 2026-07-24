@@ -43,7 +43,8 @@
 //!
 //! ## ☢️️ WARNING: HAZARDOUS ☢️
 //! It is considered unsafe to use Ephemeral algorithms more than once.
-//! For more information see [ISO Standard Annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf).
+//! For more information, see Clause 14 of
+//! [ISO/IEC 18033-2:2006/Amd 2:2026](https://www.iso.org/standard/86890.html).
 //!
 //! ```
 //! use frodo_kem::Algorithm;
@@ -60,9 +61,13 @@
 //! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, &salt).unwrap();
 //! let (dec_ss, dec_msg) = alg.decapsulate(&dk, &ct).unwrap();
 //!
-//! // Ephemeral method, no salt required
+//! assert_eq!(enc_ss, dec_ss);
+//! assert_eq!(&aes_256_key[..], dec_msg.as_slice());
+//!
+//! // Ephemeral method: use a dedicated ephemeral keypair and no salt.
 //! let alg = Algorithm::EphemeralFrodoKem1344Shake;
-//! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, &[]).unwrap();
+//! let (ek, dk) = alg.generate_keypair(&mut rng);
+//! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, []).unwrap();
 //! let (dec_ss, dec_msg) = alg.decapsulate(&dk, &ct).unwrap();
 //!
 //! assert_eq!(enc_ss, dec_ss);
@@ -1467,8 +1472,14 @@ impl Algorithm {
         msg: &[u8],
         salt: &[u8],
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        if encryption_key.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
         if K::BYTES_MU != msg.len() {
             return Err(Error::InvalidMessageLength(msg.len()));
+        }
+        if K::BYTES_SALT != salt.len() {
+            return Err(Error::InvalidSaltLength(salt.len()));
         }
         let pk = EncryptionKeyRef::from_slice(encryption_key.value.as_slice())?;
         let (ct, ss) = K::default().encapsulate(pk, msg, salt);
@@ -1547,6 +1558,9 @@ impl Algorithm {
         encryption_key: &EncryptionKey,
         rng: &mut R,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        if encryption_key.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
         let pk = EncryptionKeyRef::from_slice(encryption_key.value.as_slice())?;
         let (ct, ss) = K::default().encapsulate_with_rng(pk, rng);
         Ok((
@@ -1625,6 +1639,9 @@ impl Algorithm {
         secret_key: &DecryptionKey,
         ciphertext: &Ciphertext,
     ) -> FrodoResult<(SharedSecret, Vec<u8>)> {
+        if secret_key.algorithm != *self || ciphertext.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
         let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
         let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
         let (ss, mu) = K::default().decapsulate(sk, ct);
@@ -1682,6 +1699,54 @@ mod tests {
     use super::*;
     use rand_core::{Rng, SeedableRng};
     use rstest::*;
+
+    #[test]
+    fn conformance_boundaries_and_implicit_rejection() {
+        let algorithm = Algorithm::FrodoKem640Shake;
+        let other = Algorithm::EphemeralFrodoKem640Shake;
+        let mut rng = chacha20::ChaCha8Rng::from_seed([7; 32]);
+        let (encryption_key, decryption_key) = algorithm.generate_keypair(&mut rng);
+
+        assert!(algorithm.encapsulate(&encryption_key, [], []).is_err());
+        assert!(
+            algorithm
+                .encapsulate(
+                    &encryption_key,
+                    vec![0; algorithm.params().message_length],
+                    [],
+                )
+                .is_err()
+        );
+        assert!(
+            other
+                .encapsulate_with_rng(&encryption_key, &mut rng)
+                .is_err()
+        );
+
+        let (ciphertext, shared_secret) = algorithm
+            .encapsulate_with_rng(&encryption_key, &mut rng)
+            .unwrap();
+        let mut modified_ciphertext = ciphertext.clone();
+        modified_ciphertext.value[0] ^= 1;
+        let rejected_secret = algorithm
+            .decapsulate(&decryption_key, &modified_ciphertext)
+            .unwrap()
+            .0;
+        let repeated_secret = algorithm
+            .decapsulate(&decryption_key, &modified_ciphertext)
+            .unwrap()
+            .0;
+        assert_ne!(rejected_secret, shared_secret);
+        assert_eq!(rejected_secret, repeated_secret);
+
+        let wrong_ciphertext =
+            Ciphertext::from_bytes(other, vec![0; other.params().ciphertext_length]).unwrap();
+        assert!(
+            algorithm
+                .decapsulate(&decryption_key, &wrong_ciphertext)
+                .is_err()
+        );
+    }
 
     #[rstest]
     #[case::aes640(Algorithm::FrodoKem640Aes)]

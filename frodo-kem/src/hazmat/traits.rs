@@ -113,9 +113,8 @@ pub trait Kem: Params + Expanded + Sample {
 
     /// Generate a keypair
     ///
-    /// See Algorithm 12 in [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    /// Algorithm 8.1 in [iso](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf).
-    /// Algorithm 1 in [annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
+    /// Implements `Frodo.KeyGen` from Clause 14 of
+    /// [ISO/IEC 18033-2:2006/Amd 2:2026](https://www.iso.org/standard/86890.html).
     fn generate_keypair<R: CryptoRng + ?Sized>(
         &self,
         rng: &mut R,
@@ -204,9 +203,8 @@ pub trait Kem: Params + Expanded + Sample {
 
     /// Encapsulate a random message into a ciphertext.
     ///
-    /// See Algorithm 13 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    /// Algorithm 8.2 in [iso](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf).
-    /// Algorithm 2 in [annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
+    /// Implements randomized `Frodo.Encaps` from Clause 14 of
+    /// [ISO/IEC 18033-2:2006/Amd 2:2026](https://www.iso.org/standard/86890.html).
     fn encapsulate_with_rng<'a, P: Into<EncryptionKeyRef<'a, Self>>, R: CryptoRng + ?Sized>(
         &self,
         public_key: P,
@@ -221,9 +219,8 @@ pub trait Kem: Params + Expanded + Sample {
 
     /// Encapsulate a message into a ciphertext.
     ///
-    /// See Algorithm 13 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    /// Algorithm 8.2 in [iso](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf).
-    /// Algorithm 2 in [annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
+    /// Implements deterministic `Frodo.Encaps` from Clause 14 of
+    /// [ISO/IEC 18033-2:2006/Amd 2:2026](https://www.iso.org/standard/86890.html).
     fn encapsulate<'a, P: Into<EncryptionKeyRef<'a, Self>>>(
         &self,
         public_key: P,
@@ -311,9 +308,8 @@ pub trait Kem: Params + Expanded + Sample {
 
     /// Decapsulate the ciphertext into a shared secret.
     ///
-    /// See Algorithm 14 in the [spec](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-    /// Algorithm 8.3 in [iso](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf).
-    /// Algorithm 3 in [annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
+    /// Implements `Frodo.Decaps` from Clause 14 of
+    /// [ISO/IEC 18033-2:2006/Amd 2:2026](https://www.iso.org/standard/86890.html).
     fn decapsulate<
         'a,
         'b,

@@ -6,18 +6,40 @@
 ![Apache2/MIT licensed][license-image]
 ![MSRV][msrv-image]
 
-A pure rust implementation of 
-- [FrodoKEM Learning with Errors Key Encapsulation](https://frodokem.org/files/FrodoKEM-specification-20210604.pdf).
-- [ISO Standard](https://frodokem.org/files/FrodoKEM-standard_proposal-20230314.pdf)
-- [ISO Standard Annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf)
+A pure Rust implementation of FrodoKEM and eFrodoKEM as specified in
+[ISO/IEC 18033-2:2006/Amd 2:2026][iso-standard].
 
-It's submission was included in NIST's PQ Round 3 competition, and is now being standardized at ISO.
+FrodoKEM was an alternate candidate in round 3 of the NIST Post-Quantum
+Cryptography Standardization Project and is now standardized by ISO.
+
+## ISO conformance
+
+This crate implements the `Frodo.KeyGen`, `Frodo.Encaps`, and `Frodo.Decaps`
+mathematical functions from Clause 14 of ISO/IEC 18033-2:2006/Amd 2:2026 for
+all twelve parameter sets listed below.
+
+Algorithmic conformance is checked against all 1,200 known-answer tests from
+the FrodoKEM team's [official reference implementation][reference-kats]:
+100 cases for each standard and ephemeral AES and SHAKE parameter set. The
+tests verify deterministic key generation, encapsulation, and decapsulation
+outputs. Additional tests exercise implicit rejection of modified ciphertexts,
+parameter sizes, and serialization.
+
+Based on a clause-by-clause implementation review and the complete official
+KAT suite, this crate conforms to the FrodoKEM algorithms and parameter sets
+specified by Clause 14 of ISO/IEC 18033-2:2006/Amd 2:2026.
+
+This conformance assessment has not been independently verified by a third
+party. The crate has not received ISO certification, an accredited
+conformance assessment, or an independent security audit. See the detailed
+[conformance review](CONFORMANCE.md) for the evidence and limitations behind
+the claim.
 
 ## ⚠️ Security Warning
 
-This crate has been tested against the test vectors provided by the FrodoKEM team
-and been rigorously tested for correctness, performance, and security. It has 
-also been tested against opensafequatum's [liboqs](https://github.com/open-quantum-safe/liboqs) library to compatibility and correctness.
+This crate has been tested against the test vectors provided by the FrodoKEM
+team and for interoperability with Open Quantum Safe's
+[liboqs](https://github.com/open-quantum-safe/liboqs).
 
 The implementation contained in this crate has never been independently audited!
 
@@ -40,8 +62,9 @@ This crate provides the following FrodoKEM algorithms:
 - [x] eFrodoKEM-976-SHAKE ✅
 - [x] eFrodoKEM-1344-SHAKE ✅
 
-eFrodoKEM is a variant of FrodoKEM that is meant to be used one-time only. Using more than once
-is considered a security risk.
+eFrodoKEM is intended only for applications that guarantee a small number of
+ciphertexts per public key (for example, at most 2<sup>8</sup>). Prefer standard
+FrodoKEM unless that usage restriction is enforced by the application.
 
 When in doubt use the FrodoKEM algorithm variants.
 
@@ -55,7 +78,7 @@ To speed up AES, there are a few options available:
 - `frodo-kem = { version = "0.3", features = ["openssl"] }` uses the `openssl` crate for AES.
 
 By default, the `aes` feature auto-detects the best AES implementation for your platform
-for x86 and x86_64,
+for x86 and x86\_64,
 but not on ARMv8 where it defaults to the software implementation as of this writing.
 To enable the ARMv8 AES instructions, the `aes_armv8` feature is enabled in the `.cargo/config` file in this crate.
 
@@ -112,3 +135,5 @@ conditions.
 [docs-link]: https://docs.rs/frodo-kem/
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
 [msrv-image]: https://img.shields.io/badge/rustc-1.85+-blue.svg
+[iso-standard]: https://www.iso.org/standard/86890.html
+[reference-kats]: https://github.com/microsoft/PQCrypto-LWEKE/tree/7a4e7219d06305e16aef734213001cd8fefbcc14
