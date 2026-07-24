@@ -5,9 +5,9 @@ use crate::hazmat::{
     SharedSecret,
 };
 use alloc::{string::String, vec::Vec};
+use ctutils::{Choice, CtEq, CtSelect};
 use rand_core::CryptoRng;
 use sha3::digest::{ExtendableOutput, ExtendableOutputReset, Update};
-use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use zeroize::Zeroize;
 
 /// Trait for implementing the FrodoKEM sampling algorithm
@@ -120,10 +120,22 @@ pub trait Kem: Params + Expanded + Sample {
         &self,
         rng: &mut R,
     ) -> (EncryptionKey<Self>, DecryptionKey<Self>) {
-        let mut sk = DecryptionKey::default();
-        let mut pk = EncryptionKey::default();
         let mut randomness = vec![0u8; Self::KEY_SEED_SIZE];
         rng.fill_bytes(&mut randomness);
+        self.generate_keypair_from_seed(&mut randomness)
+    }
+
+    /// Generate a keypair from a seed.
+    ///
+    /// The seed is used as the randomness part of the keypair
+    /// and will be zeroized after the keypair is generated.
+    fn generate_keypair_from_seed(
+        &self,
+        randomness: &mut [u8],
+    ) -> (EncryptionKey<Self>, DecryptionKey<Self>) {
+        debug_assert_eq!(randomness.len(), Self::KEY_SEED_SIZE);
+        let mut sk = DecryptionKey::default();
+        let mut pk = EncryptionKey::default();
 
         sk.random_s_mut()
             .copy_from_slice(&randomness[..Self::SHARED_SECRET_LENGTH]);
@@ -312,13 +324,44 @@ pub trait Kem: Params + Expanded + Sample {
         secret_key: S,
         ciphertext: C,
     ) -> (SharedSecret<Self>, Vec<u8>) {
+        self.decapsulate_inner(secret_key, ciphertext, true)
+    }
+
+    /// Decapsulate a ciphertext when only the shared secret is needed.
+    ///
+    /// This avoids allocating and copying the recovered message.
+    fn decapsulate_shared_secret<
+        'a,
+        'b,
+        S: Into<DecryptionKeyRef<'a, Self>>,
+        C: Into<CiphertextRef<'b, Self>>,
+    >(
+        &self,
+        secret_key: S,
+        ciphertext: C,
+    ) -> SharedSecret<Self> {
+        self.decapsulate_inner(secret_key, ciphertext, false).0
+    }
+
+    /// Internal decapsulation implementation with optional message recovery.
+    #[doc(hidden)]
+    fn decapsulate_inner<
+        'a,
+        'b,
+        S: Into<DecryptionKeyRef<'a, Self>>,
+        C: Into<CiphertextRef<'b, Self>>,
+    >(
+        &self,
+        secret_key: S,
+        ciphertext: C,
+        recover_message: bool,
+    ) -> (SharedSecret<Self>, Vec<u8>) {
         let secret_key = secret_key.into();
         let ciphertext = ciphertext.into();
 
         let mut ss = SharedSecret::default();
         let mut matrix_s = vec![0u16; Self::N_X_N_BAR];
-        let pk = EncryptionKeyRef::<Self>::from_slice(secret_key.public_key())
-            .expect("Invalid public key");
+        let pk = EncryptionKeyRef::<Self>::from_validated_slice(secret_key.public_key());
 
         for (i, b) in matrix_s.iter_mut().enumerate() {
             let bb = [
@@ -416,7 +459,12 @@ pub trait Kem: Params + Expanded + Sample {
 
         shake.update(&fin_k);
         shake.finalize_xof_into(&mut ss.0);
-        let mu_prime = g2_in[Self::BYTES_PK_HASH..Self::BYTES_PK_HASH + Self::BYTES_MU].to_vec();
+        fin_k.zeroize();
+        let mu_prime = if recover_message {
+            g2_in[Self::BYTES_PK_HASH..Self::BYTES_PK_HASH + Self::BYTES_MU].to_vec()
+        } else {
+            Vec::new()
+        };
 
         matrix_s.zeroize();
         matrix_w.zeroize();
@@ -771,7 +819,7 @@ pub trait Kem: Params + Expanded + Sample {
     /// Constant time select for a u16 array
     fn ct_select(&self, choice: Choice, a: &[u8], b: &[u8], out: &mut [u8]) {
         for i in 0..a.len() {
-            out[i] = u8::conditional_select(&b[i], &a[i], choice);
+            out[i] = b[i].ct_select(&a[i], choice);
         }
     }
 }

@@ -4,6 +4,7 @@ use super::{Expanded, Kem, Params, Sample};
 use crate::{Error, FrodoResult};
 use alloc::{boxed::Box, vec::Vec};
 use core::marker::PhantomData;
+use ctutils::CtEq;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 macro_rules! from_slice_impl {
@@ -88,6 +89,11 @@ from_slice_impl!(Ciphertext);
 serde_impl!(Ciphertext);
 
 impl<P: Params> Ciphertext<P> {
+    /// Consume this ciphertext and return its serialized bytes.
+    pub(crate) fn into_vec(self) -> Vec<u8> {
+        self.0
+    }
+
     /// Convert a slice of bytes into a ciphertext
     pub fn from_slice(bytes: &[u8]) -> FrodoResult<Self> {
         if bytes.len() != P::CIPHERTEXT_LENGTH {
@@ -150,6 +156,11 @@ impl<'a, P: Params> From<&'a Ciphertext<P>> for CiphertextRef<'a, P> {
 }
 
 impl<'a, P: Params> CiphertextRef<'a, P> {
+    /// Create a ciphertext reference from bytes whose length was validated by its type.
+    pub(crate) fn from_validated_slice(bytes: &'a [u8]) -> Self {
+        Self(bytes, PhantomData)
+    }
+
     /// Create a ciphertext reference
     #[allow(dead_code)]
     pub fn from_slice(bytes: &'a [u8]) -> FrodoResult<Self> {
@@ -255,6 +266,11 @@ impl<P: Params> EncryptionKey<P> {
 pub struct EncryptionKeyRef<'a, P: Params>(pub(crate) &'a [u8], pub(crate) PhantomData<P>);
 
 impl<'a, P: Params> EncryptionKeyRef<'a, P> {
+    /// Create a public-key reference from bytes whose length was already validated.
+    pub(crate) fn from_validated_slice(bytes: &'a [u8]) -> Self {
+        Self(bytes, PhantomData)
+    }
+
     /// Create a public key reference
     pub fn from_slice(bytes: &'a [u8]) -> FrodoResult<Self> {
         if bytes.len() != P::PUBLIC_KEY_LENGTH {
@@ -284,8 +300,28 @@ impl<'a, P: Params> EncryptionKeyRef<'a, P> {
 }
 
 /// A FrodoKEM secret key
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct DecryptionKey<P: Params>(pub(crate) Vec<u8>, pub(crate) PhantomData<P>);
+
+impl<P: Params> core::fmt::Debug for DecryptionKey<P> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DecryptionKey").finish_non_exhaustive()
+    }
+}
+
+impl<P: Params> CtEq for DecryptionKey<P> {
+    fn ct_eq(&self, other: &Self) -> ctutils::Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+impl<P: Params> Eq for DecryptionKey<P> {}
+
+impl<P: Params> PartialEq for DecryptionKey<P> {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
+    }
+}
 
 impl<P: Params> AsRef<[u8]> for DecryptionKey<P> {
     fn as_ref(&self) -> &[u8] {
@@ -307,11 +343,22 @@ impl<P: Params> Zeroize for DecryptionKey<P> {
 
 impl<P: Params> ZeroizeOnDrop for DecryptionKey<P> {}
 
+impl<P: Params> Drop for DecryptionKey<P> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 from_slice_impl!(DecryptionKey);
 
 serde_impl!(DecryptionKey);
 
 impl<P: Params> DecryptionKey<P> {
+    /// Consume this key and return its serialized bytes.
+    pub(crate) fn into_vec(mut self) -> Vec<u8> {
+        core::mem::take(&mut self.0)
+    }
+
     /// Convert a slice of bytes into a secret key
     pub fn from_slice(bytes: &[u8]) -> FrodoResult<Self> {
         if bytes.len() != P::SECRET_KEY_LENGTH {
@@ -430,8 +477,28 @@ impl<'a, P: Params> DecryptionKeyRef<'a, P> {
 }
 
 /// A FrodoKEM shared secret
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone)]
 pub struct SharedSecret<P: Params>(pub(crate) Vec<u8>, pub(crate) PhantomData<P>);
+
+impl<P: Params> core::fmt::Debug for SharedSecret<P> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SharedSecret").finish_non_exhaustive()
+    }
+}
+
+impl<P: Params> CtEq for SharedSecret<P> {
+    fn ct_eq(&self, other: &Self) -> ctutils::Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+impl<P: Params> Eq for SharedSecret<P> {}
+
+impl<P: Params> PartialEq for SharedSecret<P> {
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other))
+    }
+}
 
 impl<P: Params> AsRef<[u8]> for SharedSecret<P> {
     fn as_ref(&self) -> &[u8] {
@@ -453,11 +520,22 @@ impl<P: Params> Zeroize for SharedSecret<P> {
 
 impl<P: Params> ZeroizeOnDrop for SharedSecret<P> {}
 
+impl<P: Params> Drop for SharedSecret<P> {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
+
 from_slice_impl!(SharedSecret);
 
 serde_impl!(SharedSecret);
 
 impl<P: Params> SharedSecret<P> {
+    /// Consume this shared secret and return its bytes.
+    pub(crate) fn into_vec(mut self) -> Vec<u8> {
+        core::mem::take(&mut self.0)
+    }
+
     /// Convert a slice of bytes into a shared secret
     pub fn from_slice(bytes: &[u8]) -> FrodoResult<Self> {
         if bytes.len() != P::SHARED_SECRET_LENGTH {
