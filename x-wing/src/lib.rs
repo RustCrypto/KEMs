@@ -26,9 +26,12 @@
 //! assert_eq!(sk_sender, sk_receiver);
 //! ```
 
+mod error;
+
+pub use crate::error::DecapsulationError;
 pub use kem::{
     self, Decapsulate, Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport,
-    KeyInit, KeySizeUser, TryKeyInit,
+    KeyInit, KeySizeUser, TryDecapsulate, TryKeyInit,
     common::rand_core::{CryptoRng, TryCryptoRng},
 };
 
@@ -180,6 +183,9 @@ impl TryFrom<&[u8]> for EncapsulationKey {
 }
 
 /// X-Wing decapsulation key or private key.
+///
+/// This decapsulation key accepts "non-contributory behaviour" in the X25519 component of
+/// X-Wing. To reject instead, use [`DecapsulationKeyRejectNonContrib`].
 #[derive(Clone)]
 pub struct DecapsulationKey {
     sk: [u8; DECAPSULATION_KEY_SIZE],
@@ -202,16 +208,27 @@ impl Debug for DecapsulationKey {
     }
 }
 
-impl Decapsulate for DecapsulationKey {
-    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
-    fn decapsulate(&self, ct: &Ciphertext) -> SharedKey {
-        let ct = CiphertextMessage::from(ct);
+impl DecapsulationKey {
+    fn decapsulate_inner(
+        &self,
+        ct: &CiphertextMessage,
+    ) -> (SharedKey, x25519_dalek::SharedSecret, PublicKey) {
         let (sk_m, sk_x, _pk_m, pk_x) = expand_key(&self.sk);
 
         let ss_m = sk_m.decapsulate(&ct.ct_m);
 
         // equal to ss_x = x25519(sk_x, ct_x)
         let ss_x = sk_x.diffie_hellman(&ct.ct_x);
+
+        (ss_m, ss_x, pk_x)
+    }
+}
+
+impl Decapsulate for DecapsulationKey {
+    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
+    fn decapsulate(&self, ct: &Ciphertext) -> SharedKey {
+        let ct = CiphertextMessage::from(ct);
+        let (ss_m, ss_x, pk_x) = self.decapsulate_inner(&ct);
 
         combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x)
     }
@@ -267,6 +284,91 @@ impl KeyExport for DecapsulationKey {
 
 #[cfg(feature = "zeroize")]
 impl ZeroizeOnDrop for DecapsulationKey {}
+
+/// X-Wing decapsulation key or private key.
+///
+/// This decapsulation key rejects "non-contributory behaviour" in the X25519 component of
+/// X-Wing. To accept instead, use [`DecapsulationKey`].
+///
+/// # Backstory
+///
+/// [RFC 7748] defines the `X25519` function, and [specifies] that when used for ECDH
+/// (as it is inside X-Wing), the implementation **MAY** abort if the all-zero value
+/// is produced as a shared secret. X-Wing, as initially specified, used the X25519
+/// function without making any mention of this **MAY**, meaning that implementations
+/// inherited whatever behaviour their underlying X25519 ECDH implementation provided.
+///
+/// This crate initially did not check for non-contributory behaviour, which meant it
+/// was incompatible with other implementations that did (in that it would accept
+/// ciphertexts that other implementations reject).
+///
+/// [CFRG have decided] that they will pick a single behaviour for the IETF X-Wing
+/// standard. Until the corresponding RFC is published, this crate supports both
+/// behaviours: constructing a [`DecapsulationKey`] accepts non-contributory behaviour for
+/// backwards-compatibility with existing usages, and this struct can be used to instead
+/// reject non-contributory behaviour. Once the RFC is published, `DecapsulationKey` will
+/// be altered to match it.
+///
+/// [RFC 7748]: https://www.rfc-editor.org/info/rfc7748/#section-5
+/// [specifies]: https://www.rfc-editor.org/info/rfc7748/#section-6.1
+/// [CFRG have decided]: https://mailarchive.ietf.org/arch/msg/cfrg/v9fEHQj3QTUpdu72AzjyyrY4j2g/
+#[derive(Clone, Debug)]
+pub struct DecapsulationKeyRejectNonContrib(DecapsulationKey);
+
+impl TryDecapsulate for DecapsulationKeyRejectNonContrib {
+    type Error = DecapsulationError;
+
+    #[allow(clippy::similar_names)] // So we can use the names as in the RFC
+    fn try_decapsulate(&self, ct: &Ciphertext) -> Result<SharedKey, Self::Error> {
+        let ct = CiphertextMessage::from(ct);
+        let (ss_m, ss_x, pk_x) = self.0.decapsulate_inner(&ct);
+
+        if !ss_x.was_contributory() {
+            return Err(DecapsulationError);
+        }
+
+        Ok(combiner(&ss_m, &ss_x, &ct.ct_x, &pk_x))
+    }
+}
+
+impl Decapsulator for DecapsulationKeyRejectNonContrib {
+    type Kem = XWingKem;
+
+    fn encapsulation_key(&self) -> &EncapsulationKey {
+        self.0.encapsulation_key()
+    }
+}
+
+impl From<[u8; DECAPSULATION_KEY_SIZE]> for DecapsulationKeyRejectNonContrib {
+    fn from(sk: [u8; DECAPSULATION_KEY_SIZE]) -> Self {
+        Self(sk.into())
+    }
+}
+
+impl Generate for DecapsulationKeyRejectNonContrib {
+    fn try_generate_from_rng<R>(rng: &mut R) -> Result<Self, R::Error>
+    where
+        R: TryCryptoRng + ?Sized,
+    {
+        DecapsulationKey::try_generate_from_rng(rng).map(Self)
+    }
+}
+
+impl KeySizeUser for DecapsulationKeyRejectNonContrib {
+    type KeySize = U32;
+}
+
+impl KeyInit for DecapsulationKeyRejectNonContrib {
+    fn new(key: &Key<Self>) -> Self {
+        Self(DecapsulationKey::new(key))
+    }
+}
+
+impl KeyExport for DecapsulationKeyRejectNonContrib {
+    fn to_bytes(&self) -> Key<Self> {
+        self.0.to_bytes()
+    }
+}
 
 fn expand_key(
     sk: &[u8; DECAPSULATION_KEY_SIZE],
@@ -379,5 +481,25 @@ mod tests {
 
         assert_eq!(sk.sk, sk_b.sk);
         assert!(pk == pk_b);
+    }
+
+    #[test]
+    #[cfg(feature = "getrandom")]
+    fn non_contributory() {
+        let (sk, pk) = XWingKem::generate_keypair();
+
+        // Construct a ciphertext with non-contributory behaviour.
+        let ct = CiphertextMessage {
+            ct_m: pk.pk_m.encapsulate().0,
+            ct_x: PublicKey::from([0; 32]),
+        }
+        .into();
+
+        // By default, sk accepts.
+        assert!(sk.try_decapsulate(&ct).is_ok());
+
+        // If rejecting non-contributory behaviour, sk errors.
+        let sk = DecapsulationKeyRejectNonContrib(sk);
+        assert!(matches!(sk.try_decapsulate(&ct), Err(DecapsulationError)));
     }
 }
