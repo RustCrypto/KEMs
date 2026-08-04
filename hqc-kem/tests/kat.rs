@@ -168,8 +168,9 @@ fn test_hqc256_kat() {
 
 #[test]
 fn test_hqc128_roundtrip() {
-    let mut rng = rand::rng();
+    let mut rng = KatRng::new(b"hqc128-roundtrip-keygen");
     let (ek, dk) = hqc128::generate_key(&mut rng);
+    let mut rng = KatRng::new(b"hqc128-roundtrip-encaps");
     let (ct, ss1) = ek.encapsulate(&mut rng);
     let ss2 = dk.decapsulate(&ct);
     assert_eq!(ss1, ss2, "HQC-128 roundtrip failed");
@@ -177,8 +178,9 @@ fn test_hqc128_roundtrip() {
 
 #[test]
 fn test_hqc192_roundtrip() {
-    let mut rng = rand::rng();
+    let mut rng = KatRng::new(b"hqc192-roundtrip-keygen");
     let (ek, dk) = hqc192::generate_key(&mut rng);
+    let mut rng = KatRng::new(b"hqc192-roundtrip-encaps");
     let (ct, ss1) = ek.encapsulate(&mut rng);
     let ss2 = dk.decapsulate(&ct);
     assert_eq!(ss1, ss2, "HQC-192 roundtrip failed");
@@ -186,8 +188,9 @@ fn test_hqc192_roundtrip() {
 
 #[test]
 fn test_hqc256_roundtrip() {
-    let mut rng = rand::rng();
+    let mut rng = KatRng::new(b"hqc256-roundtrip-keygen");
     let (ek, dk) = hqc256::generate_key(&mut rng);
+    let mut rng = KatRng::new(b"hqc256-roundtrip-encaps");
     let (ct, ss1) = ek.encapsulate(&mut rng);
     let ss2 = dk.decapsulate(&ct);
     assert_eq!(ss1, ss2, "HQC-256 roundtrip failed");

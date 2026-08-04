@@ -153,16 +153,55 @@ mod tests {
     use super::*;
     use kem_traits::common::{Generate, KeyExport, KeyInit};
     use kem_traits::{Decapsulate, Encapsulate, Kem};
+    use shake::{ExtendableOutput, Shake256, Shake256Reader, Update, XofReader};
+
+    struct TestRng {
+        reader: Shake256Reader,
+    }
+
+    impl TestRng {
+        fn new(label: &[u8]) -> Self {
+            let mut hasher = Shake256::default();
+            hasher.update(label);
+            Self {
+                reader: hasher.finalize_xof(),
+            }
+        }
+    }
+
+    impl rand::TryRng for TestRng {
+        type Error = core::convert::Infallible;
+
+        fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
+            let mut buf = [0u8; 4];
+            self.try_fill_bytes(&mut buf)?;
+            Ok(u32::from_le_bytes(buf))
+        }
+
+        fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
+            let mut buf = [0u8; 8];
+            self.try_fill_bytes(&mut buf)?;
+            Ok(u64::from_le_bytes(buf))
+        }
+
+        fn try_fill_bytes(&mut self, dest: &mut [u8]) -> Result<(), Self::Error> {
+            self.reader.read(dest);
+            Ok(())
+        }
+    }
+
+    impl rand::TryCryptoRng for TestRng {}
 
     macro_rules! kem_roundtrip_test {
         ($name:ident, $params:ty) => {
             #[test]
             fn $name() {
                 // Generate via kem trait
-                let mut rng = rand::rng();
+                let mut rng = TestRng::new(concat!(stringify!($name), "-keygen").as_bytes());
                 let (dk, ek) = <$params>::generate_keypair_from_rng(&mut rng);
 
                 // Encapsulate
+                let mut rng = TestRng::new(concat!(stringify!($name), "-encaps").as_bytes());
                 let (ct, ss1) = ek.encapsulate_with_rng(&mut rng);
 
                 // Decapsulate (use UFCS to call trait method, not inherent)
@@ -185,7 +224,8 @@ mod tests {
             #[test]
             fn $name() {
                 // Generate DK, export seed, re-import, verify deterministic
-                let dk = DecapsulationKey::<$params>::generate_from_rng(&mut rand::rng());
+                let mut rng = TestRng::new(concat!(stringify!($name), "-keygen").as_bytes());
+                let dk = DecapsulationKey::<$params>::generate_from_rng(&mut rng);
                 let seed = dk.to_bytes();
                 let dk2 = DecapsulationKey::<$params>::new(&seed);
 
@@ -195,7 +235,7 @@ mod tests {
                 assert_eq!(ek1, ek2);
 
                 // Both should produce the same shared secret
-                let mut rng = rand::rng();
+                let mut rng = TestRng::new(concat!(stringify!($name), "-encaps").as_bytes());
                 let (ct, ss1) = ek1.encapsulate_with_rng(&mut rng);
                 let ss2 = <_ as Decapsulate>::decapsulate(&dk2, &ct);
                 assert_eq!(ss1, ss2);
