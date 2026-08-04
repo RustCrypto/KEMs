@@ -25,8 +25,10 @@ fn test_vector(#[case] path: &str) {
     let path = PathBuf::from(path);
     let rsp_reader = RspReader::new(path);
     let mut rng = AesCtrDrbg::default();
+    let mut count = 0;
 
     for rsp_data in rsp_reader {
+        count += 1;
         println!("{} Test {}", rsp_data.scheme, rsp_data.count + 1);
         rng.reseed(&rsp_data.seed);
         let (pk, sk) = rsp_data.scheme.generate_keypair(&mut rng);
@@ -40,6 +42,8 @@ fn test_vector(#[case] path: &str) {
         let (dss, _) = rsp_data.scheme.decapsulate(&sk, &ct).unwrap();
         assert_eq!(dss, rsp_data.ss);
     }
+
+    assert_eq!(count, 100, "official KAT file must contain all 100 cases");
 }
 
 /// Run all tests serially

@@ -43,7 +43,8 @@
 //!
 //! ## ☢️️ WARNING: HAZARDOUS ☢️
 //! It is considered unsafe to use Ephemeral algorithms more than once.
-//! For more information see [ISO Standard Annex](https://frodokem.org/files/FrodoKEM-annex-20230418.pdf).
+//! For more information, see Clause 14 of
+//! [ISO/IEC 18033-2:2006/Amd 2:2026](https://www.iso.org/standard/86890.html).
 //!
 //! ```
 //! use frodo_kem::Algorithm;
@@ -60,9 +61,13 @@
 //! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, &salt).unwrap();
 //! let (dec_ss, dec_msg) = alg.decapsulate(&dk, &ct).unwrap();
 //!
-//! // Ephemeral method, no salt required
+//! assert_eq!(enc_ss, dec_ss);
+//! assert_eq!(&aes_256_key[..], dec_msg.as_slice());
+//!
+//! // Ephemeral method: use a dedicated ephemeral keypair and no salt.
 //! let alg = Algorithm::EphemeralFrodoKem1344Shake;
-//! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, &[]).unwrap();
+//! let (ek, dk) = alg.generate_keypair(&mut rng);
+//! let (ct, enc_ss) = alg.encapsulate(&ek, &aes_256_key, []).unwrap();
 //! let (dec_ss, dec_msg) = alg.decapsulate(&dk, &ct).unwrap();
 //!
 //! assert_eq!(enc_ss, dec_ss);
@@ -101,6 +106,9 @@ extern crate alloc;
 #[cfg(feature = "std")]
 extern crate std;
 
+pub mod kem;
+pub use kem::{DecapsulationKey as KemDecapsulationKey, EncapsulationKey as KemEncapsulationKey};
+
 #[cfg(feature = "hazmat")]
 pub mod hazmat;
 #[cfg(not(feature = "hazmat"))]
@@ -111,9 +119,9 @@ pub use error::*;
 
 use alloc::vec::Vec;
 use core::marker::PhantomData;
+use ctutils::{Choice, CtEq};
 use hazmat::*;
 use rand_core::CryptoRng;
-use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "serde")]
@@ -235,7 +243,7 @@ macro_rules! serde_impl {
 
 macro_rules! ct_eq_imp {
     ($name:ident) => {
-        impl ConstantTimeEq for $name {
+        impl CtEq for $name {
             fn ct_eq(&self, other: &Self) -> Choice {
                 self.algorithm.ct_eq(&other.algorithm) & self.value.ct_eq(&other.value)
             }
@@ -245,7 +253,7 @@ macro_rules! ct_eq_imp {
 
         impl PartialEq for $name {
             fn eq(&self, other: &Self) -> bool {
-                self.ct_eq(other).unwrap_u8() == 1
+                bool::from(self.ct_eq(other))
             }
         }
     };
@@ -353,10 +361,18 @@ impl EncryptionKey {
 }
 
 /// A `FrodoKEM` secret key
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct DecryptionKey {
     pub(crate) algorithm: Algorithm,
     pub(crate) value: Vec<u8>,
+}
+
+impl core::fmt::Debug for DecryptionKey {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("DecryptionKey")
+            .field("algorithm", &self.algorithm)
+            .finish_non_exhaustive()
+    }
 }
 
 impl AsRef<[u8]> for DecryptionKey {
@@ -376,6 +392,12 @@ impl Zeroize for DecryptionKey {
 }
 
 impl ZeroizeOnDrop for DecryptionKey {}
+
+impl Drop for DecryptionKey {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 impl DecryptionKey {
     /// Get the algorithm
@@ -406,10 +428,18 @@ impl DecryptionKey {
 }
 
 /// A `FrodoKEM` shared secret
-#[derive(Debug, Clone, Default)]
+#[derive(Clone, Default)]
 pub struct SharedSecret {
     pub(crate) algorithm: Algorithm,
     pub(crate) value: Vec<u8>,
+}
+
+impl core::fmt::Debug for SharedSecret {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("SharedSecret")
+            .field("algorithm", &self.algorithm)
+            .finish_non_exhaustive()
+    }
 }
 
 impl AsRef<[u8]> for SharedSecret {
@@ -429,6 +459,12 @@ impl Zeroize for SharedSecret {
 }
 
 impl ZeroizeOnDrop for SharedSecret {}
+
+impl Drop for SharedSecret {
+    fn drop(&mut self) {
+        self.zeroize();
+    }
+}
 
 impl SharedSecret {
     /// Get the algorithm
@@ -490,7 +526,7 @@ pub enum Algorithm {
     EphemeralFrodoKem1344Shake,
 }
 
-impl ConstantTimeEq for Algorithm {
+impl CtEq for Algorithm {
     fn ct_eq(&self, other: &Self) -> Choice {
         match (self, other) {
             #[cfg(feature = "efrodo640aes")]
@@ -1049,7 +1085,7 @@ impl Algorithm {
     fn inner_decryption_key_from_bytes<P: Params>(&self, buf: &[u8]) -> FrodoResult<DecryptionKey> {
         hazmat::DecryptionKey::<P>::from_slice(buf).map(|s| DecryptionKey {
             algorithm: *self,
-            value: s.0,
+            value: s.into_vec(),
         })
     }
 
@@ -1116,55 +1152,55 @@ impl Algorithm {
             Self::FrodoKem640Aes => {
                 hazmat::Ciphertext::<FrodoKem640Aes>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
                 hazmat::Ciphertext::<FrodoKem976Aes>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
                 hazmat::Ciphertext::<FrodoKem1344Aes>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo640shake")]
             Self::FrodoKem640Shake => {
                 hazmat::Ciphertext::<FrodoKem640Shake>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo976shake")]
             Self::FrodoKem976Shake => {
                 hazmat::Ciphertext::<FrodoKem976Shake>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo1344shake")]
             Self::FrodoKem1344Shake => hazmat::Ciphertext::<FrodoKem1344Shake>::from_slice(buf)
                 .map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 }),
             #[cfg(feature = "efrodo640aes")]
             Self::EphemeralFrodoKem640Aes => {
                 hazmat::Ciphertext::<EphemeralFrodoKem640Aes>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "efrodo976aes")]
             Self::EphemeralFrodoKem976Aes => {
                 hazmat::Ciphertext::<EphemeralFrodoKem976Aes>::from_slice(buf).map(|s| Ciphertext {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "efrodo1344aes")]
@@ -1172,7 +1208,7 @@ impl Algorithm {
                 hazmat::Ciphertext::<EphemeralFrodoKem1344Aes>::from_slice(buf).map(|s| {
                     Ciphertext {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1181,7 +1217,7 @@ impl Algorithm {
                 hazmat::Ciphertext::<EphemeralFrodoKem640Shake>::from_slice(buf).map(|s| {
                     Ciphertext {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1190,7 +1226,7 @@ impl Algorithm {
                 hazmat::Ciphertext::<EphemeralFrodoKem976Shake>::from_slice(buf).map(|s| {
                     Ciphertext {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1199,7 +1235,7 @@ impl Algorithm {
                 hazmat::Ciphertext::<EphemeralFrodoKem1344Shake>::from_slice(buf).map(|s| {
                     Ciphertext {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1215,47 +1251,47 @@ impl Algorithm {
             Self::FrodoKem640Aes => {
                 hazmat::SharedSecret::<FrodoKem640Aes>::from_slice(buf).map(|s| SharedSecret {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo976aes")]
             Self::FrodoKem976Aes => {
                 hazmat::SharedSecret::<FrodoKem976Aes>::from_slice(buf).map(|s| SharedSecret {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo1344aes")]
             Self::FrodoKem1344Aes => {
                 hazmat::SharedSecret::<FrodoKem1344Aes>::from_slice(buf).map(|s| SharedSecret {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 })
             }
             #[cfg(feature = "frodo640shake")]
             Self::FrodoKem640Shake => hazmat::SharedSecret::<FrodoKem640Shake>::from_slice(buf)
                 .map(|s| SharedSecret {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 }),
             #[cfg(feature = "frodo976shake")]
             Self::FrodoKem976Shake => hazmat::SharedSecret::<FrodoKem976Shake>::from_slice(buf)
                 .map(|s| SharedSecret {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 }),
             #[cfg(feature = "frodo1344shake")]
             Self::FrodoKem1344Shake => hazmat::SharedSecret::<FrodoKem1344Shake>::from_slice(buf)
                 .map(|s| SharedSecret {
                     algorithm: *self,
-                    value: s.0,
+                    value: s.into_vec(),
                 }),
             #[cfg(feature = "efrodo640aes")]
             Self::EphemeralFrodoKem640Aes => {
                 hazmat::SharedSecret::<EphemeralFrodoKem640Aes>::from_slice(buf).map(|s| {
                     SharedSecret {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1264,7 +1300,7 @@ impl Algorithm {
                 hazmat::SharedSecret::<EphemeralFrodoKem976Aes>::from_slice(buf).map(|s| {
                     SharedSecret {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1273,7 +1309,7 @@ impl Algorithm {
                 hazmat::SharedSecret::<EphemeralFrodoKem1344Aes>::from_slice(buf).map(|s| {
                     SharedSecret {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1282,7 +1318,7 @@ impl Algorithm {
                 hazmat::SharedSecret::<EphemeralFrodoKem640Shake>::from_slice(buf).map(|s| {
                     SharedSecret {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1291,7 +1327,7 @@ impl Algorithm {
                 hazmat::SharedSecret::<EphemeralFrodoKem976Shake>::from_slice(buf).map(|s| {
                     SharedSecret {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1300,7 +1336,7 @@ impl Algorithm {
                 hazmat::SharedSecret::<EphemeralFrodoKem1344Shake>::from_slice(buf).map(|s| {
                     SharedSecret {
                         algorithm: *self,
-                        value: s.0,
+                        value: s.into_vec(),
                     }
                 })
             }
@@ -1364,7 +1400,7 @@ impl Algorithm {
             },
             DecryptionKey {
                 algorithm: *self,
-                value: sk.0,
+                value: sk.into_vec(),
             },
         )
     }
@@ -1436,19 +1472,25 @@ impl Algorithm {
         msg: &[u8],
         salt: &[u8],
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        if encryption_key.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
         if K::BYTES_MU != msg.len() {
             return Err(Error::InvalidMessageLength(msg.len()));
+        }
+        if K::BYTES_SALT != salt.len() {
+            return Err(Error::InvalidSaltLength(salt.len()));
         }
         let pk = EncryptionKeyRef::from_slice(encryption_key.value.as_slice())?;
         let (ct, ss) = K::default().encapsulate(pk, msg, salt);
         Ok((
             Ciphertext {
                 algorithm: *self,
-                value: ct.0,
+                value: ct.into_vec(),
             },
             SharedSecret {
                 algorithm: *self,
-                value: ss.0,
+                value: ss.into_vec(),
             },
         ))
     }
@@ -1516,16 +1558,19 @@ impl Algorithm {
         encryption_key: &EncryptionKey,
         rng: &mut R,
     ) -> FrodoResult<(Ciphertext, SharedSecret)> {
+        if encryption_key.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
         let pk = EncryptionKeyRef::from_slice(encryption_key.value.as_slice())?;
         let (ct, ss) = K::default().encapsulate_with_rng(pk, rng);
         Ok((
             Ciphertext {
                 algorithm: *self,
-                value: ct.0,
+                value: ct.into_vec(),
             },
             SharedSecret {
                 algorithm: *self,
-                value: ss.0,
+                value: ss.into_vec(),
             },
         ))
     }
@@ -1594,13 +1639,16 @@ impl Algorithm {
         secret_key: &DecryptionKey,
         ciphertext: &Ciphertext,
     ) -> FrodoResult<(SharedSecret, Vec<u8>)> {
+        if secret_key.algorithm != *self || ciphertext.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
         let sk = DecryptionKeyRef::from_slice(secret_key.value.as_slice())?;
         let ct = CiphertextRef::from_slice(ciphertext.value.as_slice())?;
         let (ss, mu) = K::default().decapsulate(sk, ct);
         Ok((
             SharedSecret {
                 algorithm: *self,
-                value: ss.0,
+                value: ss.into_vec(),
             },
             mu,
         ))
@@ -1651,6 +1699,54 @@ mod tests {
     use super::*;
     use rand_core::{Rng, SeedableRng};
     use rstest::*;
+
+    #[test]
+    fn conformance_boundaries_and_implicit_rejection() {
+        let algorithm = Algorithm::FrodoKem640Shake;
+        let other = Algorithm::EphemeralFrodoKem640Shake;
+        let mut rng = chacha20::ChaCha8Rng::from_seed([7; 32]);
+        let (encryption_key, decryption_key) = algorithm.generate_keypair(&mut rng);
+
+        assert!(algorithm.encapsulate(&encryption_key, [], []).is_err());
+        assert!(
+            algorithm
+                .encapsulate(
+                    &encryption_key,
+                    vec![0; algorithm.params().message_length],
+                    [],
+                )
+                .is_err()
+        );
+        assert!(
+            other
+                .encapsulate_with_rng(&encryption_key, &mut rng)
+                .is_err()
+        );
+
+        let (ciphertext, shared_secret) = algorithm
+            .encapsulate_with_rng(&encryption_key, &mut rng)
+            .unwrap();
+        let mut modified_ciphertext = ciphertext.clone();
+        modified_ciphertext.value[0] ^= 1;
+        let rejected_secret = algorithm
+            .decapsulate(&decryption_key, &modified_ciphertext)
+            .unwrap()
+            .0;
+        let repeated_secret = algorithm
+            .decapsulate(&decryption_key, &modified_ciphertext)
+            .unwrap()
+            .0;
+        assert_ne!(rejected_secret, shared_secret);
+        assert_eq!(rejected_secret, repeated_secret);
+
+        let wrong_ciphertext =
+            Ciphertext::from_bytes(other, vec![0; other.params().ciphertext_length]).unwrap();
+        assert!(
+            algorithm
+                .decapsulate(&decryption_key, &wrong_ciphertext)
+                .is_err()
+        );
+    }
 
     #[rstest]
     #[case::aes640(Algorithm::FrodoKem640Aes)]
