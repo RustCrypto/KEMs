@@ -8,6 +8,8 @@
 //! # Usage
 //!
 //! ```rust
+//! # #[cfg(all(feature = "kgen", feature = "ecap", feature = "dcap"))]
+//! # {
 //! use sntrup_kem::{Sntrup761, SntrupKem};
 //!
 //! let mut rng = rand::rng();
@@ -15,6 +17,7 @@
 //! let (ct, ss1) = ek.encapsulate(&mut rng);
 //! let ss2 = dk.decapsulate(&ct);
 //! assert_eq!(ss1, ss2);
+//! # }
 //! ```
 //!
 //! # Security Levels
