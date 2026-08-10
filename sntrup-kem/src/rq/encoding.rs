@@ -456,7 +456,7 @@ pub fn rq_encode(f: &[i16], params: &SntrupParameters) -> Vec<u8> {
     out
 }
 
-/// Allocation-free form of [`rq_decode`]: writes into `out[..p]`, using stack
+/// Allocation-free Rq decoder: writes into `out[..p]`, using stack
 /// scratch bounded by [`crate::params::MAX_P`].
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn rq_decode_into(c: &[u8], out: &mut [i16], params: &SntrupParameters) {
@@ -506,7 +506,7 @@ pub fn round_and_encode_into(f: &mut [i16], out: &mut [u8], params: &SntrupParam
     rounded_encode_into(f, out, params);
 }
 
-/// Allocation-free form of [`rounded_encode`]: writes into
+/// Allocation-free rounded encoder: writes into
 /// `out[..rounded_encode_size]`.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn rounded_encode_into(f: &[i16], out: &mut [u8], params: &SntrupParameters) {
@@ -528,7 +528,7 @@ pub fn rounded_encode_into(f: &[i16], out: &mut [u8], params: &SntrupParameters)
     crate::wipe::wipe(&mut r_buf);
 }
 
-/// Allocation-free form of [`rounded_decode`]: writes into `out[..p]`.
+/// Allocation-free rounded decoder: writes into `out[..p]`.
 #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
 pub fn rounded_decode_into(c: &[u8], out: &mut [i16], params: &SntrupParameters) {
     // p = 761 has a ported copy of the reference's generated codec, which is

@@ -141,8 +141,8 @@ fn mult_scalar(h: &mut [i8], f: &[i8], g: &[i8], p: usize) {
 }
 
 /// Row-major schoolbook multiplication for R3 polynomials on x86_64, expanded once per
-/// instruction level by the macro below (`mult_avx2` via [`crate::simd::mac_madd`],
-/// `mult_avxvnni` via the fused [`crate::simd::mac_vnni`]).
+/// instruction level by the macro below (`mult_avx2` via `crate::simd::mac_madd`,
+/// `mult_avxvnni` via the fused `crate::simd::mac_vnni`).
 ///
 /// Same structure as `rq::mult`'s AVX2 kernel (see its doc comment): contiguous dot products
 /// over widened copies of `f` and a reversed `g`, four independent `_mm256_madd_epi16`

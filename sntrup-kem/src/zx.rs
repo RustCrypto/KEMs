@@ -38,7 +38,7 @@ pub mod encoding {
         c[small_encode_size - 1] = (f[p - 1] + 1) as u8;
     }
 
-    /// Allocation-free form of [`decode`]: writes into `f[..p]`.
+    /// Allocation-free decoder: writes into `f[..p]`.
     #[allow(clippy::cast_possible_wrap)]
     pub fn decode_into(c: &[u8], f: &mut [i8], p: usize) {
         let small_encode_size = c.len();

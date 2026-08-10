@@ -281,8 +281,8 @@ fn mult_scalar(h: &mut [i16], f: &[i16], g: &[i8], params: &SntrupParameters) {
 
 /// Row-major schoolbook multiplication for x86_64, expanded once per instruction level
 /// by the macro below: `mult_avx2` accumulates with `vpmaddwd` + `vpaddd` via
-/// [`crate::simd::mac_madd`], and `mult_avxvnni` uses the fused `vpdpwssd` via
-/// [`crate::simd::mac_vnni`] (one instruction and one dependency fewer per 16 MACs).
+/// `crate::simd::mac_madd`, and `mult_avxvnni` uses the fused `vpdpwssd` via
+/// `crate::simd::mac_vnni` (one instruction and one dependency fewer per 16 MACs).
 ///
 /// Same structure as the NEON kernel below (see its doc comment): contiguous dot products over
 /// `f` and a pre-reversed `g`, four independent accumulators, one store per output
