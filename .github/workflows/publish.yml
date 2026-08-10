@@ -18,7 +18,7 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7.0.1
       - uses: rust-lang/crates-io-auth-action@v1
         id: auth
 
