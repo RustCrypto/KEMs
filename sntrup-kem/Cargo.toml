@@ -5,11 +5,16 @@ authors = ["Michael Lodder <redmike7@gmail.com>"]
 license = "MIT OR Apache-2.0"
 keywords = ["sntrup", "kem", "post-quantum", "cryptography", "NTRU"]
 description = "Pure Rust implementation of the Streamlined NTRU Prime KEM for all parameter sizes"
+documentation = "https://docs.rs/sntrup-kem"
 homepage = "https://github.com/RustCrypto/KEMs/tree/master/sntrup-kem"
 repository = "https://github.com/RustCrypto/KEMs"
 categories = ["algorithms", "cryptography"]
 readme = "README.md"
 edition = "2024"
+rust-version = "1.85"
+
+[package.metadata.docs.rs]
+features = ["kem", "serde", "std", "alloc"]
 
 [features]
 default = ["kgen", "ecap", "dcap"]
@@ -21,6 +26,8 @@ force-scalar = []
 std = []
 serde = ["dep:serdect", "dep:serde"]
 js = ["getrandom/wasm_js"]
+# Implementations of the `kem` crate traits, covering all three operations at once.
+kem = ["dep:kem", "dep:hybrid-array", "dep:rand_core", "kgen", "ecap", "dcap"]
 
 [dependencies]
 hex = "0.4"
@@ -28,6 +35,9 @@ rand = "0.10.0"
 rand_chacha = "0.10.0"
 subtle = "2"
 getrandom = { version = "0.4", optional = true }
+hybrid-array = { version = "0.4.14", features = ["extra-sizes"], optional = true }
+kem = { version = "0.3", optional = true }
+rand_core = { version = "0.10", optional = true }
 serde = { version = "1", optional = true, default-features = false }
 serdect = { version = "0.4", optional = true }
 # sha2 0.11 dropped the `asm` feature; hardware SHA acceleration is now selected
@@ -40,9 +50,15 @@ zeroize = { version = "1", features = ["derive"] }
 criterion = "0.7"
 serde_json = "1"
 
+[[example]]
+name = "kem_traits"
+path = "examples/kem_traits.rs"
+required-features = ["kem"]
+
 [[bench]]
 name = "mod"
 harness = false
+required-features = ["kgen", "ecap", "dcap"]
 
 [lints.rust]
 missing_docs = "deny"

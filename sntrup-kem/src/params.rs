@@ -3,6 +3,10 @@
 /// Shared secret size in bytes.
 pub(crate) const SS_BYTES: usize = 32;
 
+/// Largest `p` across the supported parameter sets — bounds stack scratch in
+/// the allocation-free codec and KEM paths.
+pub(crate) const MAX_P: usize = 1277;
+
 /// Internal runtime parameter set for Streamlined NTRU Prime.
 #[doc(hidden)]
 #[derive(Debug, Clone, Copy)]

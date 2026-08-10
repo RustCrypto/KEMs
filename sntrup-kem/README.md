@@ -35,7 +35,7 @@ All key and ciphertext sizes are in bytes. Sizes are fixed per parameter set usi
 - All six parameter sizes: sntrup653, sntrup761, sntrup857, sntrup953, sntrup1013, sntrup1277
 - IND-CCA2 secure with implicit rejection
 - Constant-time operations throughout (branchless sort, constant-time comparison and selection)
-- SIMD acceleration (AVX2 on x86_64, NEON on aarch64) with automatic detection
+- SIMD acceleration with automatic run-time detection: AVX-512 and AVX2 (plus AVX-VNNI where present) on x86_64, NEON on aarch64
 - Optional `serde` support via the `serde` feature
 - Deterministic key generation from a 32-byte seed
 
@@ -48,9 +48,16 @@ The KEM API is split into three default features so downstream crates can pull i
 | `kgen`  | **yes** | Key generation: `SntrupKem::generate_key`, `SntrupKem::generate_key_deterministic` |
 | `ecap`  | **yes** | Encapsulation: `EncapsulationKey::encapsulate` |
 | `dcap`  | **yes** | Decapsulation: `DecapsulationKey::decapsulate` |
-| `force-scalar` | no | Disable SIMD (AVX2/NEON) and use pure-Rust scalar code |
+| `alloc` | no | Allocator-dependent APIs |
+| `std`   | no | Standard-library integration; implies `alloc` |
+| `force-scalar` | no | Compile out every SIMD kernel and use the portable scalar code paths only |
+| `kem`   | no | Implements the [`kem`](https://docs.rs/kem) crate's traits (`Encapsulate`, `Decapsulate`, `Kem`, ...) so this crate can be used generically alongside other KEMs. See [`sntrup_kem::kem`](src/kem.rs) and `examples/kem_traits.rs`. |
 | `serde` | no | Enables `Serialize`/`Deserialize` for all key and ciphertext types (via `serdect` for constant-time hex encoding) |
 | `js`    | no | Enables WebAssembly support for `wasm32-unknown-unknown` by configuring `getrandom` to use JavaScript's `crypto.getRandomValues()` |
+
+The synchronized x86_64 SIMD implementation requires Rust 1.95 or newer. Builds
+with the Rust 1.85 MSRV automatically use the portable scalar paths; AArch64
+builds retain NEON acceleration on Rust 1.85.
 
 To use only a subset of the KEM API, disable defaults and pick the features you need:
 
@@ -175,6 +182,30 @@ let ek2 = EncapsulationKey::<Sntrup761Params>::try_from(ek_bytes).unwrap();
 assert_eq!(ek, ek2);
 ```
 
+### `kem` crate integration
+
+With the `kem` feature enabled, the [`kem`](https://docs.rs/kem) module implements that crate's
+traits for every parameter set, so Streamlined NTRU Prime can be used in generic code alongside
+other KEMs. The traits and the parameter-set marker types are re-exported there, so no direct
+dependency on the `kem` crate is needed:
+
+```rust
+# #[cfg(feature = "kem")] {
+use sntrup_kem::kem::{Decapsulate, Encapsulate, Kem, Sntrup761Params};
+use rand::SeedableRng;
+use rand::rngs::{StdRng, SysRng};
+
+let mut rng = StdRng::try_from_rng(&mut SysRng).expect("OS randomness");
+
+let (dk, ek) = Sntrup761Params::generate_keypair_from_rng(&mut rng);
+let (ct, sent) = ek.encapsulate_with_rng(&mut rng);
+assert_eq!(dk.decapsulate(&ct), sent);
+# }
+```
+
+Run `cargo run --release --example kem_traits --features kem` for KEM-generic code and key
+export.
+
 ## WebAssembly
 
 To compile for `wasm32-unknown-unknown`, enable the `js` feature so that `getrandom` uses JavaScript's `crypto.getRandomValues()` for randomness:
@@ -206,9 +237,55 @@ For `wasm32-wasi` (or `wasm32-wasip1`), the `js` feature is **not** needed since
 
 This implementation has not undergone any security auditing and while care has been taken no guarantees can be made for either correctness or the constant time running of the underlying functions. **Please use at your own risk.**
 
+Secret-derived heap temporaries (multiply scratch, Euclidean-inversion state, sampling
+randomness, hash intermediates) are wiped with the [`zeroize`](https://docs.rs/zeroize) crate
+before being freed. One documented exception: `generate_key_deterministic`'s ChaCha20 RNG state
+cannot be wiped because `rand_chacha` offers no zeroization support.
+
 #### Algorithm
 
 Streamlined NTRU Prime was first published in 2016. The algorithm still requires careful security review. Please see [here](https://ntruprime.cr.yp.to/warnings.html) for further warnings from the authors regarding NTRU Prime and lattice-based encryption schemes.
+
+## Performance
+
+`cargo bench` runs this crate's Criterion suite (`benches/mod.rs`) across all six parameter
+sets. The synchronized standalone implementation also has a
+[comparison harness](https://github.com/mikelodder7/sntrup/tree/main/benches/comparison) for
+sntrup761 — the parameter set with independent PQClean and liboqs implementations.
+
+This crate is faster than both C references on every operation, on both
+architectures, while also zeroizing every secret-derived scratch buffer — which neither C
+reference does.
+
+On x86_64 (AMD Ryzen AI 9 HX 370, Zen 5), sntrup761, against liboqs's AVX2 build:
+
+| Operation | sntrup | liboqs | PQClean |
+|-----------|-------:|-------:|--------:|
+| keypair | 106.6 µs | 107.9 µs (0.99x) | 4545.7 µs (42.7x) |
+| encapsulate | 10.5 µs | 11.5 µs (0.91x) | 239.1 µs (22.9x) |
+| decapsulate | 8.4 µs | 8.4 µs (1.00x) | 607.0 µs (72.6x) |
+
+On aarch64 (Apple M2 Max), sntrup761, against their portable C builds: keypair 684 µs
+(2.7x), encapsulate 37.0 µs (1.40x), decapsulate 77.1 µs (1.19x).
+
+Two things drive the x86_64 numbers. Key generation runs the Bernstein–Yang divstep inversion
+through **AVX-512**, 32 coefficients per step — neither PQClean nor liboqs has a 512-bit path
+for this KEM. Encapsulation and decapsulation run sntrup761's polynomial multiply as a
+number-theoretic transform (Good's 3x512 decomposition over the primes 7681 and 10753,
+recombined by CRT). Every other parameter set, and all of aarch64, uses a schoolbook kernel
+that computes each output coefficient as a contiguous dot product spread across eight
+independent widening multiply-accumulate chains (`smlal`-family on NEON, `pmaddwd`/`vpdpwssd`
+on x86_64) — a shape taken from disassembling what clang's autovectorizer produces for
+PQClean's reference C and then out-tuning it.
+
+See the standalone implementation's
+[benchmark results](https://github.com/mikelodder7/sntrup/blob/main/benches/comparison/RESULTS.md)
+for the full investigation narrative, including machine and build details.
+
+**A SIMD-testing gotcha every contributor should read:** `--all-features` enables
+`force-scalar`, which silently compiles the SIMD kernels out of the test binary. The permanent
+kernel-vs-scalar differential tests in `src/rq.rs` and `src/r3.rs` only exercise SIMD when
+built with a feature set that leaves `force-scalar` off, e.g. `--features kem,serde,std`.
 
 # License
 

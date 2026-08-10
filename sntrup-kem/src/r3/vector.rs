@@ -10,14 +10,12 @@ use super::mod3;
 #[inline(always)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn swap(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return swap_avx2(x, y, n, mask);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support confirmed by has_avx2()
+        unsafe {
+            return swap_avx2(x, y, n, mask);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -39,11 +37,7 @@ fn swap_scalar(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
 }
 
 /// 32 i8 elements per SIMD iteration.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn swap_avx2(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
     unsafe {
@@ -101,14 +95,12 @@ unsafe fn swap_neon(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
 
 #[inline(always)]
 pub fn product(z: &mut [i8], n: usize, x: &[i8], c: i8) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return product_avx2(z, n, x, c);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support confirmed by has_avx2()
+        unsafe {
+            return product_avx2(z, n, x, c);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -127,11 +119,7 @@ fn product_scalar(z: &mut [i8], n: usize, x: &[i8], c: i8) {
 
 /// For c in {-1, 0, 1}: _mm256_sign_epi8(x, c) computes x * c.
 /// Processes 32 elements per iteration.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn product_avx2(z: &mut [i8], n: usize, x: &[i8], c: i8) {
     unsafe {
@@ -196,18 +184,16 @@ unsafe fn product_neon(z: &mut [i8], n: usize, x: &[i8], c: i8) {
     }
 }
 
-/// Fused minus_product and shift: `z[i+1] = freeze(z[i] - y[i]*c)`, `z[0] = 0`.
+/// Fused minus_product and shift: z[i+1] = freeze(z[i] - y[i]*c), z[0] = 0.
 /// Processes backward to avoid overwrite conflicts, eliminating a separate memmove.
 #[inline(always)]
 pub fn minus_product_shift(z: &mut [i8], n: usize, y: &[i8], c: i8) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return minus_product_shift_avx2(z, n, y, c);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support confirmed by has_avx2()
+        unsafe {
+            return minus_product_shift_avx2(z, n, y, c);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -225,11 +211,104 @@ fn minus_product_shift_scalar(z: &mut [i8], n: usize, y: &[i8], c: i8) {
     z[0] = 0;
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+/// Fused `minus_product_shift` + conditional swap — one memory pass instead of two.
+///
+/// Same contract as the rq version: exactly `minus_product_shift(z, n, y, c)` then
+/// `swap(z, y, n, mask)`; non-AVX2 targets (including aarch64/NEON, untouched)
+/// take the two-pass fallback.
+#[inline(always)]
+pub fn minus_product_shift_cswap(z: &mut [i8], y: &mut [i8], n: usize, c: i8, mask: isize) {
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support confirmed by has_avx2()
+        unsafe {
+            return minus_product_shift_cswap_avx2(z, y, n, c, mask);
+        }
+    }
+    minus_product_shift(z, n, y, c);
+    swap(z, y, n, mask);
+}
+
+/// AVX2 fused kernel. The mod-3 fixup is a `vpshufb` register LUT: `r ∈ [-2,2]`
+/// biased to `[0,4]` indexes the table `[1, -1, 0, 1, -1]` (freeze of `r`),
+/// replacing the 6-op compare/mask chain with add + shuffle. vpshufb is an
+/// in-lane register permute with data-independent timing — constant-time safe.
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+#[target_feature(enable = "avx2")]
+unsafe fn minus_product_shift_cswap_avx2(z: &mut [i8], y: &mut [i8], n: usize, c: i8, mask: isize) {
+    unsafe {
+        use core::arch::x86_64::*;
+        let cv = _mm256_set1_epi8(c);
+        let two = _mm256_set1_epi8(2);
+        #[rustfmt::skip]
+        let table = _mm256_setr_epi8(
+            1, -1, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            1, -1, 0, 1, -1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        );
+        let mv = _mm256_set1_epi8(mask as i8);
+
+        let mut j = (n - 2) as isize;
+
+        while j >= 31 {
+            let start = (j - 31) as usize;
+            let zv = _mm256_loadu_si256(z.as_ptr().add(start) as *const __m256i);
+            let yv = _mm256_loadu_si256(y.as_ptr().add(start) as *const __m256i);
+            let r = _mm256_sub_epi8(zv, _mm256_sign_epi8(yv, cv));
+            let w = _mm256_shuffle_epi8(table, _mm256_add_epi8(r, two));
+
+            let y1 = _mm256_loadu_si256(y.as_ptr().add(start + 1) as *const __m256i);
+            let new_z = _mm256_blendv_epi8(w, y1, mv);
+            let new_y = _mm256_blendv_epi8(y1, w, mv);
+            _mm256_storeu_si256(z.as_mut_ptr().add(start + 1) as *mut __m256i, new_z);
+            _mm256_storeu_si256(y.as_mut_ptr().add(start + 1) as *mut __m256i, new_y);
+            j -= 32;
+        }
+
+        // Bottom overlapped block; the +1 loads' topmost byte (index 32) is
+        // post-swap and is preserved via the keep mask rather than recomputed.
+        if j >= 0 && n >= 33 && n & 31 == 0 {
+            let zv = _mm256_loadu_si256(z.as_ptr() as *const __m256i);
+            let yv = _mm256_loadu_si256(y.as_ptr() as *const __m256i);
+            let r = _mm256_sub_epi8(zv, _mm256_sign_epi8(yv, cv));
+            let w = _mm256_shuffle_epi8(table, _mm256_add_epi8(r, two));
+
+            let z1 = _mm256_loadu_si256(z.as_ptr().add(1) as *const __m256i);
+            let y1 = _mm256_loadu_si256(y.as_ptr().add(1) as *const __m256i);
+            let new_z = _mm256_blendv_epi8(w, y1, mv);
+            let new_y = _mm256_blendv_epi8(y1, w, mv);
+            #[rustfmt::skip]
+            let keep = _mm256_setr_epi8(
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, -1,
+            );
+            _mm256_storeu_si256(
+                z.as_mut_ptr().add(1) as *mut __m256i,
+                _mm256_blendv_epi8(new_z, z1, keep),
+            );
+            _mm256_storeu_si256(
+                y.as_mut_ptr().add(1) as *mut __m256i,
+                _mm256_blendv_epi8(new_y, y1, keep),
+            );
+            j = -1;
+        }
+
+        // Scalar remainder (only when n < 33).
+        let mi = mask as i8;
+        while j >= 0 {
+            let k = (j + 1) as usize;
+            let w = mod3::minus_product(z[k - 1], y[k - 1], c);
+            let yk = y[k];
+            z[k] = (mi & yk) | (!mi & w);
+            y[k] = (mi & w) | (!mi & yk);
+            j -= 1;
+        }
+        let y0 = y[0];
+        z[0] = mi & y0;
+        y[0] = !mi & y0;
+    }
+}
+
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn minus_product_shift_avx2(z: &mut [i8], n: usize, y: &[i8], c: i8) {
     unsafe {
@@ -257,7 +336,25 @@ unsafe fn minus_product_shift_avx2(z: &mut [i8], n: usize, y: &[i8], c: i8) {
             j -= 32;
         }
 
-        // Scalar remainder
+        // The backward loop strands `(n - 2) % 32` bottom elements. When n is a
+        // multiple of 32 and the body ran at least once, a final full-width block at
+        // start = 0 covers them:
+        // z[0..32] is still original (higher blocks only wrote z[32..] and beyond),
+        // and the overlap element it rewrites (z[32]) gets the identical value the
+        // previous block computed from the same inputs.
+        if j >= 0 && n >= 33 && n & 31 == 0 {
+            let zv = _mm256_loadu_si256(z.as_ptr() as *const __m256i);
+            let yv = _mm256_loadu_si256(y.as_ptr() as *const __m256i);
+            let yc = _mm256_sign_epi8(yv, cv);
+            let r = _mm256_sub_epi8(zv, yc);
+            let add = _mm256_and_si256(three, _mm256_cmpeq_epi8(r, neg2));
+            let sub = _mm256_and_si256(three, _mm256_cmpeq_epi8(r, pos2));
+            let r = _mm256_add_epi8(_mm256_sub_epi8(r, sub), add);
+            _mm256_storeu_si256(z.as_mut_ptr().add(1) as *mut __m256i, r);
+            j = -1;
+        }
+
+        // Scalar remainder (only when n < 33)
         while j >= 0 {
             z[(j + 1) as usize] = mod3::minus_product(z[j as usize], y[j as usize], c);
             j -= 1;
@@ -302,5 +399,45 @@ unsafe fn minus_product_shift_neon(z: &mut [i8], n: usize, y: &[i8], c: i8) {
             j -= 1;
         }
         z[0] = 0;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn next(state: &mut u64) -> u64 {
+        *state ^= *state << 13;
+        *state ^= *state >> 7;
+        *state ^= *state << 17;
+        state.wrapping_mul(0x2545_F491_4F6C_DD1D)
+    }
+
+    /// The fused kernel must match scalar minus_product_shift + scalar swap
+    /// exactly, for both mask values, at lengths exercising the vector loop,
+    /// the overlapped bottom block, and the scalar path.
+    #[test]
+    fn fused_cswap_matches_two_pass_reference() {
+        let mut s = 0xfeed_face_cafe_beefu64;
+        for &n in &[2usize, 9, 32, 33, 65, 762, 768, 1536] {
+            for &mask in &[0isize, -1] {
+                for &c in &[-1i8, 0, 1] {
+                    let z0: Vec<i8> = (0..n).map(|_| ((next(&mut s) % 3) as i8) - 1).collect();
+                    let y0: Vec<i8> = (0..n).map(|_| ((next(&mut s) % 3) as i8) - 1).collect();
+
+                    let mut z_ref = z0.clone();
+                    let mut y_ref = y0.clone();
+                    minus_product_shift_scalar(&mut z_ref, n, &y_ref, c);
+                    swap_scalar(&mut z_ref, &mut y_ref, n, mask);
+
+                    let mut z_got = z0.clone();
+                    let mut y_got = y0.clone();
+                    minus_product_shift_cswap(&mut z_got, &mut y_got, n, c, mask);
+
+                    assert_eq!(z_got, z_ref, "z mismatch n={n} mask={mask} c={c}");
+                    assert_eq!(y_got, y_ref, "y mismatch n={n} mask={mask} c={c}");
+                }
+            }
+        }
     }
 }
