@@ -53,6 +53,8 @@ jobs:
       - run: cargo test --no-default-features
       - run: cargo test
       - run: cargo test --all-features
+      # Stable exercises SIMD; the pre-1.95 x86 MSRV uses its scalar fallback.
+      - run: cargo test --features kem,serde,std
       - run: cargo test --features serde,force-scalar
 
   cross:

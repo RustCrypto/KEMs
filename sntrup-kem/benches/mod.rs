@@ -1,4 +1,4 @@
-#![allow(missing_docs)]
+#![allow(missing_docs, clippy::mod_module_files)]
 
 use criterion::{Criterion, criterion_group, criterion_main};
 use sntrup_kem::*;

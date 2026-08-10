@@ -2,6 +2,7 @@ use sha2::{Digest, Sha512};
 use zeroize::Zeroize;
 
 use crate::params::SntrupParameters;
+use crate::scratch::uninit_scratch;
 use crate::{r3, rq, zx};
 
 /// Hash prefix helper: SHA-512(prefix || input), truncated to 32 bytes.
@@ -9,8 +10,10 @@ pub(crate) fn hash_prefix(out: &mut [u8; 32], prefix: u8, input: &[u8]) {
     let mut hasher = Sha512::new();
     hasher.update([prefix]);
     hasher.update(input);
-    let digest = hasher.finalize();
+    let mut digest = hasher.finalize();
     out.copy_from_slice(&digest[..32]);
+    // The discarded upper half is still derived from (possibly secret) input — wipe it.
+    digest.zeroize();
 }
 
 /// hash_confirm: Hash(2 || Hash(3 || r_enc) || cache)
@@ -23,8 +26,10 @@ pub(crate) fn hash_confirm(out: &mut [u8; 32], r_enc: &[u8], cache: &[u8; 32]) {
     hasher.update([2u8]);
     hasher.update(inner);
     hasher.update(&cache[..]);
-    let digest = hasher.finalize();
+    let mut digest = hasher.finalize();
     out.copy_from_slice(&digest[..32]);
+    inner.zeroize();
+    digest.zeroize();
 }
 
 /// hash_session: Hash(b || Hash(3 || y) || z)
@@ -36,8 +41,10 @@ pub(crate) fn hash_session(out: &mut [u8; 32], b: u8, y: &[u8], z: &[u8]) {
     hasher.update([b]);
     hasher.update(inner);
     hasher.update(z);
-    let digest = hasher.finalize();
+    let mut digest = hasher.finalize();
     out.copy_from_slice(&digest[..32]);
+    inner.zeroize();
+    digest.zeroize();
 }
 
 /// Constant-time: returns 0 if x == 0, -1 (0xFFFFFFFF) otherwise.
@@ -57,14 +64,12 @@ fn int16_nonzero_mask(x: i16) -> i32 {
     clippy::cast_possible_wrap
 )]
 pub(crate) fn weightw_mask(r: &[i8], p: usize, w: usize) -> i32 {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return weightw_mask_avx2(r, p, w);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support confirmed by has_avx2()
+        unsafe {
+            return weightw_mask_avx2(r, p, w);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -85,11 +90,7 @@ fn weightw_mask_scalar(r: &[i8], _p: usize, w: usize) -> i32 {
 }
 
 /// Count non-zero elements 32 at a time using AVX2.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 #[allow(
     unsafe_code,
@@ -163,14 +164,12 @@ unsafe fn weightw_mask_neon(r: &[i8], p: usize, w: usize) -> i32 {
 /// Returns 0 if equal, -1 otherwise.
 #[allow(unsafe_code, clippy::cast_possible_wrap)]
 fn ciphertexts_diff_mask(a: &[u8], b: &[u8]) -> i32 {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return ciphertexts_diff_mask_avx2(a, b);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support confirmed by has_avx2()
+        unsafe {
+            return ciphertexts_diff_mask_avx2(a, b);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -192,11 +191,7 @@ fn ciphertexts_diff_mask_scalar(a: &[u8], b: &[u8]) -> i32 {
 }
 
 /// XOR-accumulate 32 bytes at a time, then horizontal OR.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 #[allow(unsafe_code, clippy::cast_possible_wrap, clippy::cast_sign_loss)]
 unsafe fn ciphertexts_diff_mask_avx2(a: &[u8], b: &[u8]) -> i32 {
@@ -311,37 +306,45 @@ pub(crate) fn derive_key(
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap
 )]
-pub(crate) fn create_cipher(r: &[i8], pk: &[u8], params: &SntrupParameters) -> (Vec<u8>, [u8; 32]) {
+pub(crate) fn create_cipher(
+    r: &[i8],
+    h: &[i16],
+    pk_hash: &[u8; 32],
+    params: &SntrupParameters,
+) -> (Vec<u8>, [u8; 32]) {
     let p = params.p;
 
-    let h = rq::encoding::rq_decode(pk, params);
-    let mut c = vec![0i16; p];
-    rq::mult(&mut c, &h, r, params);
-    rq::round3(&mut c, params);
+    use crate::params::MAX_P;
 
-    let r_enc = zx::encoding::encode(r, p, params.small_encode_size);
+    // SAFETY: `rq::mult` writes all `p` product coefficients.
+    uninit_scratch!(c_buf: [i16; MAX_P]);
+    let c = &mut c_buf[..p];
+    rq::mult(c, h, r, params);
 
-    // Compute confirm hash: Hash(2 || Hash(3 || r_enc) || Hash4(pk))
-    let mut cache = [0u8; 32];
-    hash_prefix(&mut cache, 4, pk);
+    const MAX_SES: usize = MAX_P.div_ceil(4) + 1;
+    let ses = params.small_encode_size;
+    // SAFETY: `encode_into` writes all `ses` bytes.
+    uninit_scratch!(r_enc_buf: [u8; MAX_SES]);
+    let r_enc = &mut r_enc_buf[..ses];
+    zx::encoding::encode_into(r, r_enc, p, ses);
+
+    // Compute confirm hash: Hash(2 || Hash(3 || r_enc) || Hash4(pk)); Hash4(pk) is
+    // the caller-cached `pk_hash`.
     let mut confirm = [0u8; 32];
-    hash_confirm(&mut confirm, &r_enc, &cache);
+    hash_confirm(&mut confirm, r_enc, pk_hash);
 
     // Ciphertext layout: rounded(rounded_encode_size) || confirm_hash(32)
     let mut cstr = vec![0u8; params.ct_size];
-    cstr[..params.rounded_encode_size].copy_from_slice(&rq::encoding::rounded_encode(&c, params));
+    rq::encoding::round_and_encode_into(c, &mut cstr[..params.rounded_encode_size], params);
     cstr[params.rounded_encode_size..].copy_from_slice(&confirm);
 
     // Shared key: hash_session(1, r_enc, cstr)
     let mut k = [0u8; 32];
-    hash_session(&mut k, 1, &r_enc, &cstr);
+    hash_session(&mut k, 1, r_enc, &cstr);
 
-    // Zeroize secret intermediates
-    // r_enc, cache, confirm are on the stack / local Vecs and will be dropped,
-    // but we zeroize explicitly for defense in depth.
-    let mut r_enc = r_enc;
-    r_enc.zeroize();
-    cache.zeroize();
+    // Zeroize secret intermediates (whole frames, padding included). `pk_hash` is
+    // public and caller-owned; nothing to wipe for it.
+    crate::wipe::wipe(r_enc_buf);
     confirm.zeroize();
 
     (cstr, k)
@@ -356,14 +359,29 @@ pub(crate) fn create_cipher(r: &[i8], pk: &[u8], params: &SntrupParameters) -> (
     clippy::cast_sign_loss,
     clippy::cast_possible_wrap
 )]
-pub(crate) fn decapsulate_inner(cstr: &[u8], sk: &[u8], params: &SntrupParameters) -> [u8; 32] {
+pub(crate) fn decapsulate_inner(
+    cstr: &[u8],
+    sk: &[u8],
+    h: &[i16],
+    params: &SntrupParameters,
+) -> [u8; 32] {
     let p = params.p;
     let w = params.w;
     let ses = params.small_encode_size;
 
+    use crate::params::MAX_P;
+
     // Parse SK: f(ses) || ginv(ses) || pk(pk_size) || rho(ses) || cache(32)
-    let mut f = zx::encoding::decode(&sk[..ses], p);
-    let mut ginv = zx::encoding::decode(&sk[ses..(2 * ses)], p);
+    // All working buffers live on this frame, bounded by MAX_P — decapsulation
+    // performs no heap allocation.
+    // SAFETY: `decode_into` writes all `p` coefficients.
+    uninit_scratch!(f_buf: [i8; MAX_P]);
+    let f = &mut f_buf[..p];
+    zx::encoding::decode_into(&sk[..ses], f, p);
+    // SAFETY: `decode_into` writes all `p` coefficients.
+    uninit_scratch!(ginv_buf: [i8; MAX_P]);
+    let ginv = &mut ginv_buf[..p];
+    zx::encoding::decode_into(&sk[ses..(2 * ses)], ginv, p);
     let pk_start = 2 * ses;
     let pk_end = pk_start + params.pk_size;
     let rho_start = pk_end;
@@ -374,24 +392,26 @@ pub(crate) fn decapsulate_inner(cstr: &[u8], sk: &[u8], params: &SntrupParameter
     cache.copy_from_slice(&sk[cache_start..cache_start + 32]);
 
     // Decrypt: Rounded_decode, multiply by f, Rq_mult3, R3_fromRq, R3_mult by ginv
-    let c = rq::encoding::rounded_decode(&cstr[..params.rounded_encode_size], params);
-    let mut cf = vec![0i16; p];
-    rq::mult(&mut cf, &c, &f, params);
-    let mut t3 = vec![0i8; p];
-    for i in 0..p {
-        t3[i] = r3::mod3::freeze(rq::modq::freeze(
-            3 * cf[i] as i32,
-            params.q,
-            params.barrett1,
-            params.barrett2,
-        ) as i32);
-    }
-    let mut r = vec![0i8; p];
-    r3::mult(&mut r, &t3, &ginv, p);
+    // SAFETY: `rounded_decode_into` writes all `p` coefficients.
+    uninit_scratch!(c_buf: [i16; MAX_P]);
+    let c = &mut c_buf[..p];
+    rq::encoding::rounded_decode_into(&cstr[..params.rounded_encode_size], c, params);
+    // SAFETY: `rq::mult` writes all `p` product coefficients.
+    uninit_scratch!(cf_buf: [i16; MAX_P]);
+    let cf = &mut cf_buf[..p];
+    rq::mult(cf, c, f, params);
+    // SAFETY: `scale3_freeze3` writes one output per input coefficient.
+    uninit_scratch!(t3_buf: [i8; MAX_P]);
+    let t3 = &mut t3_buf[..p];
+    rq::scale3_freeze3(t3, cf, params);
+    // SAFETY: `r3::mult` writes all `p` product coefficients.
+    uninit_scratch!(r_buf: [i8; MAX_P]);
+    let r = &mut r_buf[..p];
+    r3::mult(r, t3, ginv, p);
 
     // Weight mask: on failure, set r to default weight-W vector
     // (W ones followed by P-W zeros), matching PQClean's Decrypt
-    let w_mask = weightw_mask(&r, p, w);
+    let w_mask = weightw_mask(r, p, w);
     let not_mask = (!w_mask) as i8;
     for val in r[..w].iter_mut() {
         *val = ((*val ^ 1) & not_mask) ^ 1;
@@ -401,24 +421,36 @@ pub(crate) fn decapsulate_inner(cstr: &[u8], sk: &[u8], params: &SntrupParameter
     }
 
     // Hide: encode r, re-encrypt with pk, compute confirm hash
-    let mut r_enc = zx::encoding::encode(&r, p, ses);
-    let h = rq::encoding::rq_decode(&sk[pk_start..pk_end], params);
-    let mut hr = vec![0i16; p];
-    rq::mult(&mut hr, &h, &r, params);
-    rq::round3(&mut hr, params);
-    let mut cnew = vec![0u8; params.ct_size];
-    cnew[..params.rounded_encode_size].copy_from_slice(&rq::encoding::rounded_encode(&hr, params));
+    const MAX_SES: usize = MAX_P.div_ceil(4) + 1;
+    // SAFETY: `encode_into` writes all `ses` bytes.
+    uninit_scratch!(r_enc_buf: [u8; MAX_SES]);
+    let r_enc = &mut r_enc_buf[..ses];
+    zx::encoding::encode_into(r, r_enc, p, ses);
+    // SAFETY: `rq::mult` writes all `p` product coefficients.
+    uninit_scratch!(hr_buf: [i16; MAX_P]);
+    let hr = &mut hr_buf[..p];
+    rq::mult(hr, h, r, params);
+
+    // ct_size = rounded_encode_size + 32; bound by the largest set.
+    const MAX_CT: usize = 1847 + 32;
+    // SAFETY: `round_and_encode_into` fills the rounded prefix and the confirm
+    // hash is copied over the remainder, together covering all of `..ct_size`.
+    uninit_scratch!(cnew_buf: [u8; MAX_CT]);
+    let cnew = &mut cnew_buf[..params.ct_size];
+    rq::encoding::round_and_encode_into(hr, &mut cnew[..params.rounded_encode_size], params);
     let mut confirm = [0u8; 32];
-    hash_confirm(&mut confirm, &r_enc, &cache);
+    hash_confirm(&mut confirm, r_enc, &cache);
     cnew[params.rounded_encode_size..].copy_from_slice(&confirm);
 
     // Compare full ciphertexts (rounded + confirm hash)
-    let mask = ciphertexts_diff_mask(cstr, &cnew);
+    let mask = ciphertexts_diff_mask(cstr, cnew);
 
     // Constant-time select: r_enc on success (mask=0), rho on failure (mask=-1)
     let rho = &sk[rho_start..rho_end];
-    let mut selected = vec![0u8; ses];
-    selected.copy_from_slice(&r_enc);
+    // SAFETY: `copy_from_slice` below writes all `ses` bytes.
+    uninit_scratch!(selected_buf: [u8; MAX_SES]);
+    let selected = &mut selected_buf[..ses];
+    selected.copy_from_slice(r_enc);
     let mask_byte = mask as u8;
     for i in 0..ses {
         selected[i] ^= mask_byte & (selected[i] ^ rho[i]);
@@ -427,20 +459,20 @@ pub(crate) fn decapsulate_inner(cstr: &[u8], sk: &[u8], params: &SntrupParameter
     // Hash session: prefix=1 on success (mask=0), prefix=0 on failure (mask=-1)
     let prefix = (1 + mask) as u8;
     let mut k = [0u8; 32];
-    hash_session(&mut k, prefix, &selected, cstr);
+    hash_session(&mut k, prefix, selected, cstr);
 
-    // Zeroize secret intermediates
-    f.zeroize();
-    ginv.zeroize();
+    // Zeroize secret intermediates (the whole stack frames, padding included).
+    crate::wipe::wipe(f_buf);
+    crate::wipe::wipe(ginv_buf);
     cache.zeroize();
-    cf.zeroize();
-    t3.zeroize();
-    r.zeroize();
-    r_enc.zeroize();
-    hr.zeroize();
-    cnew.zeroize();
+    crate::wipe::wipe(cf_buf);
+    crate::wipe::wipe(t3_buf);
+    crate::wipe::wipe(r_buf);
+    crate::wipe::wipe(r_enc_buf);
+    crate::wipe::wipe(hr_buf);
+    crate::wipe::wipe(cnew_buf);
     confirm.zeroize();
-    selected.zeroize();
+    crate::wipe::wipe(selected_buf);
 
     k
 }

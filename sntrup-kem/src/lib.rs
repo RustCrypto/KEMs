@@ -42,30 +42,64 @@
 //!
 //! # Features
 //!
-//! - `kgen`: Key generation (default)
-//! - `ecap`: Encapsulation (default)
-//! - `dcap`: Decapsulation (default)
-//! - `serde`: Serde serialization support via `serdect`
+//! - `kgen`: key generation (default)
+//! - `ecap`: encapsulation (default)
+//! - `dcap`: decapsulation (default)
+//! - `kem`: implementations of the [`kem`](https://docs.rs/kem) crate's traits,
+//!   covering all three operations at once
+//! - `serde`: `Serialize`/`Deserialize` for every key and ciphertext type, via
+//!   `serdect` for constant-time hex
+//! - `alloc`: allocator-dependent APIs
+//! - `std`: standard-library integration; implies `alloc`
+//! - `js`: WebAssembly randomness for `wasm32-unknown-unknown`
+//! - `force-scalar`: compile out every SIMD kernel and use the portable scalar
+//!   code paths only
+//!
+//! # SIMD dispatch
+//!
+//! Kernel selection happens at run time, from cached CPU-feature probes, so a
+//! default `cargo build --release` uses the widest available instruction set
+//! without needing `RUSTFLAGS` or `target-cpu=native`. Every SIMD kernel has a
+//! scalar counterpart that produces bit-identical output, and the
+//! `force-scalar` feature compiles the SIMD paths out entirely.
+//!
+//! | Target | Selected when | Used for |
+//! |--------|---------------|----------|
+//! | AVX-512 (F/BW/VL) | probed at run time | divstep inversion, 32 coefficients per step |
+//! | AVX2 | probed at run time | everything else on x86_64 |
+//! | AVX-VNNI | probed at run time | the schoolbook multiply, where available |
+//! | NEON | baseline on `aarch64` | all vector kernels |
+//! | scalar | no SIMD, or `force-scalar` | everything |
+//!
+//! The polynomial multiply takes two different shapes. For sntrup761 on x86_64
+//! it is a number-theoretic transform (Good's 3x512 decomposition over the
+//! primes 7681 and 10753, recombined by CRT). Every other parameter set, and
+//! all of `aarch64`, uses a schoolbook kernel that computes each output
+//! coefficient as a contiguous dot product spread across eight independent
+//! widening multiply-accumulate chains.
 
-// The `kgen`/`ecap`/`dcap` features select which KEM operations are compiled.
-// Building with a subset (or none) of them leaves some shared internal helpers
-// (`ct`, `r3`, `rq`, `zx`, `utils`, and their imports) without a caller — that is
-// expected, not a defect. Dead-code/unused-import enforcement is therefore scoped
-// to the full-feature build (default + `--all-features`); partial builds tolerate
-// the uncalled helpers so the crate stays warning-clean under `-D warnings`.
+// Partial feature builds intentionally leave shared implementation helpers
+// without callers. Keep those configurations warning-clean for workspace CI.
 #![cfg_attr(
     not(all(feature = "kgen", feature = "ecap", feature = "dcap")),
     allow(dead_code, unused_imports)
 )]
 
+mod cpu;
 mod ct;
 mod error;
-mod kem;
+#[cfg(feature = "kem")]
+pub mod kem;
+mod ops;
 mod params;
 mod r3;
 mod rq;
+mod scratch;
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+mod simd;
 mod types;
 mod utils;
+mod wipe;
 mod zx;
 
 pub use error::Error;
