@@ -288,7 +288,7 @@ impl<P: SntrupParams> SntrupKem<P> {
     pub fn generate_key(
         rng: &mut impl rand::CryptoRng,
     ) -> (EncapsulationKey<P>, DecapsulationKey<P>) {
-        let (pk, sk) = crate::kem::keygen(P::params(), rng);
+        let (pk, sk) = crate::ops::keygen(P::params(), rng);
         (
             EncapsulationKey::from_vec(pk),
             DecapsulationKey::from_vec(sk),
@@ -312,7 +312,7 @@ impl<P: SntrupParams> SntrupKem<P> {
 impl<P: SntrupParams> EncapsulationKey<P> {
     /// Encapsulate: produce a ciphertext and shared secret.
     pub fn encapsulate(&self, rng: &mut impl rand::CryptoRng) -> (Ciphertext<P>, SharedSecret<P>) {
-        let (ct, ss) = crate::kem::encaps(&self.bytes, P::params(), rng);
+        let (ct, ss) = crate::ops::encaps(&self.bytes, P::params(), rng);
         (Ciphertext::from_vec(ct), SharedSecret::from_vec(ss))
     }
 }
@@ -325,7 +325,7 @@ impl<P: SntrupParams> DecapsulationKey<P> {
     /// On failure, returns a pseudorandom key derived from rho,
     /// indistinguishable from a valid key to an attacker.
     pub fn decapsulate(&self, ct: &Ciphertext<P>) -> SharedSecret<P> {
-        let ss = crate::kem::decaps(&self.bytes, &ct.bytes, P::params());
+        let ss = crate::ops::decaps(&self.bytes, &ct.bytes, P::params());
         SharedSecret::from_vec(ss)
     }
 }
