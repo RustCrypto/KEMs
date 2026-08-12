@@ -36,7 +36,7 @@ where
     D: ArraySize + Rem<N>,
     Mod<D, N>: Zero,
 {
-#[allow(clippy::integer_division_remainder_used, reason = "tests")]
+    #[allow(clippy::integer_division_remainder_used, reason = "tests")]
     fn repeat(&self) -> Array<T, D> {
         Array::from_fn(|i| self[i % N::USIZE].clone())
     }
