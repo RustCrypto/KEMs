@@ -53,6 +53,7 @@ jobs:
       - run: cargo test --no-default-features
       - run: cargo test
       - run: cargo test --all-features
+      - run: cargo test --features kem
       - run: cargo test --features serde,force-scalar
 
   cross:

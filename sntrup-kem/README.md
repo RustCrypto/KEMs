@@ -48,6 +48,7 @@ The KEM API is split into three default features so downstream crates can pull i
 | `kgen`  | **yes** | Key generation: `SntrupKem::generate_key`, `SntrupKem::generate_key_deterministic` |
 | `ecap`  | **yes** | Encapsulation: `EncapsulationKey::encapsulate` |
 | `dcap`  | **yes** | Decapsulation: `DecapsulationKey::decapsulate` |
+| `kem`   | no | Implements the [`kem`](https://docs.rs/kem) crate traits for every parameter set |
 | `force-scalar` | no | Disable SIMD (AVX2/NEON) and use pure-Rust scalar code |
 | `serde` | no | Enables `Serialize`/`Deserialize` for all key and ciphertext types (via `serdect` for constant-time hex encoding) |
 | `js`    | no | Enables WebAssembly support for `wasm32-unknown-unknown` by configuring `getrandom` to use JavaScript's `crypto.getRandomValues()` |
@@ -174,6 +175,29 @@ let ek_bytes: &[u8] = ek.as_ref();
 let ek2 = EncapsulationKey::<Sntrup761Params>::try_from(ek_bytes).unwrap();
 assert_eq!(ek, ek2);
 ```
+
+### `kem` crate integration
+
+Enable the `kem` feature to use any parameter set through the generic
+[`kem`](https://docs.rs/kem) traits:
+
+```rust
+# #[cfg(feature = "kem")] {
+use rand::SeedableRng;
+use rand::rngs::{StdRng, SysRng};
+use sntrup_kem::kem::{Decapsulate, Encapsulate, Kem, Sntrup761Params};
+
+let Ok(mut rng) = StdRng::try_from_rng(&mut SysRng) else {
+    return;
+};
+let (dk, ek) = Sntrup761Params::generate_keypair_from_rng(&mut rng);
+let (ct, sent) = ek.encapsulate_with_rng(&mut rng);
+assert_eq!(dk.decapsulate(&ct), sent);
+# }
+```
+
+The module re-exports the traits and parameter-set marker types. See
+`examples/kem_traits.rs` for generic use and key import/export.
 
 ## WebAssembly
 

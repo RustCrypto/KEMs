@@ -45,6 +45,7 @@
 //! - `kgen`: Key generation (default)
 //! - `ecap`: Encapsulation (default)
 //! - `dcap`: Decapsulation (default)
+//! - `kem`: Implementations of the [`kem`](https://docs.rs/kem) crate traits
 //! - `serde`: Serde serialization support via `serdect`
 
 // The `kgen`/`ecap`/`dcap` features select which KEM operations are compiled.
@@ -60,7 +61,9 @@
 
 mod ct;
 mod error;
-mod kem;
+#[cfg(feature = "kem")]
+pub mod kem;
+mod ops;
 mod params;
 mod r3;
 mod rq;

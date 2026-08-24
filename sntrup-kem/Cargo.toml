@@ -11,6 +11,9 @@ categories = ["algorithms", "cryptography"]
 readme = "README.md"
 edition = "2024"
 
+[package.metadata.docs.rs]
+features = ["kem", "serde"]
+
 [features]
 default = ["kgen", "ecap", "dcap"]
 kgen = []
@@ -19,6 +22,7 @@ dcap = []
 alloc = []
 force-scalar = []
 std = []
+kem = ["dep:hybrid-array", "dep:kem", "dep:rand_core", "kgen", "ecap", "dcap"]
 serde = ["dep:serdect", "dep:serde"]
 js = ["getrandom/wasm_js"]
 
@@ -28,6 +32,9 @@ rand = "0.10.0"
 rand_chacha = "0.10.0"
 subtle = "2"
 getrandom = { version = "0.4", optional = true }
+hybrid-array = { version = "0.4.14", features = ["extra-sizes"], optional = true }
+kem = { version = "0.3", optional = true }
+rand_core = { version = "0.10", optional = true }
 serde = { version = "1", optional = true, default-features = false }
 serdect = { version = "0.4", optional = true }
 # sha2 0.11 dropped the `asm` feature; hardware SHA acceleration is now selected
@@ -39,6 +46,10 @@ zeroize = { version = "1", features = ["derive"] }
 [dev-dependencies]
 criterion = "0.7"
 serde_json = "1"
+
+[[example]]
+name = "kem_traits"
+required-features = ["kem"]
 
 [[bench]]
 name = "mod"
