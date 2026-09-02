@@ -39,14 +39,12 @@ pub fn reciprocal(s: &[i8], p: usize) -> (isize, Vec<i8>) {
 
 #[allow(unsafe_code)]
 pub fn mult(h: &mut [i8], f: &[i8], g: &[i8], p: usize) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return mult_avx2(h, f, g, p);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return mult_avx2(h, f, g, p);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -83,11 +81,7 @@ fn mult_scalar(h: &mut [i8], f: &[i8], g: &[i8], p: usize) {
 /// Column-major schoolbook multiplication with AVX2 for R3 polynomials.
 /// Uses _mm256_sign_epi16 for {-1,0,1} multiplication and i16 accumulators.
 /// Processes 16 coefficients per SIMD instruction.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 #[allow(
     unsafe_code,

@@ -57,14 +57,12 @@ fn int16_nonzero_mask(x: i16) -> i32 {
     clippy::cast_possible_wrap
 )]
 pub(crate) fn weightw_mask(r: &[i8], p: usize, w: usize) -> i32 {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return weightw_mask_avx2(r, p, w);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return weightw_mask_avx2(r, p, w);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -85,11 +83,7 @@ fn weightw_mask_scalar(r: &[i8], _p: usize, w: usize) -> i32 {
 }
 
 /// Count non-zero elements 32 at a time using AVX2.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 #[allow(
     unsafe_code,
@@ -163,14 +157,12 @@ unsafe fn weightw_mask_neon(r: &[i8], p: usize, w: usize) -> i32 {
 /// Returns 0 if equal, -1 otherwise.
 #[allow(unsafe_code, clippy::cast_possible_wrap)]
 fn ciphertexts_diff_mask(a: &[u8], b: &[u8]) -> i32 {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return ciphertexts_diff_mask_avx2(a, b);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return ciphertexts_diff_mask_avx2(a, b);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -192,11 +184,7 @@ fn ciphertexts_diff_mask_scalar(a: &[u8], b: &[u8]) -> i32 {
 }
 
 /// XOR-accumulate 32 bytes at a time, then horizontal OR.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 #[allow(unsafe_code, clippy::cast_possible_wrap, clippy::cast_sign_loss)]
 unsafe fn ciphertexts_diff_mask_avx2(a: &[u8], b: &[u8]) -> i32 {

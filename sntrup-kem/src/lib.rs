@@ -59,6 +59,8 @@
     allow(dead_code, unused_imports)
 )]
 
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+mod cpu;
 mod ct;
 mod error;
 #[cfg(feature = "kem")]
