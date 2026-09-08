@@ -65,6 +65,9 @@ mod pke;
 /// Section 7. Parameter Sets
 mod param;
 
+#[cfg(kani)]
+mod proofs;
+
 // PKCS#8 key encoding support (doc comments in module)
 pub mod pkcs8;
 
