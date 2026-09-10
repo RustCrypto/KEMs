@@ -78,7 +78,7 @@ getrandom = { version = "0.4", features = ["sys_rng"] }
 hex = "0.4"
 hybrid-array = "0.4"
 chacha20 = { version = "0.10", features = ["rng"] }
-rstest = "0.26"
+rstest = "0.27"
 postcard = { version = "1.0", features = ["use-std"] }
 serde_bare = "0.5"
 serde_cbor = "0.11"
