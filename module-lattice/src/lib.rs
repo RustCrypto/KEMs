@@ -29,7 +29,7 @@ pub use encoding::{
     ArraySize, DecodedValue, Encode, EncodedPolynomial, EncodedPolynomialSize, EncodedVector,
     EncodedVectorSize, EncodingSize, VectorEncodingSize, byte_decode, byte_encode,
 };
-pub use maybe_box::MaybeBox;
+pub use maybe_box::{ArrayStorage, MaybeBox};
 pub use truncate::Truncate;
 
 #[cfg(feature = "ctutils")]

@@ -20,6 +20,10 @@ these algorithms:
 - Packing of polynomials into coefficients with a specified number of bits.
 - Utility functions such as truncating integers
 
+With the `alloc` feature enabled, vector and matrix elements are constructed
+directly in heap storage. Builds without `alloc` retain fixed-size inline
+storage.
+
 ## ⚠️ Warning: [Hazmat!][hazmat-link]
 
 This crate is intended solely for the purposes of implementing the `ml-kem` and `ml-dsa` crates and should not be used
