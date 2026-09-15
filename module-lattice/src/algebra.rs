@@ -1,11 +1,9 @@
-use super::truncate::Truncate;
+use super::{MaybeBox, truncate::Truncate};
 
 use array::{Array, ArraySize, typenum::U256};
 use core::fmt::Debug;
 use core::ops::{Add, Mul, Neg, Sub};
 use num_traits::PrimInt;
-
-use crate::ArrayStorage;
 
 #[cfg(feature = "ctutils")]
 use ctutils::{Choice, CtEq, CtEqSlice};
@@ -255,12 +253,12 @@ impl<F: Field<Int: CtEq>> CtEqSlice for Polynomial<F> {}
 ///
 /// Vectors can be added, subtracted, negated, and multiplied by field elements.
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct Vector<F: Field, K: ArraySize>(pub ArrayStorage<Polynomial<F>, K>);
+pub struct Vector<F: Field, K: ArraySize>(pub MaybeBox<Array<Polynomial<F>, K>>);
 
 impl<F: Field, K: ArraySize> Vector<F, K> {
     /// Create a new vector.
     pub fn new(x: Array<Polynomial<F>, K>) -> Self {
-        Self(x.into())
+        Self(MaybeBox::new(x))
     }
 }
 
@@ -458,12 +456,12 @@ where
 /// NTT vectors can be multiplied by NTT polynomials, and "multiplied" with each other to produce a
 /// dot product.
 #[derive(Clone, Default, Debug, Eq, PartialEq)]
-pub struct NttVector<F: Field, K: ArraySize>(pub ArrayStorage<NttPolynomial<F>, K>);
+pub struct NttVector<F: Field, K: ArraySize>(pub MaybeBox<Array<NttPolynomial<F>, K>>);
 
 impl<F: Field, K: ArraySize> NttVector<F, K> {
     /// Create a new NTT vector.
     pub fn new(x: Array<NttPolynomial<F>, K>) -> Self {
-        Self(x.into())
+        Self(MaybeBox::new(x))
     }
 }
 
@@ -552,12 +550,12 @@ where
 /// Multiplication on the right by vectors is the only defined operation, and is only defined when
 /// multiplication of NTT polynomials is defined.
 #[derive(Clone, Default, Debug, PartialEq)]
-pub struct NttMatrix<F: Field, K: ArraySize, L: ArraySize>(pub ArrayStorage<NttVector<F, L>, K>);
+pub struct NttMatrix<F: Field, K: ArraySize, L: ArraySize>(pub Array<NttVector<F, L>, K>);
 
 impl<F: Field, K: ArraySize, L: ArraySize> NttMatrix<F, K, L> {
     /// Create a new NTT matrix.
-    pub fn new(x: Array<NttVector<F, L>, K>) -> Self {
-        Self(x.into())
+    pub const fn new(x: Array<NttVector<F, L>, K>) -> Self {
+        Self(x)
     }
 }
 

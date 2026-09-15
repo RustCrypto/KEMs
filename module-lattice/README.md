@@ -20,9 +20,11 @@ these algorithms:
 - Packing of polynomials into coefficients with a specified number of bits.
 - Utility functions such as truncating integers
 
-With the `alloc` feature enabled, vector and matrix elements are constructed
-directly in heap storage. Builds without `alloc` retain fixed-size inline
-storage.
+With the `alloc` feature enabled, vectors use `MaybeBox` for their coefficient
+storage. Matrices contain these heap-backed rows, so construction only needs
+one inline row at a time. Builds without `alloc` retain inline storage.
+Array-taking constructors still receive their input by value; this bounds
+matrix construction temporaries to a row, rather than eliminating all stack use.
 
 ## ⚠️ Warning: [Hazmat!][hazmat-link]
 

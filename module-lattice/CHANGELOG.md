@@ -7,9 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 ### Changed
-- Store vector and matrix elements directly in heap allocations when the
-  `alloc` feature is enabled, avoiding large temporary stack values during
-  construction.
+- Wrap `Vector` and `NttVector` arrays in `MaybeBox`, so matrix construction
+  allocates one row at a time with the `alloc` feature. Their public tuple fields
+  change type and their array-taking `new` constructors are no longer `const`.
+- Implement `Default`, `Eq`, and `FromIterator` for `MaybeBox`.
 
 ## 0.2.3 (2026-05-10)
 ### Added

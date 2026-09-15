@@ -1,22 +1,30 @@
-//! Regression tests for heap-backed fixed-length storage.
+//! Regression tests for heap-backed lattice matrix construction.
 
 #![cfg(feature = "alloc")]
 
-use array::typenum::U64;
-use module_lattice::ArrayStorage;
+use array::{
+    Array,
+    typenum::{U8, U64},
+};
+use module_lattice::{Elem, NttMatrix, NttVector, define_field};
+
+define_field!(TestField, u32, u64, u128, 8_380_417);
 
 #[test]
-fn array_storage_constructs_incrementally_on_a_small_stack() {
-    const STACK_SIZE: usize = 128 * 1024;
-    const ELEMENT_SIZE: usize = 4 * 1024;
-
+fn matrix_construction_fits_small_stack() {
     let worker = std::thread::Builder::new()
-        .stack_size(STACK_SIZE)
+        .stack_size(128 * 1024)
         .spawn(|| {
-            let storage: ArrayStorage<[u8; ELEMENT_SIZE], U64> =
-                (0..64).map(|value| [value; ELEMENT_SIZE]).collect();
-            assert_eq!(storage.len(), 64);
-            assert_eq!(storage[63][ELEMENT_SIZE - 1], 63);
+            // 512 KiB of coefficients, allocated one 8 KiB row at a time.
+            let matrix = NttMatrix::<TestField, U64, U8>::new(Array::from_fn(|i| {
+                let mut row = NttVector::<TestField, U8>::default();
+                row.0[7].0[255] = Elem::new(u32::try_from(i).expect("row index fits u32"));
+                row
+            }));
+            assert_eq!(matrix.0.len(), 64);
+            assert_eq!(matrix.0[63].0.len(), 8);
+            assert_eq!(matrix.0[63].0[7].0[255], Elem::new(63));
+            core::hint::black_box(matrix);
         })
         .expect("create small-stack worker");
 

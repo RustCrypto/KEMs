@@ -179,7 +179,7 @@ where
 
     fn decode(enc: &Array<u8, Self::EncodedSize>) -> Self {
         let unfold = <D as VectorEncodingSize<K>>::unflatten(enc);
-        Self::new(
+        Self(
             unfold
                 .iter()
                 .map(|&x| <Polynomial<F> as Encode<D>>::decode(x))
@@ -215,7 +215,7 @@ where
 
     fn decode(enc: &Array<u8, Self::EncodedSize>) -> Self {
         let unfold = <D as VectorEncodingSize<K>>::unflatten(enc);
-        Self::new(
+        Self(
             unfold
                 .iter()
                 .map(|&x| <NttPolynomial<F> as Encode<D>>::decode(x))

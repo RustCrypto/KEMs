@@ -72,7 +72,7 @@ impl Compress for Polynomial {
 
 impl<K: ArraySize> Compress for Vector<K> {
     fn compress<D: CompressionFactor>(&mut self) -> &Self {
-        for x in &mut self.0 {
+        for x in self.0.iter_mut() {
             x.compress::<D>();
         }
 
@@ -80,7 +80,7 @@ impl<K: ArraySize> Compress for Vector<K> {
     }
 
     fn decompress<D: CompressionFactor>(&mut self) -> &Self {
-        for x in &mut self.0 {
+        for x in self.0.iter_mut() {
             x.decompress::<D>();
         }
 
