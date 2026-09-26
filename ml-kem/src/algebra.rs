@@ -548,6 +548,53 @@ mod test {
         test_sample(&sample.flatten(), &UNIFORM);
     }
 
+    /// Algorithm 7 as written in FIPS 203: read the XOF three bytes at a time. Also returns the
+    /// number of XOF bytes consumed.
+    #[allow(
+        clippy::integer_division_remainder_used,
+        reason = "test oracle on public values"
+    )]
+    fn sample_ntt_reference(xof: &mut impl sha3::digest::XofReader) -> (NttPolynomial, usize) {
+        let mut a = Array::<Elem, U256>::default();
+        let mut j = 0;
+        let mut consumed = 0;
+        while j < 256 {
+            let mut c = [0u8; 3];
+            xof.read(&mut c);
+            consumed += 3;
+            let d1 = Int::from(c[0]) + 256 * (Int::from(c[1]) % 16);
+            let d2 = Int::from(c[1]) / 16 + 16 * Int::from(c[2]);
+            if d1 < BaseField::Q {
+                a[j] = Elem::new(d1);
+                j += 1;
+            }
+            if d2 < BaseField::Q && j < 256 {
+                a[j] = Elem::new(d2);
+                j += 1;
+            }
+        }
+        (NttPolynomial::new(a), consumed)
+    }
+
+    #[test]
+    fn sample_ntt_matches_reference() {
+        let mut needed_extra_blocks = 0;
+        for seed in 0..2000u16 {
+            let mut rho = B32::default();
+            rho[..2].copy_from_slice(&seed.to_le_bytes());
+
+            let (expected, consumed) = sample_ntt_reference(&mut XOF(&rho, 1, 2));
+            assert_eq!(super::sample_ntt(&mut XOF(&rho, 1, 2)), expected);
+
+            if consumed > 3 * super::SHAKE128_BLOCK_SIZE {
+                needed_extra_blocks += 1;
+            }
+        }
+
+        // Make sure the path that squeezes additional blocks was exercised.
+        assert!(needed_extra_blocks > 0);
+    }
+
     #[test]
     fn sample_poly_cbd() {
         // Eta = 2
