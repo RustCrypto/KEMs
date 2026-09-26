@@ -597,4 +597,26 @@ mod test {
         let sample = super::sample_poly_cbd::<U3>(&prf_output).0;
         test_sample(&sample, &CBD3);
     }
+
+    /// Check `cbd_coefficient` against Algorithm 8 (`x - y mod q`, where `x` and `y` are the sums
+    /// of the first and last `eta` bits) for every possible input.
+    #[test]
+    #[allow(
+        clippy::integer_division_remainder_used,
+        reason = "test oracle on public values"
+    )]
+    fn cbd_coefficient_matches_definition() {
+        fn check<Eta: crate::param::CbdSamplingSize>() {
+            let eta = Eta::U32;
+            for bits in 0..(1u16 << (2 * eta)) {
+                let x: u16 = (0..eta).map(|i| (bits >> i) & 1).sum();
+                let y: u16 = (eta..2 * eta).map(|i| (bits >> i) & 1).sum();
+                let expected = (x + BaseField::Q - y) % BaseField::Q;
+                assert_eq!(super::cbd_coefficient::<Eta>(bits), Elem::new(expected));
+            }
+        }
+
+        check::<U2>();
+        check::<U3>();
+    }
 }
