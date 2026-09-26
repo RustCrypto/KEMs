@@ -104,14 +104,37 @@ pub(crate) fn matrix_sample_ntt<K: ArraySize>(rho: &B32, transpose: bool) -> Ntt
 /// Algorithm 8: `SamplePolyCBD_eta(B)`
 ///
 /// To avoid all the bitwise manipulation in the algorithm as written, we reuse the logic in
-/// `ByteDecode`.  We decode the PRF output into integers with eta bits, then use
+/// `ByteDecode`.  We decode the PRF output into integers with `2 * eta` bits, then use
 /// `count_ones` to perform the summation described in the algorithm.
+///
+/// The PRF output is secret, so each coefficient is computed arithmetically: no memory access
+/// or branch depends on the sampled bits (in particular, there is no lookup table).
 pub(crate) fn sample_poly_cbd<Eta>(B: &PrfOutput<Eta>) -> Polynomial
 where
     Eta: CbdSamplingSize,
 {
     let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
-    Polynomial::new(vals.0.iter().map(|val| Eta::ONES[val.0 as usize]).collect())
+    Polynomial::new(
+        vals.0
+            .iter()
+            .map(|val| cbd_coefficient::<Eta>(val.0))
+            .collect(),
+    )
+}
+
+/// Map `2 * eta` sampled bits to a CBD coefficient: the number of ones in the low `eta` bits
+/// minus the number of ones in the high `eta` bits, reduced mod `q`.
+fn cbd_coefficient<Eta>(bits: Int) -> Elem
+where
+    Eta: CbdSamplingSize,
+{
+    let low_mask: Int = (1 << Eta::USIZE) - 1;
+    let x = <Int as Truncate<u32>>::truncate((bits & low_mask).count_ones());
+    let y = <Int as Truncate<u32>>::truncate((bits >> Eta::USIZE).count_ones());
+
+    // x, y <= eta, so `x + Q - y` is in `[Q - eta, Q + eta]` and one conditional subtraction
+    // fully reduces it.
+    Elem::new(BaseField::small_reduce(x + BaseField::Q - y))
 }
 
 pub(crate) fn sample_poly_vec_cbd<Eta, K>(sigma: &B32, start_n: u8) -> Vector<K>
