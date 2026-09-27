@@ -98,12 +98,10 @@ macro_rules! impl_hqc_kem {
 
         // -- DecapsulationKey: KeyExport (returns 32-byte seed) --
         impl kem_traits::common::KeyExport for DecapsulationKey<$params> {
+            /// Panics if the key was imported from raw bytes and has no seed.
             fn to_bytes(&self) -> kem_traits::Key<Self> {
-                let sk = self.as_ref();
-                let seed_start = sk.len() - crate::params::SEED_BYTES;
-                let mut arr = Array::<u8, typenum::consts::U32>::default();
-                arr.as_mut_slice().copy_from_slice(&sk[seed_start..]);
-                arr
+                let seed = self.to_seed().expect("should be initialized from a seed");
+                Array::<u8, typenum::consts::U32>::from(seed)
             }
         }
 
@@ -151,6 +149,7 @@ impl_hqc_kem!(crate::params::Hqc256Params, sizes::U7237, sizes::U14421);
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::params::Buffer;
     use kem_traits::common::{Generate, KeyExport, KeyInit};
     use kem_traits::{Decapsulate, Encapsulate, Kem};
     use shake::{ExtendableOutput, Shake256, Shake256Reader, Update, XofReader};
@@ -246,4 +245,20 @@ mod tests {
     from_seed_test!(from_seed_128, crate::params::Hqc128Params);
     from_seed_test!(from_seed_192, crate::params::Hqc192Params);
     from_seed_test!(from_seed_256, crate::params::Hqc256Params);
+
+    macro_rules! raw_import_seed_export_test {
+        ($name:ident, $params:ty) => {
+            #[test]
+            #[should_panic(expected = "should be initialized from a seed")]
+            fn $name() {
+                let sk = <$params as HqcParams>::SkBuf::zeroed();
+                let dk = DecapsulationKey::<$params>::try_from(sk.as_ref()).expect("same length");
+                let _ = dk.to_bytes();
+            }
+        };
+    }
+
+    raw_import_seed_export_test!(raw_import_seed_export_128, crate::params::Hqc128Params);
+    raw_import_seed_export_test!(raw_import_seed_export_192, crate::params::Hqc192Params);
+    raw_import_seed_export_test!(raw_import_seed_export_256, crate::params::Hqc256Params);
 }
