@@ -266,8 +266,8 @@ impl<H: HybridKemParameter + Kem> Encapsulate for HybridKemEncapsulationKey<H> {
     {
         let mut randomness_pq = Array::default();
         let mut randomness_t = Array::default();
-        rng.try_fill_bytes(randomness_pq.as_mut_slice());
-        rng.try_fill_bytes(randomness_t.as_mut_slice());
+        let _ = rng.try_fill_bytes(randomness_pq.as_mut_slice());
+        let _ = rng.try_fill_bytes(randomness_t.as_mut_slice());
         let (ss, ct) = self.encapsulate_deterministic(&randomness_pq, &randomness_t);
         (ct, ss)
     }
