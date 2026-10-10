@@ -10,14 +10,12 @@ use super::mod3;
 #[inline(always)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn swap(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return swap_avx2(x, y, n, mask);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return swap_avx2(x, y, n, mask);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -39,11 +37,7 @@ fn swap_scalar(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
 }
 
 /// 32 i8 elements per SIMD iteration.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn swap_avx2(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
     unsafe {
@@ -101,14 +95,12 @@ unsafe fn swap_neon(x: &mut [i8], y: &mut [i8], n: usize, mask: isize) {
 
 #[inline(always)]
 pub fn product(z: &mut [i8], n: usize, x: &[i8], c: i8) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return product_avx2(z, n, x, c);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return product_avx2(z, n, x, c);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -127,11 +119,7 @@ fn product_scalar(z: &mut [i8], n: usize, x: &[i8], c: i8) {
 
 /// For c in {-1, 0, 1}: _mm256_sign_epi8(x, c) computes x * c.
 /// Processes 32 elements per iteration.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn product_avx2(z: &mut [i8], n: usize, x: &[i8], c: i8) {
     unsafe {
@@ -200,14 +188,12 @@ unsafe fn product_neon(z: &mut [i8], n: usize, x: &[i8], c: i8) {
 /// Processes backward to avoid overwrite conflicts, eliminating a separate memmove.
 #[inline(always)]
 pub fn minus_product_shift(z: &mut [i8], n: usize, y: &[i8], c: i8) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return minus_product_shift_avx2(z, n, y, c);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return minus_product_shift_avx2(z, n, y, c);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -225,11 +211,7 @@ fn minus_product_shift_scalar(z: &mut [i8], n: usize, y: &[i8], c: i8) {
     z[0] = 0;
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn minus_product_shift_avx2(z: &mut [i8], n: usize, y: &[i8], c: i8) {
     unsafe {
