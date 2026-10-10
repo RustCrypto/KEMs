@@ -10,14 +10,11 @@
 //! know any details about object sizes.  For example, `VectorEncodingSize::flatten` needs to know
 //! that the size of an encoded vector is `K` times the size of an encoded polynomial.
 
-use crate::{
-    B32, Ciphertext, Kem,
-    algebra::{BaseField, Elem, NttVector},
-};
+use crate::{B32, Ciphertext, Kem, algebra::NttVector};
 use array::{
     Array,
     typenum::{
-        Const, ToUInt, U0, U2, U3, U4, U6, U12, U16, U32, U64, U384,
+        U0, U2, U3, U4, U6, U12, U32, U384,
         operator_aliases::{Prod, Sum},
     },
 };
@@ -26,60 +23,24 @@ use core::{
     ops::{Add, Div, Mul, Rem, Sub},
 };
 use module_lattice::{
-    ArraySize, Encode, EncodedPolynomialSize, EncodedVectorSize, EncodingSize, Field,
-    VectorEncodingSize,
+    ArraySize, Encode, EncodedPolynomialSize, EncodedVectorSize, EncodingSize, VectorEncodingSize,
 };
 
 #[cfg(doc)]
 use crate::Seed;
 
-/// To speed up CBD sampling, we pre-compute all the bit-manipulations:
-///
-/// * Splitting a sampled integer into two parts
-/// * Counting the ones in each part
-/// * Taking the difference between the two counts mod q
-#[allow(clippy::integer_division_remainder_used, reason = "constant")]
-const fn ones_array<const B: usize, const N: usize, U>() -> Array<Elem, U>
-where
-    U: ArraySize<ArrayType<Elem> = [Elem; N]>,
-    Const<N>: ToUInt<Output = U>,
-{
-    let max = 1 << B;
-    let mut out = [Elem::new(0); N];
-    let mut x = 0usize;
-    while x < max {
-        let mut y = 0usize;
-        while y < max {
-            let x_ones = (x.count_ones() & 0xFFFF) as u16;
-            let y_ones = (y.count_ones() & 0xFFFF) as u16;
-            let i = x + (y << B);
-            out[i] = Elem::new((x_ones + BaseField::Q - y_ones) % BaseField::Q);
-
-            y += 1;
-        }
-        x += 1;
-    }
-    Array(out)
-}
-
 /// An integer that describes a bit length to be used in CBD sampling
 #[allow(unreachable_pub)]
 pub trait CbdSamplingSize: ArraySize {
     type SampleSize: EncodingSize;
-    type OnesSize: ArraySize;
-    const ONES: Array<Elem, Self::OnesSize>;
 }
 
 impl CbdSamplingSize for U2 {
     type SampleSize = U4;
-    type OnesSize = U16;
-    const ONES: Array<Elem, U16> = ones_array::<2, 16, U16>();
 }
 
 impl CbdSamplingSize for U3 {
     type SampleSize = U6;
-    type OnesSize = U64;
-    const ONES: Array<Elem, U64> = ones_array::<3, 64, U64>();
 }
 
 /// A `ParameterSet` captures the parameters that describe a particular instance of ML-KEM.
