@@ -7,6 +7,9 @@ use array::{Array, ArraySize, typenum::U256};
 use module_lattice::{Encode, Field, MultiplyNtt, Truncate};
 use sha3::digest::XofReader;
 
+#[cfg(kani)]
+mod proofs;
+
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
 
 pub(crate) type Int = <BaseField as Field>::Int;
@@ -135,6 +138,19 @@ pub(crate) trait Ntt {
     fn ntt(&self) -> Self::Output;
 }
 
+/// Forward butterfly over canonical field elements.
+#[inline(always)]
+fn ntt_butterfly(a: Elem, b: Elem, zeta: Elem) -> (Elem, Elem) {
+    let t = zeta * b;
+    (a + t, a - t)
+}
+
+/// Inverse butterfly over canonical field elements, before final scaling.
+#[inline(always)]
+fn ntt_inverse_butterfly(a: Elem, b: Elem, zeta: Elem) -> (Elem, Elem) {
+    (a + b, zeta * (b - a))
+}
+
 /// One layer of the forward NTT butterfly.
 ///
 /// `LEN` is the butterfly half-length and `ITERATIONS = 128 / LEN` is the number of
@@ -149,9 +165,7 @@ fn ntt_layer<const LEN: usize, const ITERATIONS: usize>(f: &mut Array<Elem, U256
         *k += 1;
 
         for j in start..(start + LEN) {
-            let t = zeta * f[j + LEN];
-            f[j + LEN] = f[j] - t;
-            f[j] = f[j] + t;
+            (f[j], f[j + LEN]) = ntt_butterfly(f[j], f[j + LEN], zeta);
         }
     }
 }
@@ -206,9 +220,7 @@ fn ntt_inverse_layer<const LEN: usize, const ITERATIONS: usize>(
         *k -= 1;
 
         for j in start..(start + LEN) {
-            let t = f[j];
-            f[j] = t + f[j + LEN];
-            f[j + LEN] = zeta * (f[j + LEN] - t);
+            (f[j], f[j + LEN]) = ntt_inverse_butterfly(f[j], f[j + LEN], zeta);
         }
     }
 }
