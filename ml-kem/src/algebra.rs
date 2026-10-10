@@ -30,65 +30,53 @@ pub(crate) type NttVector<K> = module_lattice::NttVector<BaseField, K>;
 /// multiplying on the right just requires iteration.
 pub(crate) type NttMatrix<K> = module_lattice::NttMatrix<BaseField, K, K>;
 
+/// SHAKE128 rate in bytes. It is a multiple of 3, so every block holds whole 3-byte groups.
+const SHAKE128_BLOCK_SIZE: usize = 168;
+
 /// Algorithm 7: `SampleNTT(B)`
+///
+/// The XOF output is consumed in whole SHAKE128 blocks: three blocks yield 256 accepted
+/// coefficients except with small probability, after which blocks are squeezed one at a time.
+/// The XOF input is the public seed `rho`, so the data-dependent loop does not leak secrets.
 pub(crate) fn sample_ntt(B: &mut impl XofReader) -> NttPolynomial {
-    struct FieldElementReader<'a> {
-        xof: &'a mut dyn XofReader,
-        data: [u8; 96],
-        start: usize,
-        next: Option<Int>,
+    let mut coeffs = [Elem::new(0); 256];
+
+    let mut bytes = [0u8; 3 * SHAKE128_BLOCK_SIZE];
+    B.read(&mut bytes);
+    let mut n = rej_uniform(&mut coeffs, 0, &bytes);
+
+    while n < coeffs.len() {
+        let mut block = [0u8; SHAKE128_BLOCK_SIZE];
+        B.read(&mut block);
+        n = rej_uniform(&mut coeffs, n, &block);
     }
 
-    impl<'a> FieldElementReader<'a> {
-        fn new(xof: &'a mut impl XofReader) -> Self {
-            let mut out = Self {
-                xof,
-                data: [0u8; 96],
-                start: 0,
-                next: None,
-            };
+    NttPolynomial::new(coeffs.into())
+}
 
-            // Fill the buffer
-            out.xof.read(&mut out.data);
-
-            out
+/// Parse `bytes` into 12-bit candidates, append those below `q` to `coeffs[n..]`, and return the
+/// new number of coefficients (Algorithm 7, steps 3-15).
+fn rej_uniform(coeffs: &mut [Elem; 256], mut n: usize, bytes: &[u8]) -> usize {
+    for b in bytes.chunks_exact(3) {
+        if n == coeffs.len() {
+            break;
         }
 
-        fn next(&mut self) -> Elem {
-            if let Some(val) = self.next {
-                self.next = None;
-                return Elem::new(val);
-            }
+        let d1 = Int::from(b[0]) + ((Int::from(b[1]) & 0xf) << 8);
+        let d2 = (Int::from(b[1]) >> 4) + (Int::from(b[2]) << 4);
 
-            loop {
-                if self.start == self.data.len() {
-                    self.xof.read(&mut self.data);
-                    self.start = 0;
-                }
+        if d1 < BaseField::Q {
+            coeffs[n] = Elem::new(d1);
+            n += 1;
+        }
 
-                let end = self.start + 3;
-                let b = &self.data[self.start..end];
-                self.start = end;
-
-                let d1 = Int::from(b[0]) + ((Int::from(b[1]) & 0xf) << 8);
-                let d2 = (Int::from(b[1]) >> 4) + (Int::from(b[2]) << 4);
-
-                if d1 < BaseField::Q {
-                    if d2 < BaseField::Q {
-                        self.next = Some(d2);
-                    }
-                    return Elem::new(d1);
-                }
-
-                if d2 < BaseField::Q {
-                    return Elem::new(d2);
-                }
-            }
+        if d2 < BaseField::Q && n < coeffs.len() {
+            coeffs[n] = Elem::new(d2);
+            n += 1;
         }
     }
 
-    let mut reader = FieldElementReader::new(B);
-    NttPolynomial::new(Array::from_fn(|_| reader.next()))
+    n
 }
 
 pub(crate) fn matrix_sample_ntt<K: ArraySize>(rho: &B32, transpose: bool) -> NttMatrix<K> {
@@ -558,6 +546,53 @@ mod test {
         });
 
         test_sample(&sample.flatten(), &UNIFORM);
+    }
+
+    /// Algorithm 7 as written in FIPS 203: read the XOF three bytes at a time. Also returns the
+    /// number of XOF bytes consumed.
+    #[allow(
+        clippy::integer_division_remainder_used,
+        reason = "test oracle on public values"
+    )]
+    fn sample_ntt_reference(xof: &mut impl sha3::digest::XofReader) -> (NttPolynomial, usize) {
+        let mut a = Array::<Elem, U256>::default();
+        let mut j = 0;
+        let mut consumed = 0;
+        while j < 256 {
+            let mut c = [0u8; 3];
+            xof.read(&mut c);
+            consumed += 3;
+            let d1 = Int::from(c[0]) + 256 * (Int::from(c[1]) % 16);
+            let d2 = Int::from(c[1]) / 16 + 16 * Int::from(c[2]);
+            if d1 < BaseField::Q {
+                a[j] = Elem::new(d1);
+                j += 1;
+            }
+            if d2 < BaseField::Q && j < 256 {
+                a[j] = Elem::new(d2);
+                j += 1;
+            }
+        }
+        (NttPolynomial::new(a), consumed)
+    }
+
+    #[test]
+    fn sample_ntt_matches_reference() {
+        let mut needed_extra_blocks = 0;
+        for seed in 0..2000u16 {
+            let mut rho = B32::default();
+            rho[..2].copy_from_slice(&seed.to_le_bytes());
+
+            let (expected, consumed) = sample_ntt_reference(&mut XOF(&rho, 1, 2));
+            assert_eq!(super::sample_ntt(&mut XOF(&rho, 1, 2)), expected);
+
+            if consumed > 3 * super::SHAKE128_BLOCK_SIZE {
+                needed_extra_blocks += 1;
+            }
+        }
+
+        // Make sure the path that squeezes additional blocks was exercised.
+        assert!(needed_extra_blocks > 0);
     }
 
     #[test]
