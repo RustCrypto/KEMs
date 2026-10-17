@@ -7,6 +7,7 @@ use crate::compress::Compress;
 use crate::crypto::{G, PRF};
 use crate::param::{EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use array::typenum::{U1, Unsigned};
+use core::fmt;
 use kem::{Ciphertext, InvalidKey};
 use module_lattice::{
     Encode,
@@ -18,12 +19,22 @@ use zeroize::Zeroize;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
 /// encrypted value.
-#[derive(Clone, Default, Debug)]
+#[derive(Clone, Default)]
 pub(crate) struct DecryptionKey<P>
 where
     P: PkeParams,
 {
     s_hat: NttVector<P::K>,
+}
+
+// Don't print the secret vector `s_hat`
+impl<P> fmt::Debug for DecryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DecryptionKey").finish_non_exhaustive()
+    }
 }
 
 impl<P> CtEq for DecryptionKey<P>
