@@ -14,6 +14,14 @@ fn write_hex(f: &mut core::fmt::Formatter<'_>, bytes: &[u8]) -> core::fmt::Resul
     Ok(())
 }
 
+#[cfg(feature = "kgen")]
+fn embedded_seed(sk: &[u8]) -> [u8; 32] {
+    let mut seed = [0u8; 32];
+    let start = sk.len() - seed.len();
+    seed.copy_from_slice(&sk[start..]);
+    seed
+}
+
 macro_rules! from_bytes {
     ($name:ident, $buf:ty, $bytes:expr, $err:ident) => {
         impl<P: HqcParams> TryFrom<&[u8]> for $name<P> {
@@ -88,6 +96,8 @@ pub struct EncapsulationKey<P: HqcParams> {
 pub struct DecapsulationKey<P: HqcParams> {
     pub(crate) bytes: P::SkBuf,
     pub(crate) ek: EncapsulationKey<P>,
+    /// `seed_kem` this key was generated from, if known to reproduce `bytes`.
+    pub(crate) seed: Option<[u8; 32]>,
     pub(crate) _marker: PhantomData<P>,
 }
 
@@ -138,6 +148,8 @@ impl<P: HqcParams> EncapsulationKey<P> {
 
 #[cfg(any(feature = "kem", feature = "pkcs8"))]
 impl<P: HqcParams> DecapsulationKey<P> {
+    /// Callers must pass genuine keygen output: the trailing `seed_kem` of `bytes` is
+    /// taken to reproduce it.
     pub(crate) fn from_slice(bytes: &[u8]) -> Self {
         debug_assert_eq!(bytes.len(), P::SK_BYTES);
         let mut buf = P::SkBuf::zeroed();
@@ -146,6 +158,7 @@ impl<P: HqcParams> DecapsulationKey<P> {
         Self {
             bytes: buf,
             ek,
+            seed: Some(embedded_seed(bytes)),
             _marker: PhantomData,
         }
     }
@@ -164,6 +177,19 @@ impl<P: HqcParams> DecapsulationKey<P> {
     pub fn encapsulation_key(&self) -> &EncapsulationKey<P> {
         &self.ek
     }
+
+    /// Get the 32-byte `seed_kem` this key was generated from, which reproduces it
+    /// via [`generate_key_deterministic`](HqcKem::generate_key_deterministic).
+    ///
+    /// Returns `None` for a key imported from raw secret key bytes: decapsulation
+    /// never reads the `seed_kem` they embed, so it is not known to regenerate the
+    /// rest of the key.
+    ///
+    /// This value is secret key material; treat it with the same care as the key
+    /// itself.
+    pub fn to_seed(&self) -> Option<[u8; 32]> {
+        self.seed
+    }
 }
 
 impl<P: HqcParams> TryFrom<&[u8]> for DecapsulationKey<P> {
@@ -181,6 +207,7 @@ impl<P: HqcParams> TryFrom<&[u8]> for DecapsulationKey<P> {
         Ok(Self {
             bytes: buf,
             ek: EncapsulationKey::try_from(&bytes[..P::PK_BYTES])?,
+            seed: None,
             _marker: PhantomData,
         })
     }
@@ -275,6 +302,7 @@ impl<P: HqcParams> Eq for SharedSecret<P> {}
 impl<P: HqcParams> Zeroize for DecapsulationKey<P> {
     fn zeroize(&mut self) {
         self.bytes.as_mut().zeroize();
+        self.seed.zeroize();
     }
 }
 
@@ -307,6 +335,7 @@ impl<P: HqcParams> HqcKem<P> {
         rng: &mut impl rand::CryptoRng,
     ) -> (EncapsulationKey<P>, DecapsulationKey<P>) {
         let (pk, sk) = crate::kem::keygen::<P>(rng);
+        let seed = embedded_seed(sk.as_ref());
         let ek = EncapsulationKey {
             bytes: pk.clone(),
             _marker: PhantomData,
@@ -319,6 +348,7 @@ impl<P: HqcParams> HqcKem<P> {
             DecapsulationKey {
                 bytes: sk,
                 ek,
+                seed: Some(seed),
                 _marker: PhantomData,
             },
         )
@@ -344,6 +374,7 @@ impl<P: HqcParams> HqcKem<P> {
             DecapsulationKey {
                 bytes: sk,
                 ek,
+                seed: Some(*seed),
                 _marker: PhantomData,
             },
         )
@@ -471,6 +502,7 @@ mod serde_impl {
             Ok(Self {
                 bytes: buf,
                 ek,
+                seed: None,
                 _marker: PhantomData,
             })
         }
