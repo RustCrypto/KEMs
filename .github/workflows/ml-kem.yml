@@ -79,6 +79,51 @@ jobs:
       - run: cargo test
       - run: cargo test --all-features
 
+  kani:
+    name: Primitive proofs (Kani)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      KANI_VERSION: "0.67.0"
+      # Must match rust-toolchain-version in the pinned Kani release bundle.
+      KANI_TOOLCHAIN: nightly-2025-11-21-x86_64-unknown-linux-gnu
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: cargo-bins/cargo-binstall@v1.23.0
+        with:
+          version: "1.23.0"
+      - name: Install prebuilt Kani launcher
+        # QuickInstall provides the launcher; setup obtains the official Kani bundle.
+        # Fail if binaries are unavailable instead of falling back to compilation.
+        run: cargo binstall --no-confirm --disable-strategies compile --version "$KANI_VERSION" kani-verifier
+      - name: Cache Kani bundle and Rust toolchain
+        id: kani-cache
+        uses: actions/cache/restore@v4
+        with:
+          key: kani-ubuntu-24.04-${{ runner.arch }}-${{ env.KANI_VERSION }}-${{ env.KANI_TOOLCHAIN }}-v1
+          path: |
+            ~/.kani/kani-${{ env.KANI_VERSION }}
+            ~/.rustup/toolchains/${{ env.KANI_TOOLCHAIN }}
+      - name: Set up Kani
+        if: steps.kani-cache.outputs.cache-hit != 'true'
+        run: cargo kani setup
+      - name: Check Kani installation
+        run: cargo kani --version
+      - name: Save Kani installation
+        # Keep a successful setup even if a subsequent proof fails.
+        if: steps.kani-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          key: ${{ steps.kani-cache.outputs.cache-primary-key }}
+          path: |
+            ~/.kani/kani-${{ env.KANI_VERSION }}
+            ~/.rustup/toolchains/${{ env.KANI_TOOLCHAIN }}
+      - name: Verify ML-KEM primitives
+        run: cargo kani --lib --no-default-features --jobs 2 --output-format terse
+
   cross:
     needs: set-msrv
     strategy:
