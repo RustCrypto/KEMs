@@ -26,7 +26,7 @@ shake = { version = "0.1", default-features = false }
 x25519-dalek = { version = "3", default-features = false, features = ["static_secrets"] }
 
 # optional dependencies
-zeroize = { version = "1.8.1", optional = true, default-features = true }
+zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
 getrandom = { version = "0.4", features = ["sys_rng"] }
