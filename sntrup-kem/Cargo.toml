@@ -1,6 +1,6 @@
 [package]
 name = "sntrup-kem"
-version = "0.1.0"
+version = "0.0.0"
 authors = ["Michael Lodder <redmike7@gmail.com>"]
 license = "MIT OR Apache-2.0"
 keywords = ["sntrup", "kem", "post-quantum", "cryptography", "NTRU"]
@@ -10,6 +10,7 @@ repository = "https://github.com/RustCrypto/KEMs"
 categories = ["algorithms", "cryptography"]
 readme = "README.md"
 edition = "2024"
+rust-version = "1.87"
 
 [package.metadata.docs.rs]
 features = ["kem", "serde"]

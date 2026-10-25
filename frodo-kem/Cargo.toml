@@ -12,7 +12,7 @@ exclude = ["tests/**", "bench/**", "examples/**", ".github/**"]
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 
 [features]
 default = [
@@ -58,7 +58,7 @@ std = []
 
 [dependencies]
 aes = { version = "0.9", optional = true }
-ctutils = "0.4"
+ctutils = "0.4.5"
 hex = { version = "0.4", optional = true }
 hybrid-array = { version = "0.4.13", features = ["extra-sizes"] }
 kem = "0.3"
