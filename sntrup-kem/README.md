@@ -258,4 +258,4 @@ conditions.
 [docs-link]: https://docs.rs/sntrup-kem/
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
 [downloads-image]: https://img.shields.io/crates/d/sntrup-kem.svg
-[msrv-image]: https://img.shields.io/badge/rustc-1.85+-blue.svg
+[msrv-image]: https://img.shields.io/badge/rustc-1.87+-blue.svg

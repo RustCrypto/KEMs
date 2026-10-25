@@ -7,7 +7,7 @@ and vectors, as well as packing of polynomials into coefficients with a specifie
 """
 version = "0.2.3"
 edition = "2024"
-rust-version = "1.85"
+rust-version = "1.87"
 license = "Apache-2.0 OR MIT"
 readme = "README.md"
 homepage = "https://github.com/RustCrypto/KEMs/tree/master/module-lattice"
@@ -20,7 +20,7 @@ array = { version = "0.4.8", package = "hybrid-array", features = ["extra-sizes"
 num-traits = { version = "0.2", default-features = false }
 
 # optional dependencies
-ctutils = { version = "0.4", optional = true }
+ctutils = { version = "0.4.5", optional = true }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]

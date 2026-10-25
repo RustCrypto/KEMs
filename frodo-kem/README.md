@@ -1,10 +1,11 @@
-# [RustCrypto] Frodo-KEM
+# [RustCrypto]: Frodo-KEM
 
-[![Crate][crate-image]][crate-link]
+[![crate][crate-image]][crate-link]
 [![Docs][docs-image]][docs-link]
-![Build](https://github.com/RustCrypto/KEMs/actions/workflows/frodo-kem.yml/badge.svg)
+[![Build Status][build-image]][build-link]
 ![Apache2/MIT licensed][license-image]
-![MSRV][msrv-image]
+![Rust Version][rustc-image]
+[![Project Chat][chat-image]][chat-link]
 
 A pure Rust implementation of FrodoKEM and eFrodoKEM as specified in
 [ISO/IEC 18033-2:2006/Amd 2:2026][iso-standard].
@@ -128,12 +129,19 @@ conditions.
 
 [//]: # (badges)
 
-[RustCrypto]: https://github.com/rustcrypto
-[crate-image]: https://img.shields.io/crates/v/frodo-kem.svg?logo=rust
+[crate-image]: https://img.shields.io/crates/v/frodo-kem?logo=rust
 [crate-link]: https://crates.io/crates/frodo-kem
 [docs-image]: https://docs.rs/frodo-kem/badge.svg
 [docs-link]: https://docs.rs/frodo-kem/
+[build-image]: https://github.com/RustCrypto/KEMs/actions/workflows/frodo-kem.yml/badge.svg
+[build-link]: https://github.com/RustCrypto/KEMs/actions/workflows/frodo-kem.yml
 [license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
-[msrv-image]: https://img.shields.io/badge/rustc-1.85+-blue.svg
+[rustc-image]: https://img.shields.io/badge/rustc-1.87+-blue.svg
+[chat-image]: https://img.shields.io/badge/zulip-join_chat-blue.svg
+[chat-link]: https://rustcrypto.zulipchat.com/#narrow/stream/406484-KEMs
+
+[//]: # (links)
+
+[RustCrypto]: https://github.com/rustcrypto
 [iso-standard]: https://www.iso.org/standard/86890.html
 [reference-kats]: https://github.com/microsoft/PQCrypto-LWEKE/tree/7a4e7219d06305e16aef734213001cd8fefbcc14

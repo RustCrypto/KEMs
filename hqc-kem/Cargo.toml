@@ -27,7 +27,7 @@ const-oid = { version = "0.10", optional = true }
 hybrid-array = { version = "0.4.10", optional = true, features = ["extra-sizes"] }
 kem_traits = { package = "kem", version = "0.3", optional = true }
 pkcs8 = { version = "0.11", optional = true, default-features = false }
-ctutils = { version = "0.4", default-features = false }
+ctutils = { version = "0.4.5", default-features = false }
 rand = { version = "0.10", default-features = false }
 sha3 = { version = "0.12", default-features = false }
 shake = { version = "0.1", default-features = false }

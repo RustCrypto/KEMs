@@ -1,12 +1,17 @@
 # hqc-kem
 
+[![crate][crate-image]][crate-link]
+[![Docs][docs-image]][docs-link]
+[![Build Status][build-image]][build-link]
+![Apache2/MIT licensed][license-image]
+![Rust Version][rustc-image]
+[![Project Chat][chat-image]][chat-link]
+
 Pure Rust implementation of **HQC-KEM** (Hamming Quasi-Cyclic Key Encapsulation Mechanism), a post-quantum KEM based on quasi-cyclic codes over the ring Z_2[X]/(X^n-1).
 
-HQC uses concatenated Reed-Solomon + Reed-Muller error correction with the Fujisaki-Okamoto transform for IND-CCA2 security. It's currently selected as the backup approved KEM to ML-KEM.
+## About
 
-[![Crates.io](https://img.shields.io/crates/v/hqc-kem.svg)](https://crates.io/crates/hqc-kem)
-[![Documentation](https://docs.rs/hqc-kem/badge.svg)](https://docs.rs/hqc-kem)
-[![License](https://img.shields.io/crates/l/hqc-kem.svg)](https://github.com/mikelodder7/hqc-kem)
+HQC uses concatenated Reed-Solomon + Reed-Muller error correction with the Fujisaki-Okamoto transform for IND-CCA2 security. It's currently selected as the backup approved KEM to ML-KEM.
 
 ## References
 
@@ -208,3 +213,16 @@ Licensed under either of:
 - [MIT License](http://opensource.org/licenses/MIT)
 
 at your option.
+
+[//]: # (badges)
+
+[crate-image]: https://img.shields.io/crates/v/hqc-kem?logo=rust
+[crate-link]: https://crates.io/crates/hqc-kem
+[docs-image]: https://docs.rs/hqc-kem/badge.svg
+[docs-link]: https://docs.rs/hqc-kem/
+[build-image]: https://github.com/RustCrypto/KEMs/actions/workflows/hqc-kem.yml/badge.svg
+[build-link]: https://github.com/RustCrypto/KEMs/actions/workflows/hqc-kem.yml
+[license-image]: https://img.shields.io/badge/license-Apache2.0/MIT-blue.svg
+[rustc-image]: https://img.shields.io/badge/rustc-1.87+-blue.svg
+[chat-image]: https://img.shields.io/badge/zulip-join_chat-blue.svg
+[chat-link]: https://rustcrypto.zulipchat.com/#narrow/stream/406484-KEMs
