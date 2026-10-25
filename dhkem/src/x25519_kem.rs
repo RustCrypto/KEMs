@@ -182,6 +182,7 @@ impl Encapsulate for X25519EncapsulationKey {
 }
 
 // Regression test: DHKEM(X25519) serialized private keys MUST be clamped
+// Issue: https://github.com/RustCrypto/KEMs/issues/401
 #[test]
 fn regression_unclamped_privkey() {
     let mut rng = rand::rng();
