@@ -179,3 +179,17 @@ impl Encapsulate for X25519EncapsulationKey {
         (pk.to_bytes().into(), ss.to_bytes().into())
     }
 }
+
+// Regression test: DHKEM(X25519) serialized private keys MUST be clamped
+#[test]
+fn regression_unclamped_privkey() {
+    let mut rng = rand::rng();
+
+    // Clamping affects 5 bits. The likelihood that they're all set correctly by chance is 2^-5.
+    // The liklihood that this happens 30 times in a row is 2^(-150).
+    for _ in 0..30 {
+        let dk = X25519DecapsulationKey::generate_from_rng(&mut rng);
+        let dk_bytes = dk.to_bytes().into();
+        assert_eq!(dk_bytes, curve25519_dalek::scalar::clamp_integer(dk_bytes));
+    }
+}
