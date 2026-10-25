@@ -2,6 +2,7 @@
 
 use crate::{DecapsulationKey, EncapsulationKey, Error, HpkeKemId};
 use ctutils::CtEq;
+use curve25519_dalek::scalar::clamp_integer;
 use kem::{
     Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit, KeySizeUser,
     TryDecapsulate, TryKeyInit,
@@ -74,7 +75,7 @@ impl KeyInit for X25519DecapsulationKey {
 /// [RFC9810 §7.1.2]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.2
 impl KeyExport for X25519DecapsulationKey {
     fn to_bytes(&self) -> Key<Self> {
-        self.dk.to_bytes().into()
+        clamp_integer(self.dk.to_bytes()).into()
     }
 }
 
@@ -177,5 +178,22 @@ impl Encapsulate for X25519EncapsulationKey {
         let pk = PublicKey::from(&sk);
         let ss = sk.diffie_hellman(&self.0);
         (pk.to_bytes().into(), ss.to_bytes().into())
+    }
+}
+
+// Regression test: DHKEM(X25519) serialized private keys MUST be clamped
+// Issue: https://github.com/RustCrypto/KEMs/issues/401
+#[test]
+fn regression_unclamped_privkey() {
+    let mut rng = rand::rng();
+
+    // Clamping affects 5 bits. The likelihood that they're all set correctly by chance is 2^-5.
+    // The liklihood that this happens 30 times in a row is 2^(-150).
+    for _ in 0..30 {
+        let dk = X25519DecapsulationKey::generate_from_rng(&mut rng);
+        let dk_bytes = dk.to_bytes().into();
+        // You can test it's clamped by just clamping again and seeing if anything changed. This is
+        // because clamping is idempotent.
+        assert_eq!(dk_bytes, clamp_integer(dk_bytes));
     }
 }
