@@ -2,6 +2,7 @@
 
 use crate::{DecapsulationKey, EncapsulationKey, Error, HpkeKemId};
 use ctutils::CtEq;
+use curve25519_dalek::scalar::clamp_integer;
 use kem::{
     Decapsulator, Encapsulate, Generate, InvalidKey, Kem, Key, KeyExport, KeyInit, KeySizeUser,
     TryDecapsulate, TryKeyInit,
@@ -74,7 +75,7 @@ impl KeyInit for X25519DecapsulationKey {
 /// [RFC9810 §7.1.2]: https://datatracker.ietf.org/doc/html/rfc9180#section-7.1.2
 impl KeyExport for X25519DecapsulationKey {
     fn to_bytes(&self) -> Key<Self> {
-        self.dk.to_bytes().into()
+        clamp_integer(self.dk.to_bytes()).into()
     }
 }
 
@@ -190,6 +191,8 @@ fn regression_unclamped_privkey() {
     for _ in 0..30 {
         let dk = X25519DecapsulationKey::generate_from_rng(&mut rng);
         let dk_bytes = dk.to_bytes().into();
-        assert_eq!(dk_bytes, curve25519_dalek::scalar::clamp_integer(dk_bytes));
+        // You can test it's clamped by just clamping again and seeing if anything changed. This is
+        // because clamping is idempotent.
+        assert_eq!(dk_bytes, clamp_integer(dk_bytes));
     }
 }
