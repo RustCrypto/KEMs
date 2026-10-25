@@ -3,7 +3,7 @@
 use crate::error::Error;
 use crate::params::SntrupParams;
 use core::marker::PhantomData;
-use subtle::ConstantTimeEq;
+use ctutils::{Choice, CtEq};
 use zeroize::Zeroize;
 
 /// Streamlined NTRU Prime encapsulation key (public key).
@@ -215,11 +215,11 @@ impl<P: SntrupParams> PartialEq for Ciphertext<P> {
 impl<P: SntrupParams> Eq for Ciphertext<P> {}
 
 // ---------------------------------------------------------------------------
-// ConstantTimeEq / PartialEq / Eq (DecapsulationKey)
+// CtEq / PartialEq / Eq (DecapsulationKey)
 // ---------------------------------------------------------------------------
 
-impl<P: SntrupParams> ConstantTimeEq for DecapsulationKey<P> {
-    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+impl<P: SntrupParams> CtEq for DecapsulationKey<P> {
+    fn ct_eq(&self, other: &Self) -> Choice {
         self.bytes.as_slice().ct_eq(other.bytes.as_slice())
     }
 }
@@ -233,11 +233,11 @@ impl<P: SntrupParams> PartialEq for DecapsulationKey<P> {
 impl<P: SntrupParams> Eq for DecapsulationKey<P> {}
 
 // ---------------------------------------------------------------------------
-// ConstantTimeEq / PartialEq / Eq (SharedSecret)
+// CtEq / PartialEq / Eq (SharedSecret)
 // ---------------------------------------------------------------------------
 
-impl<P: SntrupParams> ConstantTimeEq for SharedSecret<P> {
-    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+impl<P: SntrupParams> CtEq for SharedSecret<P> {
+    fn ct_eq(&self, other: &Self) -> Choice {
         self.bytes.as_slice().ct_eq(other.bytes.as_slice())
     }
 }
