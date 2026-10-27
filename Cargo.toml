@@ -44,6 +44,7 @@ unwrap_in_result = "warn"
 unwrap_used = "warn"
 
 [workspace.lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(kani)'] }
 missing_copy_implementations = "warn"
 missing_debug_implementations = "warn"
 missing_docs = "warn"

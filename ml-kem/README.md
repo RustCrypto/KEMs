@@ -47,6 +47,20 @@ The implementation contained in this crate has never been independently audited!
 
 USE AT YOUR OWN RISK!
 
+This crate includes Kani proof harnesses for arithmetic and encoding primitives
+as an initial step toward formal verification of the complete Rust implementation.
+Their input assumptions and scope are documented in [VERIFICATION.md](VERIFICATION.md).
+Correctness and constant-time execution are design goals that guide the
+implementation and its ongoing development. Testing and incremental formal
+verification strengthen confidence in the implementation, but do not yet
+establish full KEM correctness or guarantee constant-time execution.
+
+Kani is needed only to run the development/CI proofs. Applications using this
+library do not need Kani; normal debug and release builds exclude the proof
+harnesses and incur no runtime overhead from them. The proofs check a model of
+the Rust implementation, not the optimized release binary. See
+[Library use and release builds](VERIFICATION.md#library-use-and-release-builds).
+
 ## Minimum Supported Rust Version (MSRV) Policy
 
 MSRV increases are not considered breaking changes and can happen in patch

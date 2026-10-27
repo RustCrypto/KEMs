@@ -3,6 +3,9 @@ use array::ArraySize;
 use module_lattice::EncodingSize;
 use module_lattice::{Field, Truncate};
 
+#[cfg(kani)]
+mod proofs;
+
 // A convenience trait to allow us to associate some constants with a typenum
 pub(crate) trait CompressionFactor: EncodingSize {
     const POW2_HALF: u32;
