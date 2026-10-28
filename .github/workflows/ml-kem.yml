@@ -79,6 +79,15 @@ jobs:
       - run: cargo test
       - run: cargo test --all-features
 
+  checkct:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Ledger-Donjon/cargo-checkct@85271e5ce9eab9ba895c62c8b5d4129810a635a0
+        with:
+          directory: ml-kem
+          timeout: 120
+
   cross:
     needs: set-msrv
     strategy:
