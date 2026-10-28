@@ -87,6 +87,7 @@ jobs:
         with:
           directory: ml-kem
           timeout: 120
+          jobs: 1
 
   cross:
     needs: set-msrv

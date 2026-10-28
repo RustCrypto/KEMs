@@ -1,10 +1,10 @@
 [build]
 target = [
-    # TODO(tarcieri): investigate codegen problems on commented out platforms
-    #"riscv32imac-unknown-none-elf",
-    #"thumbv6m-none-eabi",
+    # TODO(tarcieri): full encapsulation exceeds analysis budget on `riscv32`
+    # "riscv32imac-unknown-none-elf",
+    "thumbv6m-none-eabi",
     "thumbv7em-none-eabihf",
-    #"x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-gnu",
 ]
 
 [target.x86_64-unknown-linux-gnu]
