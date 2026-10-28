@@ -1,0 +1,10 @@
+[workspace]
+members = ["driver"]
+resolver = "2"
+
+[profile.release]
+debug = true
+panic = "abort"
+
+[patch.crates-io]
+module-lattice = { path = "../../module-lattice" }
