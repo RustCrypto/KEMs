@@ -8,6 +8,7 @@ use array::{
     Array, ArraySize,
     sizes::{U32, U64},
 };
+use core::fmt;
 use kem::{
     Ciphertext, Decapsulate, Decapsulator, Generate, InvalidKey, Kem, KeyExport, KeyInit,
     KeySizeUser,
@@ -23,7 +24,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct DecapsulationKey<P>
 where
     P: KemParams,
@@ -125,6 +126,18 @@ where
         let z = MaybeBox::new(z);
 
         Self { dk_pke, ek, d, z }
+    }
+}
+
+// Only show the public encapsulation key so secrets don't end up in logs
+impl<P> fmt::Debug for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DecapsulationKey")
+            .field("ek", &self.ek)
+            .finish_non_exhaustive()
     }
 }
 
