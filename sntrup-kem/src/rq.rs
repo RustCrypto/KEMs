@@ -67,14 +67,12 @@ pub fn round3(h: &mut [i16], params: &SntrupParameters) {
 
 #[allow(unsafe_code)]
 pub fn mult(h: &mut [i16], f: &[i16], g: &[i8], params: &SntrupParameters) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 availability verified by cfg target_feature
-    unsafe {
-        return mult_avx2(h, f, g, params);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return mult_avx2(h, f, g, params);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -115,11 +113,7 @@ fn mult_scalar(h: &mut [i16], f: &[i16], g: &[i8], params: &SntrupParameters) {
 
 /// Column-major schoolbook multiplication with AVX2.
 /// Processes 8 i32 multiply-accumulates per SIMD instruction.
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 #[allow(
     unsafe_code,
