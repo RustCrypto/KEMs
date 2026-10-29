@@ -40,3 +40,30 @@ pub fn small_reduce_u32() {
     black_box(PublicRng.next_u32());
     black_box(DilithiumField::small_reduce(PrivateRng.next_u32()));
 }
+
+// Public key and H(ek) are concrete; s_hat and z are independent secrets.
+// Expanded-key import avoids treating key generation's public rho as secret.
+macro_rules! check_decapsulation {
+    ($name:ident, $kem:ident, $sk_len:expr, $fixture:literal) => {
+        #[checkct]
+        #[allow(deprecated)]
+        pub fn $name() {
+            use ml_kem::{Ciphertext, Decapsulate, DecapsulationKey, ExpandedDecapsulationKey};
+
+            let public = include_bytes!($fixture);
+            let mut expanded = ExpandedDecapsulationKey::<ml_kem::$kem>::default();
+            PrivateRng.fill_bytes(&mut expanded[..$sk_len]);
+            expanded[$sk_len..$sk_len + public.len()].copy_from_slice(public);
+            PrivateRng.fill_bytes(&mut expanded[$sk_len + public.len()..]);
+            let dk = DecapsulationKey::<ml_kem::$kem>::from_expanded(&expanded).unwrap();
+
+            let mut ct = Ciphertext::<ml_kem::$kem>::default();
+            PublicRng.fill_bytes(&mut ct);
+            black_box(dk.decapsulate(&ct));
+        }
+    };
+}
+
+check_decapsulation!(decapsulate_512, MlKem512, 768, "fixtures/ek512.bin");
+check_decapsulation!(decapsulate_768, MlKem768, 1152, "fixtures/ek768.bin");
+check_decapsulation!(decapsulate_1024, MlKem1024, 1536, "fixtures/ek1024.bin");
