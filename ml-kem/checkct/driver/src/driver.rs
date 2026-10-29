@@ -1,12 +1,15 @@
 use crate::rng::{PrivateRng, PublicRng};
 use checkct_macros::checkct;
 use core::hint::black_box;
-use ml_kem::{B32, EncapsulationKey};
 
 macro_rules! check_encapsulation {
     ($name:ident, $kem:ident, $key_len:expr) => {
+        // TODO: enable on RISC-V once full encapsulation fits the analysis budget.
+        #[cfg(not(target_arch = "riscv32"))]
         #[checkct]
         pub fn $name() {
+            use ml_kem::{B32, EncapsulationKey};
+
             // The generated BINSEC script references both RNG hooks.
             black_box(PublicRng.next_u32());
 
@@ -45,6 +48,8 @@ pub fn small_reduce_u32() {
 // Expanded-key import avoids treating key generation's public rho as secret.
 macro_rules! check_decapsulation {
     ($name:ident, $kem:ident, $sk_len:expr, $fixture:literal) => {
+        // TODO: enable on RISC-V once full decapsulation fits the analysis budget.
+        #[cfg(not(target_arch = "riscv32"))]
         #[checkct]
         #[allow(deprecated)]
         pub fn $name() {

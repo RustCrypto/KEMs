@@ -1,7 +1,6 @@
 [build]
 target = [
-    # TODO(tarcieri): full encapsulation exceeds analysis budget on `riscv32`
-    # "riscv32imac-unknown-none-elf",
+    "riscv32imac-unknown-none-elf",
     "thumbv6m-none-eabi",
     "thumbv7em-none-eabihf",
     "x86_64-unknown-linux-gnu",
