@@ -6,6 +6,7 @@ edition = "2024"
 
 [dependencies]
 checkct_macros = { path = "../checkct_macros" }
+module-lattice = { path = "../../../module-lattice", default-features = false }
 ml-kem = { path = "../..", default-features = false }
 # PrivateRng and PublicRng implement the traits of all these rand_core versions,
 # so that they can be passed to libraries depending on any of them.

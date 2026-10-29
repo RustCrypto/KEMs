@@ -32,5 +32,4 @@ pub use encoding::{
 pub use maybe_box::MaybeBox;
 pub use truncate::Truncate;
 
-#[cfg(feature = "ctutils")]
 pub use ctutils;

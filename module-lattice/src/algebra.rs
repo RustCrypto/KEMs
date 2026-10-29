@@ -72,13 +72,8 @@ macro_rules! define_field {
             const BARRETT_MULTIPLIER: Self::LongLong = (1 << Self::BARRETT_SHIFT) / Self::QLL;
 
             fn small_reduce(x: Self::Int) -> Self::Int {
-                // Branchless conditional subtraction: if x >= Q, subtract Q; else
-                // leave x alone. Compilers already emit `csel` here at O2, but the
-                // explicit mask form removes the dependency on optimizer choices
-                // and keeps the generated assembly free of secret-dependent control
-                // flow at every optimization level.
-                let mask = ((x >= Self::Q) as $int).wrapping_neg();
-                x - (Self::Q & mask)
+                use $crate::ctutils::{CtLt, CtSelect};
+                x - Self::Q.ct_select(&0, x.ct_lt(&Self::Q))
             }
 
             fn barrett_reduce(x: Self::Long) -> Self::Int {

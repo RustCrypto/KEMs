@@ -14,8 +14,18 @@ module_lattice::define_field!(DilithiumField, u32, u64, u128, 8_380_417);
 
 #[test]
 fn small_reduce() {
+    for x in 0..=u16::MAX {
+        let expected = if x >= 3329 { x - 3329 } else { x };
+        assert_eq!(KyberField::small_reduce(x), expected);
+    }
+
     assert_eq!(KyberField::small_reduce(3328), 3328);
     assert_eq!(KyberField::small_reduce(3329), 0);
+
+    for x in [0, 1, 8_380_416, 8_380_417, 16_760_833, u32::MAX] {
+        let expected = if x >= 8_380_417 { x - 8_380_417 } else { x };
+        assert_eq!(DilithiumField::small_reduce(x), expected);
+    }
 
     assert_eq!(DilithiumField::small_reduce(8_380_416), 8_380_416);
     assert_eq!(DilithiumField::small_reduce(8_380_417), 0);

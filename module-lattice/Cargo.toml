@@ -16,11 +16,11 @@ categories = ["cryptography", "no-std"]
 keywords = ["crypto", "kyber", "lattice", "post-quantum"]
 
 [dependencies]
-array = { version = "0.4.8", package = "hybrid-array", features = ["extra-sizes"] }
+array = { version = "0.4.8", package = "hybrid-array", features = ["ctutils", "extra-sizes"] }
+ctutils = "0.4.7"
 num-traits = { version = "0.2", default-features = false }
 
 # optional dependencies
-ctutils = { version = "0.4.5", optional = true }
 zeroize = { version = "1.8.1", optional = true, default-features = false }
 
 [dev-dependencies]
@@ -28,7 +28,7 @@ getrandom = { version = "0.4", features = ["sys_rng"] }
 
 [features]
 alloc = []
-ctutils = ["dep:ctutils", "array/ctutils"]
+ctutils = [] # TODO(tarcieri): remove in next breaking release
 zeroize = ["array/zeroize", "dep:zeroize"]
 
 [lints]
