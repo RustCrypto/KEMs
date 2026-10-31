@@ -64,13 +64,14 @@ where
     #[deprecated(since = "0.3.0", note = "use `DecapsulationKey::from_seed` instead")]
     pub fn from_expanded(enc: &ExpandedDecapsulationKey<P>) -> Result<Self, InvalidKey> {
         let (dk_pke, ek_pke, h, z) = P::split_dk(enc);
-        let dk_pke = MaybeBox::new(DecryptionKey::from_bytes(dk_pke));
         let ek_pke = EncryptionKey::from_bytes(ek_pke)?;
 
         let ek = EncapsulationKey::from_encryption_key(ek_pke);
         if ek.h() != *h {
             return Err(InvalidKey);
         }
+
+        let dk_pke = MaybeBox::new(DecryptionKey::from_bytes(dk_pke));
 
         Ok(Self {
             dk_pke,

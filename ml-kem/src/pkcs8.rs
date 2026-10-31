@@ -32,7 +32,7 @@ use array::Array;
 #[cfg(feature = "alloc")]
 use {
     ::kem::KeyExport,
-    ::pkcs8::der::{Encode, TagMode, asn1::BitStringRef},
+    ::pkcs8::der::{Encode, TagMode, asn1::BitStringRef, zeroize::Zeroizing},
 };
 
 /// Tag number for the seed value.
@@ -161,12 +161,14 @@ where
     fn to_pkcs8_der(&self) -> ::pkcs8::Result<pkcs8::SecretDocument> {
         let seed = self.to_seed().ok_or(pkcs8::KeyError::Invalid)?;
 
-        let seed_der = SeedString {
-            tag_mode: TagMode::Implicit,
-            tag_number: SEED_TAG_NUMBER,
-            value: OctetStringRef::new(&seed)?,
-        }
-        .to_der()?;
+        let seed_der = Zeroizing::new(
+            SeedString {
+                tag_mode: TagMode::Implicit,
+                tag_number: SEED_TAG_NUMBER,
+                value: OctetStringRef::new(&seed)?,
+            }
+            .to_der()?,
+        );
 
         let private_key = OctetStringRef::new(&seed_der)?;
         let private_key_info = pkcs8::PrivateKeyInfoRef::new(P::ALGORITHM_IDENTIFIER, private_key);
