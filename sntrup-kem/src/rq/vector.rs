@@ -10,14 +10,12 @@ use crate::rq::modq;
 #[inline(always)]
 #[allow(clippy::cast_possible_truncation)]
 pub fn swap(x: &mut [i16], y: &mut [i16], n: usize, mask: isize) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return swap_avx2(x, y, n, mask);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return swap_avx2(x, y, n, mask);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -38,11 +36,7 @@ fn swap_scalar(x: &mut [i16], y: &mut [i16], n: usize, mask: isize) {
     }
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn swap_avx2(x: &mut [i16], y: &mut [i16], n: usize, mask: isize) {
     unsafe {
@@ -108,14 +102,12 @@ pub fn product(z: &mut [i16], n: usize, x: &[i16], c: i16, q: i32, b1: i32, b2: 
 /// Processes backward to avoid overwrite conflicts, eliminating a separate memmove.
 #[inline(always)]
 pub fn minus_product_shift(z: &mut [i16], n: usize, y: &[i16], c: i16, q: i32, b1: i32, b2: i32) {
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
-    // SAFETY: AVX2 verified by cfg
-    unsafe {
-        return minus_product_shift_avx2(z, n, y, c, q, b1, b2);
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+    if crate::cpu::has_avx2() {
+        // SAFETY: AVX2 support was detected at runtime.
+        unsafe {
+            return minus_product_shift_avx2(z, n, y, c, q, b1, b2);
+        }
     }
     #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
     // SAFETY: NEON is baseline on aarch64
@@ -141,11 +133,7 @@ fn minus_product_shift_scalar(
     z[0] = 0;
 }
 
-#[cfg(all(
-    target_arch = "x86_64",
-    target_feature = "avx2",
-    not(feature = "force-scalar")
-))]
+#[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
 #[target_feature(enable = "avx2")]
 unsafe fn minus_product_shift_avx2(
     z: &mut [i16],
