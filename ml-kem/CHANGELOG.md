@@ -5,6 +5,28 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.4 (2026-10-31)
+### Changed
+- Improve performance by sampling NTT coefficients block-wise from the XOF ([#387])
+
+### Fixed
+- Redact secret key material from `Debug` output ([#394])
+- Harden equality testing ([#414])
+- Harden zeroization ([#415])
+
+### Security
+- Bump `ctutils` to v0.4.5; MSRV 1.87 ([#405])
+- Harden reduction using newly-hardened `ctutils` ([#409])
+- Bump `module-lattice` to v0.2.4 ([#413])
+
+[#387]: https://github.com/RustCrypto/KEMs/pull/387
+[#394]: https://github.com/RustCrypto/KEMs/pull/394
+[#405]: https://github.com/RustCrypto/KEMs/pull/405
+[#409]: https://github.com/RustCrypto/KEMs/pull/409
+[#414]: https://github.com/RustCrypto/KEMs/pull/414
+[#413]: https://github.com/RustCrypto/KEMs/pull/413
+[#415]: https://github.com/RustCrypto/KEMs/pull/415
+
 ## 0.3.3 (2026-10-17)
 ### Changed
 - Bump `sha3` to v0.12; use `shake` v0.1 ([#326])
