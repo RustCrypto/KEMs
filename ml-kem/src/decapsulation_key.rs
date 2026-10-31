@@ -15,7 +15,7 @@ use kem::{
 };
 use module_lattice::{
     MaybeBox,
-    ctutils::{CtEq, CtSelect},
+    ctutils::{Choice, CtEq, CtSelect},
 };
 use rand_core::{TryCryptoRng, TryRng};
 
@@ -148,7 +148,9 @@ where
     P: KemParams,
 {
     fn eq(&self, other: &Self) -> bool {
-        self.dk_pke.ct_eq(&other.dk_pke).into() && self.ek.eq(&other.ek) && self.z.eq(&other.z)
+        // Only the public encapsulation key may be compared in variable time.
+        let ek_eq = Choice::from_u8_lsb(u8::from(self.ek.eq(&other.ek)));
+        (self.dk_pke.ct_eq(&other.dk_pke) & ek_eq & self.z.ct_eq(&other.z)).into()
     }
 }
 
@@ -290,5 +292,43 @@ where
         let dk_pke = self.dk_pke.to_bytes();
         let ek = self.ek.to_bytes();
         P::concat_dk(dk_pke, ek, self.ek.h(), *self.z)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{MlKem512, MlKem768, MlKem1024};
+
+    fn key_equality<P: KemParams>() {
+        let key = DecapsulationKey::<P>::from_seed([0; 64].into());
+        let other = DecapsulationKey::<P>::from_seed([1; 64].into());
+
+        // Changing any one compared component must make the keys unequal.
+        let mut changed = key.clone();
+        changed.dk_pke = other.dk_pke.clone();
+        assert_ne!(key, changed);
+
+        let mut changed = key.clone();
+        changed.ek = other.ek.clone();
+        assert_ne!(key, changed);
+
+        for i in [0, 31] {
+            let mut changed = key.clone();
+            changed.z[i] ^= 1;
+            assert_ne!(key, changed);
+        }
+
+        // Seed provenance is deliberately omitted from equality.
+        let mut imported = key.clone();
+        imported.d = None;
+        assert_eq!(key, imported);
+    }
+
+    #[test]
+    fn equality_compares_all_key_components() {
+        key_equality::<MlKem512>();
+        key_equality::<MlKem768>();
+        key_equality::<MlKem1024>();
     }
 }
