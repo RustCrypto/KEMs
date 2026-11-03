@@ -56,6 +56,32 @@ fn try_from_roundtrip_256() {
     try_from_roundtrip::<hqc_kem::Hqc256Params>();
 }
 
+/// The seed is recoverable from a generated key, but not from one imported via
+/// `TryFrom<&[u8]>`, whose embedded seed is not known to regenerate it.
+fn seed_provenance<P: HqcParams>() {
+    let seed = [0x42u8; 32];
+    let (_ek, dk) = HqcKem::<P>::generate_key_deterministic(&seed);
+    assert_eq!(dk.to_seed(), Some(seed));
+
+    let dk2 = DecapsulationKey::<P>::try_from(dk.as_ref()).expect("correct-length sk accepted");
+    assert_eq!(dk2.to_seed(), None);
+}
+
+#[test]
+fn seed_provenance_128() {
+    seed_provenance::<hqc_kem::Hqc128Params>();
+}
+
+#[test]
+fn seed_provenance_192() {
+    seed_provenance::<hqc_kem::Hqc192Params>();
+}
+
+#[test]
+fn seed_provenance_256() {
+    seed_provenance::<hqc_kem::Hqc256Params>();
+}
+
 /// All three operations complete inside a bounded-stack thread (no_alloc proof
 /// of bounded memory). Bounds are documented Phase-1 budgets; Phase 2
 /// (in-place accumulated Karatsuba) removes the 8n-word scratch and tightens

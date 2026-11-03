@@ -164,13 +164,12 @@ where
     P: HqcParams + AssociatedAlgorithmIdentifier<Params = AnyRef<'static>>,
 {
     fn to_pkcs8_der(&self) -> ::pkcs8::Result<pkcs8::SecretDocument> {
-        let sk = self.as_ref();
-        let seed = &sk[sk.len() - SEED_BYTES..];
+        let seed = self.to_seed().ok_or(pkcs8::KeyError::Invalid)?;
 
         let seed_der = SeedString {
             tag_mode: TagMode::Implicit,
             tag_number: SEED_TAG_NUMBER,
-            value: OctetStringRef::new(seed)?,
+            value: OctetStringRef::new(&seed)?,
         }
         .to_der()?;
 
@@ -254,4 +253,25 @@ mod tests {
     pkcs8_roundtrip_test!(pkcs8_roundtrip_128, Hqc128Params);
     pkcs8_roundtrip_test!(pkcs8_roundtrip_192, Hqc192Params);
     pkcs8_roundtrip_test!(pkcs8_roundtrip_256, Hqc256Params);
+
+    macro_rules! pkcs8_reject_raw_key_test {
+        ($name:ident, $params:ty) => {
+            #[test]
+            fn $name() {
+                let mut rng = rand::rng();
+                let (_ek, dk) = crate::HqcKem::<$params>::generate_key(&mut rng);
+
+                // Re-importing the raw bytes loses the seed provenance, so the seed
+                // they embed can no longer be exported as this key's own.
+                let dk2 = DecapsulationKey::<$params>::try_from(dk.as_ref())
+                    .expect("correct-length sk accepted");
+
+                assert!(dk2.to_pkcs8_der().is_err());
+            }
+        };
+    }
+
+    pkcs8_reject_raw_key_test!(pkcs8_reject_raw_key_128, Hqc128Params);
+    pkcs8_reject_raw_key_test!(pkcs8_reject_raw_key_192, Hqc192Params);
+    pkcs8_reject_raw_key_test!(pkcs8_reject_raw_key_256, Hqc256Params);
 }
