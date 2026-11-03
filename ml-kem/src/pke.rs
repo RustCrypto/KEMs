@@ -1,7 +1,7 @@
 use crate::B32;
 use crate::algebra::{
-    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, matrix_sample_ntt, sample_poly_cbd,
-    sample_poly_vec_cbd,
+    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, matrix_multiply, matrix_sample_ntt,
+    multiply_accumulate, prepare, sample_poly_cbd, sample_poly_vec_cbd,
 };
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
@@ -88,7 +88,7 @@ where
         let e_hat = e.ntt();
 
         // Compute the public value
-        let t_hat = &(&A_hat * &s_hat) + &e_hat;
+        let t_hat = &matrix_multiply(&A_hat.0, &prepare(&s_hat)) + &e_hat;
 
         // Assemble the keys
         let dk = DecryptionKey { s_hat };
@@ -108,7 +108,7 @@ where
         v.decompress::<P::Dv>();
 
         let u_hat = u.ntt();
-        let sTu = (&self.s_hat * &u_hat).ntt_inverse();
+        let sTu = multiply_accumulate(&self.s_hat, &prepare(&u_hat)).ntt_inverse();
         let mut w = &v - &sTu;
         Encode::<U1>::encode(w.compress::<U1>())
     }
@@ -151,13 +151,14 @@ where
 
         let A_hat_t: NttMatrix<P::K> = matrix_sample_ntt(&self.rho, true);
         let r_hat: NttVector<P::K> = r.ntt();
-        let ATr: Vector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
+        let r_hat = prepare(&r_hat);
+        let ATr: Vector<P::K> = matrix_multiply(&A_hat_t.0, &r_hat).ntt_inverse();
         let mut u = ATr + e1;
 
         let mut mu: Polynomial = Encode::<U1>::decode(message);
         mu.decompress::<U1>();
 
-        let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
+        let tTr: Polynomial = multiply_accumulate(&self.t_hat, &r_hat).ntt_inverse();
         let mut v = &(&tTr + &e2) + &mu;
 
         let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());

@@ -3,9 +3,14 @@ use crate::{
     crypto::{PRF, PrfOutput, XOF},
     param::CbdSamplingSize,
 };
-use array::{Array, ArraySize, typenum::U256};
+use array::{Array, ArraySize, typenum::U1};
 use module_lattice::{Encode, Field, MultiplyNtt, Truncate};
 use sha3::digest::XofReader;
+
+/// Section 4.3: arithmetic kernels for the NTT and for products in the NTT domain.
+mod montgomery;
+
+pub(crate) use montgomery::{PreparedNtt, matrix_multiply, multiply_accumulate, prepare};
 
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
 
@@ -146,44 +151,12 @@ pub(crate) trait Ntt {
     fn ntt(&self) -> Self::Output;
 }
 
-/// One layer of the forward NTT butterfly.
-///
-/// `LEN` is the butterfly half-length and `ITERATIONS = 128 / LEN` is the number of
-/// butterfly groups in the layer. Making both compile-time constants lets the compiler
-/// eliminate the iterator length calculation (`256 / (2 * LEN)`) that `step_by` would
-/// otherwise compute with a `UDIV` instruction.
-#[inline(always)]
-fn ntt_layer<const LEN: usize, const ITERATIONS: usize>(f: &mut Array<Elem, U256>, k: &mut usize) {
-    for i in 0..ITERATIONS {
-        let start = i * 2 * LEN;
-        let zeta = ZETA_POW_BITREV[*k];
-        *k += 1;
-
-        for j in start..(start + LEN) {
-            let t = zeta * f[j + LEN];
-            f[j + LEN] = f[j] - t;
-            f[j] = f[j] + t;
-        }
-    }
-}
-
 /// Algorithm 9: `NTT`
 impl Ntt for Polynomial {
     type Output = NttPolynomial;
 
     fn ntt(&self) -> NttPolynomial {
-        let mut k = 1;
-        let mut f = self.0;
-
-        ntt_layer::<128, 1>(&mut f, &mut k);
-        ntt_layer::<64, 2>(&mut f, &mut k);
-        ntt_layer::<32, 4>(&mut f, &mut k);
-        ntt_layer::<16, 8>(&mut f, &mut k);
-        ntt_layer::<8, 16>(&mut f, &mut k);
-        ntt_layer::<4, 32>(&mut f, &mut k);
-        ntt_layer::<2, 64>(&mut f, &mut k);
-
-        f.into()
+        montgomery::ntt(&self.0)
     }
 }
 
@@ -191,7 +164,7 @@ impl<K: ArraySize> Ntt for Vector<K> {
     type Output = NttVector<K>;
 
     fn ntt(&self) -> NttVector<K> {
-        NttVector::new(self.0.iter().map(Ntt::ntt).collect())
+        NttVector::new(Array::from_fn(|i| self.0[i].ntt()))
     }
 }
 
@@ -203,44 +176,12 @@ pub(crate) trait NttInverse {
     fn ntt_inverse(&self) -> Self::Output;
 }
 
-/// One layer of the inverse NTT butterfly.
-///
-/// See [`ntt_layer`] for the rationale behind the const generics.
-#[inline(always)]
-fn ntt_inverse_layer<const LEN: usize, const ITERATIONS: usize>(
-    f: &mut Array<Elem, U256>,
-    k: &mut usize,
-) {
-    for i in 0..ITERATIONS {
-        let start = i * 2 * LEN;
-        let zeta = ZETA_POW_BITREV[*k];
-        *k -= 1;
-
-        for j in start..(start + LEN) {
-            let t = f[j];
-            f[j] = t + f[j + LEN];
-            f[j + LEN] = zeta * (f[j + LEN] - t);
-        }
-    }
-}
-
 /// Algorithm 10: `NTT^{-1}`
 impl NttInverse for NttPolynomial {
     type Output = Polynomial;
 
     fn ntt_inverse(&self) -> Polynomial {
-        let mut f: Array<Elem, U256> = self.0.clone();
-        let mut k = 127;
-
-        ntt_inverse_layer::<2, 64>(&mut f, &mut k);
-        ntt_inverse_layer::<4, 32>(&mut f, &mut k);
-        ntt_inverse_layer::<8, 16>(&mut f, &mut k);
-        ntt_inverse_layer::<16, 8>(&mut f, &mut k);
-        ntt_inverse_layer::<32, 4>(&mut f, &mut k);
-        ntt_inverse_layer::<64, 2>(&mut f, &mut k);
-        ntt_inverse_layer::<128, 1>(&mut f, &mut k);
-
-        Elem::new(3303) * &Polynomial::new(f)
+        Polynomial::new(montgomery::ntt_inverse(&self.0))
     }
 }
 
@@ -248,49 +189,16 @@ impl<K: ArraySize> NttInverse for NttVector<K> {
     type Output = Vector<K>;
 
     fn ntt_inverse(&self) -> Vector<K> {
-        Vector::new(self.0.iter().map(NttInverse::ntt_inverse).collect())
+        Vector::new(Array::from_fn(|i| self.0[i].ntt_inverse()))
     }
 }
 
 /// Algorithm 11: `MultiplyNTTs`
 impl MultiplyNtt for BaseField {
     fn multiply_ntt(lhs: &NttPolynomial, rhs: &NttPolynomial) -> NttPolynomial {
-        let mut out = NttPolynomial::new(Array::default());
-
-        for i in 0..128 {
-            let (c0, c1) = base_case_multiply(
-                lhs.0[2 * i],
-                lhs.0[2 * i + 1],
-                rhs.0[2 * i],
-                rhs.0[2 * i + 1],
-                i,
-            );
-
-            out.0[2 * i] = c0;
-            out.0[2 * i + 1] = c1;
-        }
-
-        out
+        let lhs = NttVector::<U1>::new(Array([lhs.clone()]));
+        multiply_accumulate(&lhs, &Array([PreparedNtt::new(rhs)]))
     }
-}
-
-/// Algorithm 12: `BaseCaseMultiply`
-///
-/// This is a hot loop.  We promote to u64 so that we can do the absolute minimum number of
-/// modular reductions, since these are the expensive operation.
-#[inline]
-fn base_case_multiply(a0: Elem, a1: Elem, b0: Elem, b1: Elem, i: usize) -> (Elem, Elem) {
-    let a0 = u32::from(a0.0);
-    let a1 = u32::from(a1.0);
-    let b0 = u32::from(b0.0);
-    let b1 = u32::from(b1.0);
-    let g = u32::from(GAMMA[i].0);
-
-    let b1g = u32::from(BaseField::barrett_reduce(b1 * g));
-
-    let c0 = BaseField::barrett_reduce(a0 * b0 + a1 * b1g);
-    let c1 = BaseField::barrett_reduce(a0 * b1 + a1 * b0);
-    (Elem::new(c0), Elem::new(c1))
 }
 
 /// Since the powers of zeta used in the `NTT` and `MultiplyNTTs` are fixed, we use pre-computed
@@ -358,11 +266,11 @@ const GAMMA: [Elem; 128] = {
 mod test {
     use super::{
         Array, B32, BaseField, Elem, Field, Int, Ntt, NttInverse, NttMatrix, NttPolynomial,
-        NttVector, PRF, Polynomial, U256, XOF,
+        NttVector, PRF, Polynomial, U1, XOF,
     };
     use array::{
         ArraySize, Flatten,
-        typenum::{U2, U3, U8},
+        typenum::{U2, U3, U8, U256},
     };
 
     /// A polynomial with only a scalar component, to make simple test cases
@@ -394,6 +302,120 @@ mod test {
         NttMatrix::new(Array::from_fn(|i| {
             NttVector::new(Array::from_fn(|j| matrix.0[j].0[i].clone()))
         }))
+    }
+
+    /// The previous `Elem`-based implementation of Algorithm 9, used as a test oracle.
+    pub(super) fn ntt_reference(p: &Polynomial) -> NttPolynomial {
+        let mut f = p.0;
+        let mut k = 1;
+        let mut len = 128;
+        while len >= 2 {
+            for start in (0..256).step_by(2 * len) {
+                let zeta = super::ZETA_POW_BITREV[k];
+                k += 1;
+                for j in start..(start + len) {
+                    let t = zeta * f[j + len];
+                    f[j + len] = f[j] - t;
+                    f[j] = f[j] + t;
+                }
+            }
+            len /= 2;
+        }
+        NttPolynomial::new(f)
+    }
+
+    /// The previous `Elem`-based implementation of Algorithm 10, used as a test oracle.
+    pub(super) fn ntt_inverse_reference(p: &NttPolynomial) -> Polynomial {
+        let mut f = p.0.clone();
+        let mut k = 127;
+        let mut len = 2;
+        while len <= 128 {
+            for start in (0..256).step_by(2 * len) {
+                let zeta = super::ZETA_POW_BITREV[k];
+                k -= 1;
+                for j in start..(start + len) {
+                    let t = f[j];
+                    f[j] = t + f[j + len];
+                    f[j + len] = zeta * (f[j + len] - t);
+                }
+            }
+            len *= 2;
+        }
+        Elem::new(3303) * &Polynomial::new(f)
+    }
+
+    /// Algorithms 11 and 12 written directly over `Elem`, summed over a vector. Test oracle.
+    pub(super) fn multiply_accumulate_reference<K: ArraySize>(
+        a: &NttVector<K>,
+        b: &NttVector<K>,
+    ) -> NttPolynomial {
+        let mut out = NttPolynomial::default();
+        for (a, b) in a.0.iter().zip(b.0.iter()) {
+            for i in 0..128 {
+                let (a0, a1) = (a.0[2 * i], a.0[2 * i + 1]);
+                let (b0, b1) = (b.0[2 * i], b.0[2 * i + 1]);
+                let gamma = super::GAMMA[i];
+                out.0[2 * i] = out.0[2 * i] + a0 * b0 + a1 * b1 * gamma;
+                out.0[2 * i + 1] = out.0[2 * i + 1] + a0 * b1 + a1 * b0;
+            }
+        }
+        out
+    }
+
+    /// Deterministic pseudo-random polynomial with coefficients in `[0, q)`.
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::integer_division_remainder_used
+    )]
+    fn pseudo_random_poly(seed: u64) -> Array<Elem, U256> {
+        let mut x = seed.wrapping_mul(0x9e37_79b9_7f4a_7c15) | 1;
+        Array::from_fn(|_| {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            Elem::new(((x >> 16) % u64::from(BaseField::Q)) as Int)
+        })
+    }
+
+    /// The Montgomery kernels agree with the `Elem` reference on random and extreme inputs.
+    #[test]
+    #[allow(clippy::integer_division_remainder_used, reason = "test inputs")]
+    fn montgomery_kernels_match_reference() {
+        const FILLS: [Int; 4] = [0, 1, BaseField::Q - 1, (BaseField::Q - 1) / 2];
+        let inputs: [Array<Elem, U256>; 210] = core::array::from_fn(|n| match n {
+            0..200 => pseudo_random_poly(n as u64),
+            200..204 => Array::from_fn(|_| Elem::new(FILLS[n - 200])),
+            _ => Array::from_fn(|i| {
+                Elem::new(if (i + n) % 2 == 0 {
+                    BaseField::Q - 1
+                } else {
+                    0
+                })
+            }),
+        });
+
+        for coeffs in &inputs {
+            let p = Polynomial::new(*coeffs);
+            assert_eq!(p.ntt(), ntt_reference(&p));
+
+            let p_hat = NttPolynomial::new(*coeffs);
+            assert_eq!(p_hat.ntt_inverse(), ntt_inverse_reference(&p_hat));
+        }
+
+        for pair in inputs.chunks_exact(6) {
+            let a: NttVector<U3> = NttVector::new(Array::from_fn(|i| NttPolynomial::new(pair[i])));
+            let b: NttVector<U3> =
+                NttVector::new(Array::from_fn(|i| NttPolynomial::new(pair[i + 3])));
+            assert_eq!(
+                super::multiply_accumulate(&a, &super::prepare(&b)),
+                multiply_accumulate_reference(&a, &b)
+            );
+            assert_eq!(&a.0[0] * &b.0[0], {
+                let a1: NttVector<U1> = NttVector::new(Array([a.0[0].clone()]));
+                let b1: NttVector<U1> = NttVector::new(Array([b.0[0].clone()]));
+                multiply_accumulate_reference(&a1, &b1)
+            });
+        }
     }
 
     #[test]
