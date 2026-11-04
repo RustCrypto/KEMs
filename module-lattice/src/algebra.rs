@@ -68,7 +68,7 @@ macro_rules! define_field {
 
             #[allow(clippy::as_conversions)]
             const BARRETT_SHIFT: usize = 2 * (Self::Q.ilog2() + 1) as usize;
-            #[allow(clippy::integer_division_remainder_used)]
+            #[allow(clippy::integer_division_remainder_used, reason = "constant")]
             const BARRETT_MULTIPLIER: Self::LongLong = (1 << Self::BARRETT_SHIFT) / Self::QLL;
 
             fn small_reduce(x: Self::Int) -> Self::Int {
