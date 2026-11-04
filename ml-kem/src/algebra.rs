@@ -4,7 +4,7 @@ use crate::{
     param::CbdSamplingSize,
 };
 use array::{Array, ArraySize, typenum::U1};
-use module_lattice::{Encode, Field, MultiplyNtt, Truncate};
+use module_lattice::{Field, MultiplyNtt, Truncate};
 use sha3::digest::XofReader;
 
 /// Section 4.3: arithmetic kernels for the NTT and for products in the NTT domain.
@@ -96,38 +96,39 @@ pub(crate) fn matrix_sample_ntt<K: ArraySize>(rho: &B32, transpose: bool) -> Ntt
 
 /// Algorithm 8: `SamplePolyCBD_eta(B)`
 ///
-/// To avoid all the bitwise manipulation in the algorithm as written, we reuse the logic in
-/// `ByteDecode`.  We decode the PRF output into integers with `2 * eta` bits, then use
-/// `count_ones` to perform the summation described in the algorithm.
+/// The bits are summed in parallel within a machine word (SWAR), as in the CRYSTALS-Kyber
+/// reference implementation. Every group of `eta` bytes encodes four coefficients of `2 * eta`
+/// bits each. Adding the word to itself shifted right by `1..eta` places, masked to every
+/// `eta`-th bit, leaves the sum of each run of `eta` bits in an `eta`-bit field. Coefficient `j`
+/// is then the field at bit `2 * eta * j` minus the field at bit `2 * eta * j + eta`.
 ///
 /// The PRF output is secret, so each coefficient is computed arithmetically: no memory access
 /// or branch depends on the sampled bits (in particular, there is no lookup table).
+#[allow(clippy::cast_possible_truncation, reason = "x and y are at most eta")]
 pub(crate) fn sample_poly_cbd<Eta>(B: &PrfOutput<Eta>) -> Polynomial
 where
     Eta: CbdSamplingSize,
 {
-    let vals: Polynomial = Encode::<Eta::SampleSize>::decode(B);
-    Polynomial::new(
-        vals.0
+    let eta = Eta::USIZE;
+    let ones: u32 = (0..8).fold(0, |m, k| m | (1 << (k * eta)));
+    let field: u32 = (1 << eta) - 1;
+
+    let mut f = [0i16; 256];
+    for (bytes, coeffs) in B.chunks_exact(eta).zip(f.chunks_exact_mut(4)) {
+        let t = bytes
             .iter()
-            .map(|val| cbd_coefficient::<Eta>(val.0))
-            .collect(),
-    )
-}
+            .rev()
+            .fold(0u32, |t, &b| (t << 8) | u32::from(b));
+        let d = (0..eta).fold(0, |d, k| d + ((t >> k) & ones));
 
-/// Map `2 * eta` sampled bits to a CBD coefficient: the number of ones in the low `eta` bits
-/// minus the number of ones in the high `eta` bits, reduced mod `q`.
-fn cbd_coefficient<Eta>(bits: Int) -> Elem
-where
-    Eta: CbdSamplingSize,
-{
-    let low_mask: Int = (1 << Eta::USIZE) - 1;
-    let x = <Int as Truncate<u32>>::truncate((bits & low_mask).count_ones());
-    let y = <Int as Truncate<u32>>::truncate((bits >> Eta::USIZE).count_ones());
+        for (j, c) in coeffs.iter_mut().enumerate() {
+            let x = (d >> (2 * eta * j)) & field;
+            let y = (d >> (2 * eta * j + eta)) & field;
+            *c = x as i16 - y as i16;
+        }
+    }
 
-    // x, y <= eta, so `x + Q - y` is in `[Q - eta, Q + eta]` and one conditional subtraction
-    // fully reduces it.
-    Elem::new(BaseField::small_reduce(x + BaseField::Q - y))
+    Polynomial::new(montgomery::canonicalize(&f))
 }
 
 pub(crate) fn sample_poly_vec_cbd<Eta, K>(sigma: &B32, start_n: u8) -> Vector<K>
@@ -655,21 +656,55 @@ mod test {
         test_sample(&sample, &CBD3);
     }
 
-    /// Check `cbd_coefficient` against Algorithm 8 (`x - y mod q`, where `x` and `y` are the sums
-    /// of the first and last `eta` bits) for every possible input.
-    #[test]
+    /// Algorithm 8 exactly as written in FIPS 203, used as a test oracle.
     #[allow(
         clippy::integer_division_remainder_used,
         reason = "test oracle on public values"
     )]
-    fn cbd_coefficient_matches_definition() {
+    fn sample_poly_cbd_reference<Eta: crate::param::CbdSamplingSize>(
+        B: &crate::crypto::PrfOutput<Eta>,
+    ) -> Polynomial {
+        let eta = Eta::USIZE;
+        let bit = |i: usize| Int::from((B[i / 8] >> (i % 8)) & 1);
+        Polynomial::new(Array::from_fn(|i| {
+            let x: Int = (0..eta).map(|j| bit(2 * i * eta + j)).sum();
+            let y: Int = (0..eta).map(|j| bit(2 * i * eta + eta + j)).sum();
+            Elem::new((x + BaseField::Q - y) % BaseField::Q)
+        }))
+    }
+
+    /// Check `sample_poly_cbd` against Algorithm 8 with every `2 * eta`-bit pattern in every
+    /// coefficient position, and on pseudo-random inputs.
+    #[test]
+    #[allow(
+        clippy::cast_possible_truncation,
+        clippy::integer_division_remainder_used,
+        reason = "test inputs"
+    )]
+    fn sample_poly_cbd_matches_definition() {
         fn check<Eta: crate::param::CbdSamplingSize>() {
-            let eta = Eta::U32;
-            for bits in 0..(1u16 << (2 * eta)) {
-                let x: u16 = (0..eta).map(|i| (bits >> i) & 1).sum();
-                let y: u16 = (eta..2 * eta).map(|i| (bits >> i) & 1).sum();
-                let expected = (x + BaseField::Q - y) % BaseField::Q;
-                assert_eq!(super::cbd_coefficient::<Eta>(bits), Elem::new(expected));
+            let width = 2 * Eta::USIZE;
+            for offset in 0..(1 << width) {
+                let mut B = crate::crypto::PrfOutput::<Eta>::default();
+                for i in 0..256 {
+                    let pattern = (i + offset) % (1 << width);
+                    for j in 0..width {
+                        let pos = i * width + j;
+                        B[pos / 8] |= (((pattern >> j) & 1) as u8) << (pos % 8);
+                    }
+                }
+                assert_eq!(
+                    super::sample_poly_cbd::<Eta>(&B),
+                    sample_poly_cbd_reference::<Eta>(&B)
+                );
+            }
+
+            for seed in 0..64u8 {
+                let B = PRF::<Eta>(&B32::from([seed; 32]), seed);
+                assert_eq!(
+                    super::sample_poly_cbd::<Eta>(&B),
+                    sample_poly_cbd_reference::<Eta>(&B)
+                );
             }
         }
 

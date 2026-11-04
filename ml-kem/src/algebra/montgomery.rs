@@ -110,7 +110,7 @@ fn barrett_reduce(a: i16) -> i16 {
 /// applied, which hides their origin while keeping both loops vectorizable.
 #[inline(always)]
 #[allow(clippy::cast_sign_loss, reason = "the result is in [0, q)")]
-fn canonicalize(f: &[i16; 256]) -> Array<Elem, U256> {
+pub(super) fn canonicalize(f: &[i16; 256]) -> Array<Elem, U256> {
     let mut masks: [i16; 256] = core::array::from_fn(|i| f[i] >> 15);
     core::hint::black_box(&mut masks);
     Array::from_fn(|i| Elem::new((f[i] + (masks[i] & Q)) as u16))
