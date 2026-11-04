@@ -169,6 +169,28 @@ impl<K: ArraySize> Ntt for Vector<K> {
     }
 }
 
+/// `a + b` in `R_q`.
+pub(crate) fn poly_add(a: &Polynomial, b: &Polynomial) -> Polynomial {
+    Polynomial::new(montgomery::add(&a.0, &b.0))
+}
+
+/// `a - b` in `R_q`.
+pub(crate) fn poly_sub(a: &Polynomial, b: &Polynomial) -> Polynomial {
+    Polynomial::new(montgomery::sub(&a.0, &b.0))
+}
+
+/// `a + b` for vectors over `R_q`.
+pub(crate) fn vector_add<K: ArraySize>(a: &Vector<K>, b: &Vector<K>) -> Vector<K> {
+    Vector::new(Array::from_fn(|i| poly_add(&a.0[i], &b.0[i])))
+}
+
+/// `a + b` for vectors over `T_q`.
+pub(crate) fn ntt_vector_add<K: ArraySize>(a: &NttVector<K>, b: &NttVector<K>) -> NttVector<K> {
+    NttVector::new(Array::from_fn(|i| {
+        NttPolynomial::new(montgomery::add(&a.0[i].0, &b.0[i].0))
+    }))
+}
+
 /// The inverse NTT is the reverse of the Number Theoretic Transform, converting coefficient-wise
 /// products back into standard polynomial form while preserving correctness modulo the same prime.
 #[allow(clippy::module_name_repetitions)]

@@ -101,7 +101,7 @@ fn barrett_reduce(a: i16) -> i16 {
     (i32::from(a) - t * i32::from(Q)) as i16
 }
 
-/// Map coefficients with `|a| < q` to their canonical representatives in `[0, q)`.
+/// Map coefficients in `[-q, q)` to their canonical representatives in `[0, q)`.
 ///
 /// Adding `q` to the negative coefficients is done with an arithmetic sign mask. LLVM recognizes
 /// `(a >> 15) & q` as a select on the sign of `a`, and on targets without conditional moves (for
@@ -114,6 +114,20 @@ pub(super) fn canonicalize(f: &[i16; 256]) -> Array<Elem, U256> {
     let mut masks: [i16; 256] = core::array::from_fn(|i| f[i] >> 15);
     core::hint::black_box(&mut masks);
     Array::from_fn(|i| Elem::new((f[i] + (masks[i] & Q)) as u16))
+}
+
+/// Coefficient-wise `a + b`, for coefficients in `[0, q)`.
+pub(super) fn add(a: &Array<Elem, U256>, b: &Array<Elem, U256>) -> Array<Elem, U256> {
+    // `a + b - q` is in `[-q, q - 2]`.
+    let f: [i16; 256] = core::array::from_fn(|i| signed(a[i]) + signed(b[i]) - Q);
+    canonicalize(&f)
+}
+
+/// Coefficient-wise `a - b`, for coefficients in `[0, q)`.
+pub(super) fn sub(a: &Array<Elem, U256>, b: &Array<Elem, U256>) -> Array<Elem, U256> {
+    // `a - b` is in `(-q, q)`.
+    let f: [i16; 256] = core::array::from_fn(|i| signed(a[i]) - signed(b[i]));
+    canonicalize(&f)
 }
 
 /// Read a canonical coefficient in `[0, q)` as `i16`.
@@ -371,6 +385,24 @@ mod tests {
             for (a, r) in f.iter().zip(out.iter()) {
                 assert!(r.0 < BaseField::Q);
                 assert_eq!(i64::from(r.0), modq(i64::from(*a)));
+            }
+        }
+    }
+
+    /// `add` and `sub` agree with the `Elem` operators for every pair of field elements.
+    #[test]
+    fn add_sub_exhaustive() {
+        for a in 0..BaseField::Q {
+            let lhs = Array::from_fn(|_| Elem::new(a));
+            for chunk in 0..BaseField::Q.div_ceil(256) {
+                let rhs: Array<Elem, U256> =
+                    Array::from_fn(|i| Elem::new((chunk * 256 + i as u16) % BaseField::Q));
+                let sum = add(&lhs, &rhs);
+                let difference = sub(&lhs, &rhs);
+                for i in 0..256 {
+                    assert_eq!(sum[i], lhs[i] + rhs[i]);
+                    assert_eq!(difference[i], lhs[i] - rhs[i]);
+                }
             }
         }
     }
