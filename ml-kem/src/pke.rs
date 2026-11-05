@@ -1,8 +1,8 @@
 use crate::B32;
 use crate::algebra::{
     Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, matrix_multiply, matrix_sample_ntt,
-    multiply_accumulate, ntt_vector_add, poly_add, poly_sub, prepare, sample_poly_cbd,
-    sample_poly_vec_cbd, vector_add,
+    matrix_transpose_multiply, multiply_accumulate, ntt_vector_add, poly_add, poly_sub, prepare,
+    sample_poly_cbd, sample_poly_vec_cbd, vector_add,
 };
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
@@ -93,7 +93,12 @@ where
 
         // Assemble the keys
         let dk = DecryptionKey { s_hat };
-        let ek = EncryptionKey { t_hat, rho };
+        let ek = EncryptionKey {
+            t_hat,
+            rho,
+            #[cfg(feature = "alloc")]
+            A_hat,
+        };
         (dk, ek)
     }
 
@@ -128,14 +133,48 @@ where
 
 /// An `EncryptionKey` provides the ability to encrypt a value so that it can only be
 /// decrypted by the holder of the corresponding decapsulation key.
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
+///
+/// There is deliberately no `Default` impl: with the `alloc` feature a default key would pair
+/// `rho = 0` with an all-zero matrix instead of the matrix expanded from `rho`.
+#[derive(Clone)]
 pub(crate) struct EncryptionKey<P>
 where
     P: PkeParams,
 {
     t_hat: NttVector<P::K>,
     rho: B32,
+
+    /// The matrix `A_hat` expanded from `rho`. Expanding it runs `SampleNTT` `k^2` times, which
+    /// is the most expensive step of `K-PKE.Encrypt`, so keys that live on the heap keep a copy.
+    /// It is public and fully determined by `rho`.
+    #[cfg(feature = "alloc")]
+    A_hat: NttMatrix<P::K>,
 }
+
+// Handwritten to leave out `A_hat`, which is determined by `rho`
+impl<P> fmt::Debug for EncryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EncryptionKey")
+            .field("t_hat", &self.t_hat)
+            .field("rho", &self.rho)
+            .finish()
+    }
+}
+
+// Handwritten to leave out `A_hat`, which is determined by `rho`
+impl<P> PartialEq for EncryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.t_hat == other.t_hat && self.rho == other.rho
+    }
+}
+
+impl<P> Eq for EncryptionKey<P> where P: PkeParams {}
 
 impl<P> EncryptionKey<P>
 where
@@ -150,10 +189,14 @@ where
         let prf_output = PRF::<P::Eta2>(randomness, 2 * P::K::U8);
         let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
 
-        let A_hat_t: NttMatrix<P::K> = matrix_sample_ntt(&self.rho, true);
+        #[cfg(feature = "alloc")]
+        let A_hat = &self.A_hat;
+        #[cfg(not(feature = "alloc"))]
+        let A_hat = &matrix_sample_ntt::<P::K>(&self.rho, false);
+
         let r_hat: NttVector<P::K> = r.ntt();
         let r_hat = prepare(&r_hat);
-        let ATr: Vector<P::K> = matrix_multiply(&A_hat_t.0, &r_hat).ntt_inverse();
+        let ATr: Vector<P::K> = matrix_transpose_multiply(&A_hat.0, &r_hat).ntt_inverse();
         let mut u = vector_add(&ATr, &e1);
 
         let mut mu: Polynomial = Encode::<U1>::decode(message);
@@ -179,12 +222,8 @@ where
     /// Returns [`InvalidKey`] in the event that the key fails the encapsulation key checks
     /// specified in FIPS 203 §7.2.
     pub(crate) fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, InvalidKey> {
-        let (t_hat, rho) = P::split_ek(enc);
-        let t_hat = P::decode_u12(t_hat);
-        let ret = Self {
-            t_hat,
-            rho: rho.clone(),
-        };
+        let (t_hat_enc, rho) = P::split_ek(enc);
+        let t_hat = P::decode_u12(t_hat_enc);
 
         // Check the candidate encapsulation key is valid using the method specified in FIPS 203
         // §7.2 ML-KEM Encapsulation:
@@ -211,12 +250,18 @@ where
         //
         // #1 is performed by the `EncodedEncryptionKey` type, and the following check vicariously
         // performs #2 by encoding the integer-mod-q array using our implementation of ByteEncode₁₂
-        // and comparing the resulting serialization to see if it round-trips.
-        if &ret.to_bytes() == enc {
-            Ok(ret)
-        } else {
-            Err(InvalidKey)
+        // and comparing the resulting serialization to see if it round-trips. It runs before
+        // `A_hat` is expanded, so that invalid keys are rejected cheaply.
+        if P::encode_u12(&t_hat) != *t_hat_enc {
+            return Err(InvalidKey);
         }
+
+        Ok(Self {
+            t_hat,
+            rho: rho.clone(),
+            #[cfg(feature = "alloc")]
+            A_hat: matrix_sample_ntt(rho, false),
+        })
     }
 }
 

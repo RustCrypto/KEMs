@@ -10,7 +10,9 @@ use sha3::digest::XofReader;
 /// Section 4.3: arithmetic kernels for the NTT and for products in the NTT domain.
 mod montgomery;
 
-pub(crate) use montgomery::{PreparedNtt, matrix_multiply, multiply_accumulate, prepare};
+pub(crate) use montgomery::{
+    PreparedNtt, matrix_multiply, matrix_transpose_multiply, multiply_accumulate, prepare,
+};
 
 module_lattice::define_field!(BaseField, u16, u32, u64, 3329);
 
@@ -325,6 +327,24 @@ mod test {
         NttMatrix::new(Array::from_fn(|i| {
             NttVector::new(Array::from_fn(|j| matrix.0[j].0[i].clone()))
         }))
+    }
+
+    /// Multiplying by the transpose of a matrix agrees with transposing it first.
+    #[test]
+    fn matrix_transpose_multiply() {
+        let rho = B32::from([7; 32]);
+        let a: NttMatrix<U3> = super::matrix_sample_ntt(&rho, false);
+        let v: NttVector<U3> =
+            super::matrix_sample_ntt::<U3>(&B32::from([8; 32]), false).0[0].clone();
+        let v = super::prepare(&v);
+        assert_eq!(
+            super::matrix_transpose_multiply(&a.0, &v),
+            super::matrix_multiply(&matrix_transpose(&a).0, &v)
+        );
+        assert_eq!(
+            super::matrix_transpose_multiply(&a.0, &v),
+            super::matrix_multiply(&super::matrix_sample_ntt::<U3>(&rho, true).0, &v)
+        );
     }
 
     /// The previous `Elem`-based implementation of Algorithm 9, used as a test oracle.

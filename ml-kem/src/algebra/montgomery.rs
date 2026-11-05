@@ -264,11 +264,19 @@ pub(crate) fn multiply_accumulate<K: ArraySize>(
     b: &Array<PreparedNtt, K>,
 ) -> NttPolynomial {
     debug_assert!(K::USIZE <= 4);
+    accumulate(a.0.iter().zip(b.iter()))
+}
 
+/// The sum of the products of `(a, b)` pairs in `T_q`, for at most four pairs. See
+/// [`multiply_accumulate`] for the bounds.
+#[inline(always)]
+fn accumulate<'a>(
+    terms: impl Iterator<Item = (&'a NttPolynomial, &'a PreparedNtt)>,
+) -> NttPolynomial {
     let mut c0 = [0i32; 128];
     let mut c1 = [0i32; 128];
 
-    for (a, b) in a.0.iter().zip(b.iter()) {
+    for (a, b) in terms {
         for (i, pair) in a.0.chunks_exact(2).enumerate() {
             let a0 = i32::from(pair[0].0);
             let a1 = i32::from(pair[1].0);
@@ -285,12 +293,23 @@ pub(crate) fn multiply_accumulate<K: ArraySize>(
     NttPolynomial::new(canonicalize(&out))
 }
 
-/// Multiply a `K x K` matrix by a prepared vector in `T_q`.
+/// Multiply a `K x K` matrix, given by its rows, by a prepared vector in `T_q`.
 pub(crate) fn matrix_multiply<K: ArraySize>(
     rows: &Array<NttVector<K>, K>,
     v: &Array<PreparedNtt, K>,
 ) -> NttVector<K> {
     NttVector::new(Array::from_fn(|i| multiply_accumulate(&rows[i], v)))
+}
+
+/// Multiply the transpose of a `K x K` matrix, given by its rows, by a prepared vector in `T_q`.
+pub(crate) fn matrix_transpose_multiply<K: ArraySize>(
+    rows: &Array<NttVector<K>, K>,
+    v: &Array<PreparedNtt, K>,
+) -> NttVector<K> {
+    debug_assert!(K::USIZE <= 4);
+    NttVector::new(Array::from_fn(|i| {
+        accumulate(rows.iter().map(|row| &row.0[i]).zip(v.iter()))
+    }))
 }
 
 #[cfg(test)]
