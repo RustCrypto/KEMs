@@ -183,16 +183,18 @@ where
     /// Encrypt the specified message for the holder of the corresponding decryption key, using the
     /// provided randomness, according the `K-PKE.Encrypt` procedure.
     pub(crate) fn encrypt(&self, message: &B32, randomness: &B32) -> Ciphertext<P> {
+        // Expand the public matrix before sampling anything secret, in the order of Algorithm 14
+        // (steps 4-8, then 9-17).
+        #[cfg(feature = "alloc")]
+        let A_hat = &self.A_hat;
+        #[cfg(not(feature = "alloc"))]
+        let A_hat = &matrix_sample_ntt::<P::K>(&self.rho, false);
+
         let r = sample_poly_vec_cbd::<P::Eta1, P::K>(randomness, 0);
         let e1 = sample_poly_vec_cbd::<P::Eta2, P::K>(randomness, P::K::U8);
 
         let prf_output = PRF::<P::Eta2>(randomness, 2 * P::K::U8);
         let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
-
-        #[cfg(feature = "alloc")]
-        let A_hat = &self.A_hat;
-        #[cfg(not(feature = "alloc"))]
-        let A_hat = &matrix_sample_ntt::<P::K>(&self.rho, false);
 
         let r_hat: NttVector<P::K> = r.ntt();
         let r_hat = prepare(&r_hat);
