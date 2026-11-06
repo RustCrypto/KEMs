@@ -55,6 +55,17 @@ const ZETAS: [i16; 128] = {
     out
 };
 
+/// `qinv_multiple` of each of `ZETAS`.
+const ZETAS_QINV: [i16; 128] = {
+    let mut out = [0; 128];
+    let mut i = 0;
+    while i < 128 {
+        out[i] = qinv_multiple(ZETAS[i]);
+        i += 1;
+    }
+    out
+};
+
 /// `GAMMA` scaled by `R^2`: `zeta^(2 BitRev7(i) + 1) * R^2 mod q`, centered. Montgomery
 /// multiplication of `x` by `GAMMAS_R2[i]` gives `x * GAMMA[i] * R mod q`.
 #[allow(clippy::integer_division_remainder_used, reason = "constant")]
@@ -64,6 +75,17 @@ const GAMMAS_R2: [i16; 128] = {
     let mut i = 0;
     while i < 128 {
         out[i] = centered((GAMMA[i].0 as i32 * r2) % Q as i32);
+        i += 1;
+    }
+    out
+};
+
+/// `qinv_multiple` of each of `GAMMAS_R2`.
+const GAMMAS_R2_QINV: [i16; 128] = {
+    let mut out = [0; 128];
+    let mut i = 0;
+    while i < 128 {
+        out[i] = qinv_multiple(GAMMAS_R2[i]);
         i += 1;
     }
     out
@@ -81,24 +103,53 @@ fn montgomery_reduce(a: i32) -> i16 {
 }
 
 /// Montgomery multiplication: for `|a * b| < q * 2^15`, returns `r ≡ a * b * R^-1 (mod q)` with
-/// `|r| < q`.
-#[inline(always)]
+/// `|r| < q`. Reference for [`fqmul_const`].
+#[cfg(test)]
 fn fqmul(a: i16, b: i16) -> i16 {
     montgomery_reduce(i32::from(a) * i32::from(b))
 }
 
-/// Barrett reduction: for any `a`, returns the representative of `a mod q` in
-/// `[-(q-1)/2, (q-1)/2]`.
+/// The high 16 bits of the product of `a` and `b`.
 #[inline(always)]
 #[allow(
     clippy::cast_possible_truncation,
-    reason = "the result is below q in absolute value"
+    reason = "the high half of a product of two i16 values fits in i16"
 )]
+fn mulhi(a: i16, b: i16) -> i16 {
+    ((i32::from(a) * i32::from(b)) >> 16) as i16
+}
+
+/// `b * q^-1 mod 2^16`, the second constant that [`fqmul_const`] needs for a multiplier `b`.
+const fn qinv_multiple(b: i16) -> i16 {
+    b.wrapping_mul(QINV)
+}
+
+/// Montgomery multiplication by a constant `b`, given `b_qinv = qinv_multiple(b)`. The result is
+/// exactly `fqmul(a, b)`.
+///
+/// Montgomery reduction subtracts `t * q`, where `t = a * b * q^-1 mod 2^16`, from `a * b`. The
+/// low 16 bits of the two products are equal, so the result is the difference of their high
+/// halves (Seiler, ePrint 2018/039). Computed this way, every operation works on 16-bit lanes,
+/// which compilers map onto SIMD instructions such as `pmulhw` and `pmullw`.
+#[inline(always)]
+fn fqmul_const(a: i16, b: i16, b_qinv: i16) -> i16 {
+    mulhi(a, b) - mulhi(a.wrapping_mul(b_qinv), Q)
+}
+
+/// Barrett reduction: for any `a`, returns the representative of `a mod q` in
+/// `[-(q-1)/2, (q-1)/2]`.
+///
+/// The quotient `round(a * V / 2^26)`, with `V = round(2^26 / q)`, is computed from the high half
+/// of `a * V` as `(mulhi(a, V) + 2^9) >> 10`, which is equal because nested floors of divisions
+/// by integers collapse. The quotient has absolute value at most 10, and the result fits in
+/// `i16`, so the wrapping operations below are exact.
+#[inline(always)]
+#[allow(clippy::cast_possible_truncation, reason = "V is below 2^15")]
 fn barrett_reduce(a: i16) -> i16 {
     #[allow(clippy::integer_division_remainder_used, reason = "constant")]
-    const V: i32 = ((1 << 26) + Q as i32 / 2) / Q as i32;
-    let t = (V * i32::from(a) + (1 << 25)) >> 26;
-    (i32::from(a) - t * i32::from(Q)) as i16
+    const V: i16 = (((1 << 26) + Q as i32 / 2) / Q as i32) as i16;
+    let t = (mulhi(a, V) + (1 << 9)) >> 10;
+    a.wrapping_sub(t.wrapping_mul(Q))
 }
 
 /// Map coefficients in `[-q, q)` to their canonical representatives in `[0, q)`.
@@ -145,12 +196,12 @@ fn signed(x: Elem) -> i16 {
 #[inline(always)]
 fn ntt_layer<const LEN: usize, const ITERATIONS: usize>(f: &mut [i16; 256], k: &mut usize) {
     for block in f.chunks_exact_mut(2 * LEN).take(ITERATIONS) {
-        let zeta = ZETAS[*k];
+        let (zeta, zeta_qinv) = (ZETAS[*k], ZETAS_QINV[*k]);
         *k += 1;
 
         let (lo, hi) = block.split_at_mut(LEN);
         for (a, b) in lo.iter_mut().zip(hi.iter_mut()) {
-            let t = fqmul(zeta, *b);
+            let t = fqmul_const(*b, zeta, zeta_qinv);
             *b = *a - t;
             *a += t;
         }
@@ -183,14 +234,14 @@ pub(super) fn ntt(input: &Array<Elem, U256>) -> NttPolynomial {
 #[inline(always)]
 fn ntt_inverse_layer<const LEN: usize, const ITERATIONS: usize>(f: &mut [i16; 256], k: &mut usize) {
     for block in f.chunks_exact_mut(2 * LEN).take(ITERATIONS) {
-        let zeta = ZETAS[*k];
+        let (zeta, zeta_qinv) = (ZETAS[*k], ZETAS_QINV[*k]);
         *k -= 1;
 
         let (lo, hi) = block.split_at_mut(LEN);
         for (a, b) in lo.iter_mut().zip(hi.iter_mut()) {
             let t = *a;
             *a = barrett_reduce(t + *b);
-            *b = fqmul(zeta, *b - t);
+            *b = fqmul_const(*b - t, zeta, zeta_qinv);
         }
     }
 }
@@ -210,7 +261,7 @@ pub(super) fn ntt_inverse(input: &Array<Elem, U256>) -> Array<Elem, U256> {
 
     // Multiply by 128^-1. The result is below q in absolute value.
     for x in &mut f {
-        *x = fqmul(*x, INV_NTT_SCALE);
+        *x = fqmul_const(*x, INV_NTT_SCALE, qinv_multiple(INV_NTT_SCALE));
     }
     canonicalize(&f)
 }
@@ -238,9 +289,10 @@ impl PreparedNtt {
         };
 
         for (i, pair) in b.0.chunks_exact(2).enumerate() {
-            out.b0[i] = fqmul(signed(pair[0]), R2);
-            out.b1[i] = fqmul(signed(pair[1]), R2);
-            out.b1_gamma[i] = fqmul(signed(pair[1]), GAMMAS_R2[i]);
+            let r2_qinv = qinv_multiple(R2);
+            out.b0[i] = fqmul_const(signed(pair[0]), R2, r2_qinv);
+            out.b1[i] = fqmul_const(signed(pair[1]), R2, r2_qinv);
+            out.b1_gamma[i] = fqmul_const(signed(pair[1]), GAMMAS_R2[i], GAMMAS_R2_QINV[i]);
         }
 
         out
@@ -379,6 +431,7 @@ mod tests {
             for a in (-8 * i32::from(Q) + 1)..(8 * i32::from(Q)) {
                 let a = a as i16;
                 let r = fqmul(a, c);
+                assert_eq!(fqmul_const(a, c, qinv_multiple(c)), r);
                 assert!(r.abs() < Q);
                 assert_eq!(modq(i64::from(r) << 16), modq(i64::from(a) * i64::from(c)));
             }
@@ -389,6 +442,8 @@ mod tests {
     fn barrett_reduce_exhaustive() {
         for a in i16::MIN..=i16::MAX {
             let r = barrett_reduce(a);
+            let t = (20159 * i32::from(a) + (1 << 25)) >> 26;
+            assert_eq!(i32::from(r), i32::from(a) - t * i32::from(Q), "a = {a}");
             assert!(r.abs() <= (Q - 1) / 2, "a = {a}");
             assert_eq!(modq(i64::from(r)), modq(i64::from(a)), "a = {a}");
         }
