@@ -159,7 +159,10 @@ fn barrett_reduce(a: i16) -> i16 {
 /// example `thumbv6m`) it lowers that select to a branch on the secret coefficient. The masks for
 /// the whole polynomial are therefore passed through a single optimization barrier before they are
 /// applied, which hides their origin while keeping both loops vectorizable.
-#[inline(always)]
+///
+/// Every kernel ends with this pass, so it is kept out of line: inlining it everywhere costs about
+/// 10 KiB of code on thumbv7em and is not measurably faster.
+#[inline(never)]
 #[allow(clippy::cast_sign_loss, reason = "the result is in [0, q)")]
 pub(super) fn canonicalize(f: &[i16; 256]) -> Array<Elem, U256> {
     let mut masks: [i16; 256] = core::array::from_fn(|i| f[i] >> 15);
@@ -321,7 +324,6 @@ pub(crate) fn multiply_accumulate<K: ArraySize>(
 
 /// The sum of the products of `(a, b)` pairs in `T_q`, for at most four pairs. See
 /// [`multiply_accumulate`] for the bounds.
-#[inline(always)]
 fn accumulate<'a>(
     terms: impl Iterator<Item = (&'a NttPolynomial, &'a PreparedNtt)>,
 ) -> NttPolynomial {
