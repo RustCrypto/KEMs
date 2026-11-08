@@ -7,7 +7,6 @@ use array::{Array, ArraySize, typenum::U1};
 use module_lattice::{Field, MultiplyNtt, Truncate};
 use sha3::digest::XofReader;
 
-/// Section 4.3: arithmetic kernels for the NTT and for products in the NTT domain.
 mod montgomery;
 
 pub(crate) use montgomery::{
@@ -98,11 +97,8 @@ pub(crate) fn matrix_sample_ntt<K: ArraySize>(rho: &B32, transpose: bool) -> Ntt
 
 /// Algorithm 8: `SamplePolyCBD_eta(B)`
 ///
-/// The bits are summed in parallel within a machine word (SWAR), as in the CRYSTALS-Kyber
-/// reference implementation. Every group of `eta` bytes encodes four coefficients of `2 * eta`
-/// bits each. Adding the word to itself shifted right by `1..eta` places, masked to every
-/// `eta`-th bit, leaves the sum of each run of `eta` bits in an `eta`-bit field. Coefficient `j`
-/// is then the field at bit `2 * eta * j` minus the field at bit `2 * eta * j + eta`.
+/// Bits are summed in parallel within a word (SWAR), as in the CRYSTALS-Kyber reference code.
+/// Each `eta` bytes hold four coefficients.
 ///
 /// The PRF output is secret, so each coefficient is computed arithmetically: no memory access
 /// or branch depends on the sampled bits (in particular, there is no lookup table).
@@ -329,7 +325,6 @@ mod test {
         }))
     }
 
-    /// Multiplying by the transpose of a matrix agrees with transposing it first.
     #[test]
     fn matrix_transpose_multiply() {
         let rho = B32::from([7; 32]);
@@ -347,7 +342,7 @@ mod test {
         );
     }
 
-    /// The previous `Elem`-based implementation of Algorithm 9, used as a test oracle.
+    /// Algorithm 9 over `Elem`. Test oracle.
     pub(super) fn ntt_reference(p: &Polynomial) -> NttPolynomial {
         let mut f = p.0;
         let mut k = 1;
@@ -367,7 +362,7 @@ mod test {
         NttPolynomial::new(f)
     }
 
-    /// The previous `Elem`-based implementation of Algorithm 10, used as a test oracle.
+    /// Algorithm 10 over `Elem`. Test oracle.
     pub(super) fn ntt_inverse_reference(p: &NttPolynomial) -> Polynomial {
         let mut f = p.0.clone();
         let mut k = 127;
@@ -387,7 +382,7 @@ mod test {
         Elem::new(3303) * &Polynomial::new(f)
     }
 
-    /// Algorithms 11 and 12 written directly over `Elem`, summed over a vector. Test oracle.
+    /// Algorithms 11 and 12 over `Elem`, summed over a vector. Test oracle.
     pub(super) fn multiply_accumulate_reference<K: ArraySize>(
         a: &NttVector<K>,
         b: &NttVector<K>,
@@ -405,7 +400,7 @@ mod test {
         out
     }
 
-    /// Deterministic pseudo-random polynomial with coefficients in `[0, q)`.
+    /// Deterministic pseudo-random polynomial.
     #[allow(
         clippy::cast_possible_truncation,
         clippy::integer_division_remainder_used
@@ -420,7 +415,6 @@ mod test {
         })
     }
 
-    /// The Montgomery kernels agree with the `Elem` reference on random and extreme inputs.
     #[test]
     #[allow(clippy::integer_division_remainder_used, reason = "test inputs")]
     fn montgomery_kernels_match_reference() {
@@ -698,7 +692,7 @@ mod test {
         test_sample(&sample, &CBD3);
     }
 
-    /// Algorithm 8 exactly as written in FIPS 203, used as a test oracle.
+    /// Algorithm 8 as written in FIPS 203. Test oracle.
     #[allow(
         clippy::integer_division_remainder_used,
         reason = "test oracle on public values"
@@ -715,8 +709,7 @@ mod test {
         }))
     }
 
-    /// Check `sample_poly_cbd` against Algorithm 8 with every `2 * eta`-bit pattern in every
-    /// coefficient position, and on pseudo-random inputs.
+    /// Every `2 * eta`-bit pattern in every position, plus PRF outputs.
     #[test]
     #[allow(
         clippy::cast_possible_truncation,

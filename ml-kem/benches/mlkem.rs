@@ -1,7 +1,6 @@
 //! ML-KEM benchmarks.
 //!
-//! All inputs are fixed byte strings so that no RNG or system call runs inside a timed region,
-//! and every output is passed through `black_box` so that no work can be optimized away.
+//! Inputs are fixed, so no RNG runs in timed loops. Outputs go through `black_box`.
 
 #![allow(missing_docs, clippy::unwrap_used)]
 
@@ -10,7 +9,7 @@ use core::hint::black_box;
 use criterion::{Criterion, criterion_group, criterion_main};
 use ml_kem::*;
 
-/// Benchmark every public operation of one parameter set.
+/// Benchmarks one parameter set.
 macro_rules! bench_parameter_set {
     ($c:expr, $name:literal, $module:ident) => {{
         type Dk = $module::DecapsulationKey;
@@ -28,34 +27,30 @@ macro_rules! bench_parameter_set {
 
         let mut group = $c.benchmark_group($name);
 
-        // Algorithm 19 (deterministic part): expand a seed into a decapsulation key.
+        // KeyGen from a seed.
         group.bench_function("keygen", |b| {
             b.iter(|| Dk::new(black_box(&seed)));
         });
 
-        // FIPS 203 §7.2 input checks plus H(ek).
+        // §7.2 checks plus H(ek).
         group.bench_function("ek_parse", |b| {
             b.iter(|| Ek::new(black_box(&ek_bytes)).unwrap());
         });
 
-        // Algorithm 17 with a fixed message.
         group.bench_function("encapsulate", |b| {
             b.iter(|| ek.encapsulate_deterministic(black_box(&m)));
         });
 
-        // Algorithm 18 on a valid ciphertext.
         group.bench_function("decapsulate", |b| {
             b.iter(|| dk.decapsulate(black_box(&ct)));
         });
 
-        // Algorithm 18 on an invalid ciphertext (implicit rejection). Must cost the same as the
-        // valid case.
+        // Implicit rejection. Must cost the same as `decapsulate`.
         group.bench_function("decapsulate_reject", |b| {
             b.iter(|| dk.decapsulate(black_box(&bad_ct)));
         });
 
-        // One ephemeral exchange: key generation, encapsulation key parsing, encapsulation and
-        // decapsulation.
+        // KeyGen, ek parsing, Encaps and Decaps.
         group.bench_function("round_trip", |b| {
             b.iter(|| {
                 let dk = Dk::new(black_box(&seed));

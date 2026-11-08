@@ -134,8 +134,7 @@ where
 /// An `EncryptionKey` provides the ability to encrypt a value so that it can only be
 /// decrypted by the holder of the corresponding decapsulation key.
 ///
-/// There is deliberately no `Default` impl: with the `alloc` feature a default key would pair
-/// `rho = 0` with an all-zero matrix instead of the matrix expanded from `rho`.
+/// No `Default`: the cached matrix must match `rho`.
 #[derive(Clone)]
 pub(crate) struct EncryptionKey<P>
 where
@@ -144,14 +143,12 @@ where
     t_hat: NttVector<P::K>,
     rho: B32,
 
-    /// The matrix `A_hat` expanded from `rho`. Expanding it runs `SampleNTT` `k^2` times, which
-    /// is the most expensive step of `K-PKE.Encrypt`, so keys that live on the heap keep a copy.
-    /// It is public and fully determined by `rho`.
+    /// Public `A_hat` expanded from `rho`, cached because expanding it dominates `encrypt`.
     #[cfg(feature = "alloc")]
     A_hat: NttMatrix<P::K>,
 }
 
-// Handwritten to leave out `A_hat`, which is determined by `rho`
+// Leaves out `A_hat`, which follows from `rho`
 impl<P> fmt::Debug for EncryptionKey<P>
 where
     P: PkeParams,
@@ -164,7 +161,7 @@ where
     }
 }
 
-// Handwritten to leave out `A_hat`, which is determined by `rho`
+// Leaves out `A_hat`, which follows from `rho`
 impl<P> PartialEq for EncryptionKey<P>
 where
     P: PkeParams,
@@ -183,8 +180,7 @@ where
     /// Encrypt the specified message for the holder of the corresponding decryption key, using the
     /// provided randomness, according the `K-PKE.Encrypt` procedure.
     pub(crate) fn encrypt(&self, message: &B32, randomness: &B32) -> Ciphertext<P> {
-        // Expand the public matrix before sampling anything secret, in the order of Algorithm 14
-        // (steps 4-8, then 9-17).
+        // Algorithm 14 order: the matrix (steps 4-8) before the secrets (steps 9-17).
         #[cfg(feature = "alloc")]
         let A_hat = &self.A_hat;
         #[cfg(not(feature = "alloc"))]
@@ -253,7 +249,7 @@ where
         // #1 is performed by the `EncodedEncryptionKey` type, and the following check vicariously
         // performs #2 by encoding the integer-mod-q array using our implementation of ByteEncode₁₂
         // and comparing the resulting serialization to see if it round-trips. It runs before
-        // `A_hat` is expanded, so that invalid keys are rejected cheaply.
+        // expanding `A_hat`, so invalid keys are rejected cheaply.
         if P::encode_u12(&t_hat) != *t_hat_enc {
             return Err(InvalidKey);
         }
@@ -348,5 +344,34 @@ mod test {
         key_inequality_test::<MlKem512>();
         key_inequality_test::<MlKem768>();
         key_inequality_test::<MlKem1024>();
+    }
+
+    /// `PartialEq` compares `t_hat` and `rho`.
+    #[test]
+    fn encryption_key_equality() {
+        let (_, ek) = DecryptionKey::<MlKem768>::generate(&B32::from([1; 32]));
+        assert_eq!(ek, ek.clone());
+
+        let mut other_rho = ek.clone();
+        other_rho.rho[0] ^= 1;
+        assert_ne!(ek, other_rho);
+
+        let mut other_t_hat = ek.clone();
+        other_t_hat.t_hat.0[0].0[0].0 ^= 1;
+        assert_ne!(ek, other_t_hat);
+    }
+
+    /// `Debug` matches the former derived output and omits the cache.
+    #[test]
+    fn encryption_key_debug() {
+        extern crate alloc;
+        use alloc::format;
+
+        let (_, ek) = DecryptionKey::<MlKem768>::generate(&B32::from([1; 32]));
+        let expected = format!(
+            "EncryptionKey {{ t_hat: {:?}, rho: {:?} }}",
+            ek.t_hat, ek.rho
+        );
+        assert_eq!(format!("{ek:?}"), expected);
     }
 }

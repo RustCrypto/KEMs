@@ -1,22 +1,11 @@
-//! Accumulated test vectors, using the procedure of the C2SP CCTV "accumulated" vectors:
+//! Accumulated test vectors, following the C2SP CCTV procedure:
 //! <https://github.com/C2SP/CCTV/tree/main/ML-KEM>
 //!
-//! A SHAKE-128 instance with empty input provides `d`, `z`, `m` and a random ciphertext for each
-//! test. The encapsulation key, the expanded decapsulation key, the ciphertext, the shared key from
-//! encapsulation and the shared key from decapsulating the random ciphertext are absorbed into a
-//! second SHAKE-128 instance, whose first 32 bytes of output are compared to the expected value.
+//! One SHAKE-128 stream supplies the inputs and a second one hashes all outputs. CCTV's published
+//! hashes target the FIPS 203 draft (`G(d)` instead of `G(d || k)`), so these values are for final
+//! FIPS 203, computed with libcrux-ml-kem 0.0.11.
 //!
-//! The hashes published by CCTV target the FIPS 203 initial public draft, whose K-PKE.KeyGen
-//! derives its seeds as `G(d)` rather than `G(d || k)`, so they cannot match the final standard.
-//! The expected values below were computed for FIPS 203 with libcrux-ml-kem 0.0.11. ml-kem 0.3.4
-//! matches the 100 and 10,000 test runs.
-//!
-//! The 100-test run is part of the normal test suite. The longer runs exercise the rare paths of
-//! `SampleNTT` that need extra XOF blocks and are ignored by default:
-//!
-//! ```text
-//! cargo test --release --test accumulated -- --ignored
-//! ```
+//! Longer runs are ignored by default: `cargo test --release --test accumulated -- --ignored`
 
 #![allow(clippy::unwrap_used, missing_docs)]
 
