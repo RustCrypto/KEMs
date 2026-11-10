@@ -65,14 +65,12 @@ pub mod random {
     /// Batcher bitonic sort on `n` elements of `x`, dispatching to SIMD when available.
     #[allow(unsafe_code)]
     pub fn sort(x: &mut [i32], n: usize) {
-        #[cfg(all(
-            target_arch = "x86_64",
-            target_feature = "avx2",
-            not(feature = "force-scalar")
-        ))]
-        // SAFETY: AVX2 verified by cfg
-        unsafe {
-            return sort_avx2(x, n);
+        #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
+        if crate::cpu::has_avx2() {
+            // SAFETY: AVX2 support was detected at runtime.
+            unsafe {
+                return sort_avx2(x, n);
+            }
         }
         #[cfg(all(target_arch = "aarch64", not(feature = "force-scalar")))]
         // SAFETY: NEON is baseline on aarch64
@@ -113,11 +111,7 @@ pub mod random {
 
     /// AVX2-accelerated Batcher bitonic sort.
     /// Uses _mm256_min/max_epi32 for 8 parallel comparators when stride >= 8.
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
     #[target_feature(enable = "avx2")]
     #[allow(unsafe_code)]
     unsafe fn sort_avx2(x: &mut [i32], n: usize) {
@@ -147,11 +141,7 @@ pub mod random {
 
     /// Process one pass of comparators: `minmax(x[i+off0], x[i+off1])`
     /// for all i in 0..(n-off1) where i & p_mask == 0.
-    #[cfg(all(
-        target_arch = "x86_64",
-        target_feature = "avx2",
-        not(feature = "force-scalar")
-    ))]
+    #[cfg(all(target_arch = "x86_64", not(feature = "force-scalar")))]
     #[target_feature(enable = "avx2")]
     #[allow(unsafe_code)]
     unsafe fn minmax_pass_avx2(x: &mut [i32], n: usize, p_mask: usize, off0: usize, off1: usize) {
