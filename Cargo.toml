@@ -5,6 +5,7 @@ members = [
     "frodo-kem",
     "ml-kem",
     "hqc-kem",
+    "hybrid-kem",
     "module-lattice",
     "sntrup-kem",
     "x-wing"
