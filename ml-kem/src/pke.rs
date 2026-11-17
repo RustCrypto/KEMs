@@ -1,7 +1,8 @@
 use crate::B32;
 use crate::algebra::{
-    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, matrix_sample_ntt, sample_poly_cbd,
-    sample_poly_vec_cbd,
+    Ntt, NttInverse, NttMatrix, NttVector, Polynomial, Vector, matrix_multiply, matrix_sample_ntt,
+    matrix_transpose_multiply, multiply_accumulate, ntt_vector_add, poly_add, poly_sub, prepare,
+    sample_poly_cbd, sample_poly_vec_cbd, vector_add,
 };
 use crate::compress::Compress;
 use crate::crypto::{G, PRF};
@@ -88,11 +89,16 @@ where
         let e_hat = e.ntt();
 
         // Compute the public value
-        let t_hat = &(&A_hat * &s_hat) + &e_hat;
+        let t_hat = ntt_vector_add(&matrix_multiply(&A_hat.0, &prepare(&s_hat)), &e_hat);
 
         // Assemble the keys
         let dk = DecryptionKey { s_hat };
-        let ek = EncryptionKey { t_hat, rho };
+        let ek = EncryptionKey {
+            t_hat,
+            rho,
+            #[cfg(feature = "alloc")]
+            A_hat,
+        };
         (dk, ek)
     }
 
@@ -108,8 +114,8 @@ where
         v.decompress::<P::Dv>();
 
         let u_hat = u.ntt();
-        let sTu = (&self.s_hat * &u_hat).ntt_inverse();
-        let mut w = &v - &sTu;
+        let sTu = multiply_accumulate(&self.s_hat, &prepare(&u_hat)).ntt_inverse();
+        let mut w = poly_sub(&v, &sTu);
         Encode::<U1>::encode(w.compress::<U1>())
     }
 
@@ -127,14 +133,45 @@ where
 
 /// An `EncryptionKey` provides the ability to encrypt a value so that it can only be
 /// decrypted by the holder of the corresponding decapsulation key.
-#[derive(Clone, Default, Debug, Eq, PartialEq)]
+///
+/// No `Default`: the cached matrix must match `rho`.
+#[derive(Clone)]
 pub(crate) struct EncryptionKey<P>
 where
     P: PkeParams,
 {
     t_hat: NttVector<P::K>,
     rho: B32,
+
+    /// Public `A_hat` expanded from `rho`, cached because expanding it dominates `encrypt`.
+    #[cfg(feature = "alloc")]
+    A_hat: NttMatrix<P::K>,
 }
+
+// Leaves out `A_hat`, which follows from `rho`
+impl<P> fmt::Debug for EncryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("EncryptionKey")
+            .field("t_hat", &self.t_hat)
+            .field("rho", &self.rho)
+            .finish()
+    }
+}
+
+// Leaves out `A_hat`, which follows from `rho`
+impl<P> PartialEq for EncryptionKey<P>
+where
+    P: PkeParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.t_hat == other.t_hat && self.rho == other.rho
+    }
+}
+
+impl<P> Eq for EncryptionKey<P> where P: PkeParams {}
 
 impl<P> EncryptionKey<P>
 where
@@ -143,22 +180,28 @@ where
     /// Encrypt the specified message for the holder of the corresponding decryption key, using the
     /// provided randomness, according the `K-PKE.Encrypt` procedure.
     pub(crate) fn encrypt(&self, message: &B32, randomness: &B32) -> Ciphertext<P> {
+        // Algorithm 14 order: the matrix (steps 4-8) before the secrets (steps 9-17).
+        #[cfg(feature = "alloc")]
+        let A_hat = &self.A_hat;
+        #[cfg(not(feature = "alloc"))]
+        let A_hat = &matrix_sample_ntt::<P::K>(&self.rho, false);
+
         let r = sample_poly_vec_cbd::<P::Eta1, P::K>(randomness, 0);
         let e1 = sample_poly_vec_cbd::<P::Eta2, P::K>(randomness, P::K::U8);
 
         let prf_output = PRF::<P::Eta2>(randomness, 2 * P::K::U8);
         let e2: Polynomial = sample_poly_cbd::<P::Eta2>(&prf_output);
 
-        let A_hat_t: NttMatrix<P::K> = matrix_sample_ntt(&self.rho, true);
         let r_hat: NttVector<P::K> = r.ntt();
-        let ATr: Vector<P::K> = (&A_hat_t * &r_hat).ntt_inverse();
-        let mut u = ATr + e1;
+        let r_hat = prepare(&r_hat);
+        let ATr: Vector<P::K> = matrix_transpose_multiply(&A_hat.0, &r_hat).ntt_inverse();
+        let mut u = vector_add(&ATr, &e1);
 
         let mut mu: Polynomial = Encode::<U1>::decode(message);
         mu.decompress::<U1>();
 
-        let tTr: Polynomial = (&self.t_hat * &r_hat).ntt_inverse();
-        let mut v = &(&tTr + &e2) + &mu;
+        let tTr: Polynomial = multiply_accumulate(&self.t_hat, &r_hat).ntt_inverse();
+        let mut v = poly_add(&poly_add(&tTr, &e2), &mu);
 
         let c1 = Encode::<P::Du>::encode(u.compress::<P::Du>());
         let c2 = Encode::<P::Dv>::encode(v.compress::<P::Dv>());
@@ -177,12 +220,8 @@ where
     /// Returns [`InvalidKey`] in the event that the key fails the encapsulation key checks
     /// specified in FIPS 203 §7.2.
     pub(crate) fn from_bytes(enc: &EncodedEncryptionKey<P>) -> Result<Self, InvalidKey> {
-        let (t_hat, rho) = P::split_ek(enc);
-        let t_hat = P::decode_u12(t_hat);
-        let ret = Self {
-            t_hat,
-            rho: rho.clone(),
-        };
+        let (t_hat_enc, rho) = P::split_ek(enc);
+        let t_hat = P::decode_u12(t_hat_enc);
 
         // Check the candidate encapsulation key is valid using the method specified in FIPS 203
         // §7.2 ML-KEM Encapsulation:
@@ -209,12 +248,18 @@ where
         //
         // #1 is performed by the `EncodedEncryptionKey` type, and the following check vicariously
         // performs #2 by encoding the integer-mod-q array using our implementation of ByteEncode₁₂
-        // and comparing the resulting serialization to see if it round-trips.
-        if &ret.to_bytes() == enc {
-            Ok(ret)
-        } else {
-            Err(InvalidKey)
+        // and comparing the resulting serialization to see if it round-trips. It runs before
+        // expanding `A_hat`, so invalid keys are rejected cheaply.
+        if P::encode_u12(&t_hat) != *t_hat_enc {
+            return Err(InvalidKey);
         }
+
+        Ok(Self {
+            t_hat,
+            rho: rho.clone(),
+            #[cfg(feature = "alloc")]
+            A_hat: matrix_sample_ntt(rho, false),
+        })
     }
 }
 
@@ -299,5 +344,34 @@ mod test {
         key_inequality_test::<MlKem512>();
         key_inequality_test::<MlKem768>();
         key_inequality_test::<MlKem1024>();
+    }
+
+    /// `PartialEq` compares `t_hat` and `rho`.
+    #[test]
+    fn encryption_key_equality() {
+        let (_, ek) = DecryptionKey::<MlKem768>::generate(&B32::from([1; 32]));
+        assert_eq!(ek, ek.clone());
+
+        let mut other_rho = ek.clone();
+        other_rho.rho[0] ^= 1;
+        assert_ne!(ek, other_rho);
+
+        let mut other_t_hat = ek.clone();
+        other_t_hat.t_hat.0[0].0[0].0 ^= 1;
+        assert_ne!(ek, other_t_hat);
+    }
+
+    /// `Debug` matches the former derived output and omits the cache.
+    #[test]
+    fn encryption_key_debug() {
+        extern crate alloc;
+        use alloc::format;
+
+        let (_, ek) = DecryptionKey::<MlKem768>::generate(&B32::from([1; 32]));
+        let expected = format!(
+            "EncryptionKey {{ t_hat: {:?}, rho: {:?} }}",
+            ek.t_hat, ek.rho
+        );
+        assert_eq!(format!("{ek:?}"), expected);
     }
 }
