@@ -118,7 +118,6 @@ mod error;
 pub use error::*;
 
 use alloc::vec::Vec;
-use core::marker::PhantomData;
 use ctutils::{Choice, CtEq};
 use hazmat::*;
 use rand_core::CryptoRng;
@@ -310,9 +309,25 @@ impl AsRef<[u8]> for EncryptionKey {
 
 impl From<&DecryptionKey> for EncryptionKey {
     fn from(secret_key: &DecryptionKey) -> Self {
+        // secret_key.algorithm is read directly from the key being
+        // converted, so the algorithm-mismatch branch can never trigger
+        // here. The length-validation branch, in principle, still can:
+        // DecryptionKey derives Default, which (unlike its validating
+        // constructors, e.g. decryption_key_from_bytes) produces an empty
+        // `value` with no length check. That was already an unusable key
+        // that panicked here before this change too, on an out-of-bounds
+        // slice index inside the old unchecked implementation -- this
+        // expect just gives that same pre-existing footgun a clearer error
+        // message instead of a raw slice-bounds panic. Not addressed here,
+        // since it's a separate, pre-existing concern from the algorithm/
+        // length check this fix adds (see #381).
         secret_key
             .algorithm
             .encryption_key_from_decryption_key(secret_key)
+            .expect(
+                "DecryptionKey must be built via a validating constructor \
+                 (e.g. decryption_key_from_bytes), not Default::default()",
+            )
     }
 }
 
@@ -974,8 +989,16 @@ impl Algorithm {
     }
 
     /// Get the [`EncryptionKey`] from a [`DecryptionKey`]
-    #[must_use]
-    pub fn encryption_key_from_decryption_key(&self, secret_key: &DecryptionKey) -> EncryptionKey {
+    ///
+    /// # Errors
+    ///
+    /// Returns [`Error::AlgorithmMismatch`] if `secret_key` is tagged for a
+    /// different algorithm than `self`, and [`Error::InvalidSecretKeyLength`]
+    /// if it is not the correct length for `self`'s algorithm.
+    pub fn encryption_key_from_decryption_key(
+        &self,
+        secret_key: &DecryptionKey,
+    ) -> FrodoResult<EncryptionKey> {
         match self {
             #[cfg(feature = "frodo640aes")]
             Self::FrodoKem640Aes => {
@@ -1027,12 +1050,15 @@ impl Algorithm {
     fn inner_encryption_key_from_decryption_key<B: Params>(
         &self,
         secret_key: &DecryptionKey,
-    ) -> EncryptionKey {
-        let sk = DecryptionKeyRef::<B>(secret_key.value.as_slice(), PhantomData);
-        EncryptionKey {
+    ) -> FrodoResult<EncryptionKey> {
+        if secret_key.algorithm != *self {
+            return Err(Error::AlgorithmMismatch);
+        }
+        let sk = DecryptionKeyRef::<B>::from_slice(secret_key.value.as_slice())?;
+        Ok(EncryptionKey {
             algorithm: *self,
             value: sk.public_key().to_vec(),
-        }
+        })
     }
 
     /// Obtain a secret key from a byte slice
@@ -1699,6 +1725,29 @@ mod tests {
     use super::*;
     use rand_core::{Rng, SeedableRng};
     use rstest::*;
+
+    // Regression test for the `encryption_key_from_decryption_key` API-contract
+    // gap: unlike its siblings `encapsulate_with_rng`/`decapsulate`, it neither
+    // checked the algorithm tag nor length-validated via `DecryptionKeyRef::from_slice`.
+    // A correctly-tagged, correctly-sized decryption key for one parameter set,
+    // handed to a different (larger) parameter set, panicked on an out-of-bounds
+    // slice instead of returning `Error::AlgorithmMismatch`.
+    #[test]
+    fn encryption_key_from_decryption_key_rejects_algorithm_mismatch() {
+        // No genuine key material needed to reach this -- an all-zero buffer of
+        // the correct length is accepted as a (structurally valid) decryption key.
+        let bytes = vec![0u8; Algorithm::FrodoKem640Aes.params().decryption_key_length];
+        let dk = Algorithm::FrodoKem640Aes
+            .decryption_key_from_bytes(&bytes)
+            .expect("correctly-sized buffer must be accepted");
+
+        let result = Algorithm::FrodoKem1344Shake.encryption_key_from_decryption_key(&dk);
+        assert!(
+            matches!(result, Err(Error::AlgorithmMismatch)),
+            "expected Err(AlgorithmMismatch) for a decryption key tagged for a \
+             different, smaller parameter set, got {result:?}"
+        );
+    }
 
     #[test]
     fn conformance_boundaries_and_implicit_rejection() {
