@@ -36,7 +36,7 @@ where
     D: ArraySize + Rem<N>,
     Mod<D, N>: Zero,
 {
-    #[allow(clippy::integer_division_remainder_used)]
+    #[allow(clippy::integer_division_remainder_used, reason = "tests")]
     fn repeat(&self) -> Array<T, D> {
         Array::from_fn(|i| self[i % N::USIZE].clone())
     }
@@ -46,7 +46,7 @@ where
 // byte_encode / byte_decode tests
 // ========================================
 
-#[allow(clippy::integer_division_remainder_used)]
+#[allow(clippy::integer_division_remainder_used, reason = "tests")]
 fn byte_codec_test<D>(decoded: &DecodedValue, encoded: &EncodedPolynomial<D>)
 where
     D: EncodingSize,
