@@ -19,6 +19,8 @@ mod encoding;
 /// Support for optional heap offload gated on the `alloc` feature.
 mod maybe_box;
 
+pub mod montgomery;
+
 /// Integer truncation support.
 mod truncate;
 
