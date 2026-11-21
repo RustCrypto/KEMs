@@ -1,27 +1,30 @@
-//! Signed 16-bit Montgomery arithmetic for the NTT and NTT-domain products.
-//!
-//! Coefficients stay partially reduced as `i16` and are reduced only with Montgomery and Barrett
-//! (multiply, shift, add), so there are no secret-dependent selects. Kernels return `[0, q)`.
+//! ML-KEM on the shared `module-lattice` Montgomery kernels, plus the FIPS 203 base-case multiply.
 
-use super::{Elem, GAMMA, NttPolynomial, NttVector, ZETA_POW_BITREV};
+use super::{BaseField, Elem, GAMMA, NttPolynomial, NttVector};
 use array::{Array, ArraySize, typenum::U256};
+use module_lattice::{
+    Field,
+    montgomery::{self, MontgomeryField, Params, Zetas},
+};
 
-pub(super) const Q: i16 = 3329;
+pub(super) use module_lattice::montgomery::{add, canonicalize, sub};
 
-/// `q^-1 mod 2^16`.
-const QINV: i16 = -3327;
+impl MontgomeryField for BaseField {
+    type Lane = i16;
 
-/// `R = 2^16 mod q`.
-#[allow(clippy::integer_division_remainder_used, reason = "constant")]
-const R_MOD_Q: i32 = (1 << 16) % Q as i32;
+    const MONTGOMERY: Params<i16> = Params::<i16>::new(<Self as Field>::Q);
 
-/// `R^2 mod q`.
-#[allow(clippy::integer_division_remainder_used, reason = "constant")]
-const R2: i16 = centered((R_MOD_Q * R_MOD_Q) % Q as i32);
+    fn reduce(a: i16) -> i16 {
+        barrett_reduce(a)
+    }
+}
 
-/// `R / 128 mod q`, the final scaling of `NTT^-1` in Montgomery form.
-#[allow(clippy::integer_division_remainder_used, reason = "constant")]
-const INV_NTT_SCALE: i16 = centered((3303 * R_MOD_Q) % Q as i32);
+const Q: i16 = BaseField::MONTGOMERY.q();
+
+const R2: i16 = BaseField::MONTGOMERY.r2();
+
+/// FIPS 203 `zeta = 17`.
+const ZETAS: Zetas<i16, 128> = Zetas::<i16, 128>::new(BaseField::MONTGOMERY, 17);
 
 /// Maps `[0, q)` to `[-(q-1)/2, (q-1)/2]`.
 #[allow(clippy::cast_possible_truncation, reason = "the value is below q")]
@@ -34,32 +37,12 @@ const fn centered(x: i32) -> i16 {
     }
 }
 
-/// `ZETA_POW_BITREV[i] * R mod q`, centered.
-#[allow(clippy::integer_division_remainder_used, reason = "constant")]
-const ZETAS: [i16; 128] = {
-    let mut out = [0; 128];
-    let mut i = 0;
-    while i < 128 {
-        out[i] = centered((ZETA_POW_BITREV[i].0 as i32 * R_MOD_Q) % Q as i32);
-        i += 1;
-    }
-    out
-};
-
-const ZETAS_QINV: [i16; 128] = {
-    let mut out = [0; 128];
-    let mut i = 0;
-    while i < 128 {
-        out[i] = qinv_multiple(ZETAS[i]);
-        i += 1;
-    }
-    out
-};
-
 /// `GAMMA[i] * R^2 mod q`, centered.
+#[allow(clippy::cast_lossless, reason = "`i32::from` is not const")]
 #[allow(clippy::integer_division_remainder_used, reason = "constant")]
 const GAMMAS_R2: [i16; 128] = {
-    let r2 = (R_MOD_Q * R_MOD_Q) % Q as i32;
+    let r = BaseField::MONTGOMERY.r_mod_q() as i32;
+    let r2 = (r * r) % Q as i32;
     let mut out = [0; 128];
     let mut i = 0;
     while i < 128 {
@@ -73,163 +56,34 @@ const GAMMAS_R2_QINV: [i16; 128] = {
     let mut out = [0; 128];
     let mut i = 0;
     while i < 128 {
-        out[i] = qinv_multiple(GAMMAS_R2[i]);
+        out[i] = BaseField::MONTGOMERY.qinv_multiple(GAMMAS_R2[i]);
         i += 1;
     }
     out
 };
 
-/// `a * R^-1 mod q` in `(-q, q)`, for `|a| < q * 2^15`.
+/// `a mod q` in `[-(q-1)/2, (q-1)/2]`, exact for every `i16`.
 #[inline(always)]
 #[allow(
     clippy::cast_possible_truncation,
-    reason = "truncation mod 2^16 is intended"
+    reason = "V and the high half fit in i16"
 )]
-fn montgomery_reduce(a: i32) -> i16 {
-    let t = (a as i16).wrapping_mul(QINV);
-    ((a - i32::from(t) * i32::from(Q)) >> 16) as i16
-}
-
-/// `a * b * R^-1 mod q`. Test reference for [`fqmul_const`].
-#[cfg(test)]
-fn fqmul(a: i16, b: i16) -> i16 {
-    montgomery_reduce(i32::from(a) * i32::from(b))
-}
-
-/// High 16 bits of `a * b`.
-#[inline(always)]
-#[allow(
-    clippy::cast_possible_truncation,
-    reason = "the high half of a product of two i16 values fits in i16"
-)]
-fn mulhi(a: i16, b: i16) -> i16 {
-    ((i32::from(a) * i32::from(b)) >> 16) as i16
-}
-
-/// `b * q^-1 mod 2^16`.
-const fn qinv_multiple(b: i16) -> i16 {
-    b.wrapping_mul(QINV)
-}
-
-/// `fqmul(a, b)` using only 16-bit operations, given `b_qinv = qinv_multiple(b)`
-/// (Seiler, ePrint 2018/039). Vectorizes to `pmulhw`/`pmullw`.
-#[inline(always)]
-fn fqmul_const(a: i16, b: i16, b_qinv: i16) -> i16 {
-    mulhi(a, b) - mulhi(a.wrapping_mul(b_qinv), Q)
-}
-
-/// `a mod q` in `[-(q-1)/2, (q-1)/2]`. The wrapping operations are exact because the result fits
-/// in `i16`.
-#[inline(always)]
-#[allow(clippy::cast_possible_truncation, reason = "V is below 2^15")]
 fn barrett_reduce(a: i16) -> i16 {
     #[allow(clippy::integer_division_remainder_used, reason = "constant")]
     const V: i16 = (((1 << 26) + Q as i32 / 2) / Q as i32) as i16;
-    let t = (mulhi(a, V) + (1 << 9)) >> 10;
+    let t = ((i32::from(a) * i32::from(V)) >> 16) as i16;
+    let t = (t + (1 << 9)) >> 10;
     a.wrapping_sub(t.wrapping_mul(Q))
-}
-
-/// Maps `[-q, q)` to `[0, q)`.
-///
-/// The barrier keeps LLVM from turning the sign mask into a branch on secret data, which it does
-/// on targets without conditional moves (thumbv6m). Out of line to save code size.
-#[inline(never)]
-#[allow(clippy::cast_sign_loss, reason = "the result is in [0, q)")]
-pub(super) fn canonicalize(f: &[i16; 256]) -> Array<Elem, U256> {
-    let mut masks: [i16; 256] = core::array::from_fn(|i| f[i] >> 15);
-    core::hint::black_box(&mut masks);
-    Array::from_fn(|i| Elem::new((f[i] + (masks[i] & Q)) as u16))
-}
-
-/// `a + b` for canonical inputs.
-pub(super) fn add(a: &Array<Elem, U256>, b: &Array<Elem, U256>) -> Array<Elem, U256> {
-    // In `[-q, q - 2]`.
-    let f: [i16; 256] = core::array::from_fn(|i| signed(a[i]) + signed(b[i]) - Q);
-    canonicalize(&f)
-}
-
-/// `a - b` for canonical inputs.
-pub(super) fn sub(a: &Array<Elem, U256>, b: &Array<Elem, U256>) -> Array<Elem, U256> {
-    // In `(-q, q)`.
-    let f: [i16; 256] = core::array::from_fn(|i| signed(a[i]) - signed(b[i]));
-    canonicalize(&f)
-}
-
-#[inline(always)]
-#[allow(clippy::cast_possible_wrap, reason = "the value is below q")]
-fn signed(x: Elem) -> i16 {
-    x.0 as i16
-}
-
-/// One NTT layer. Each layer grows values by less than `q`, so they stay below `8q < 2^15`.
-#[inline(always)]
-fn ntt_layer<const LEN: usize, const ITERATIONS: usize>(f: &mut [i16; 256], k: &mut usize) {
-    for block in f.chunks_exact_mut(2 * LEN).take(ITERATIONS) {
-        let (zeta, zeta_qinv) = (ZETAS[*k], ZETAS_QINV[*k]);
-        *k += 1;
-
-        let (lo, hi) = block.split_at_mut(LEN);
-        for (a, b) in lo.iter_mut().zip(hi.iter_mut()) {
-            let t = fqmul_const(*b, zeta, zeta_qinv);
-            *b = *a - t;
-            *a += t;
-        }
-    }
 }
 
 /// Algorithm 9: `NTT`.
 pub(super) fn ntt(input: &Array<Elem, U256>) -> NttPolynomial {
-    let mut f: [i16; 256] = core::array::from_fn(|i| signed(input[i]));
-    let mut k = 1;
-
-    ntt_layer::<128, 1>(&mut f, &mut k);
-    ntt_layer::<64, 2>(&mut f, &mut k);
-    ntt_layer::<32, 4>(&mut f, &mut k);
-    ntt_layer::<16, 8>(&mut f, &mut k);
-    ntt_layer::<8, 16>(&mut f, &mut k);
-    ntt_layer::<4, 32>(&mut f, &mut k);
-    ntt_layer::<2, 64>(&mut f, &mut k);
-
-    for x in &mut f {
-        *x = barrett_reduce(*x);
-    }
-    NttPolynomial::new(canonicalize(&f))
-}
-
-/// One inverse NTT layer. Values stay below `q` in absolute value.
-#[inline(always)]
-fn ntt_inverse_layer<const LEN: usize, const ITERATIONS: usize>(f: &mut [i16; 256], k: &mut usize) {
-    for block in f.chunks_exact_mut(2 * LEN).take(ITERATIONS) {
-        let (zeta, zeta_qinv) = (ZETAS[*k], ZETAS_QINV[*k]);
-        *k -= 1;
-
-        let (lo, hi) = block.split_at_mut(LEN);
-        for (a, b) in lo.iter_mut().zip(hi.iter_mut()) {
-            let t = *a;
-            *a = barrett_reduce(t + *b);
-            *b = fqmul_const(*b - t, zeta, zeta_qinv);
-        }
-    }
+    NttPolynomial::new(montgomery::ntt(input, &ZETAS))
 }
 
 /// Algorithm 10: `NTT^-1`.
 pub(super) fn ntt_inverse(input: &Array<Elem, U256>) -> Array<Elem, U256> {
-    let mut f: [i16; 256] = core::array::from_fn(|i| signed(input[i]));
-    let mut k = 127;
-
-    ntt_inverse_layer::<2, 64>(&mut f, &mut k);
-    ntt_inverse_layer::<4, 32>(&mut f, &mut k);
-    ntt_inverse_layer::<8, 16>(&mut f, &mut k);
-    ntt_inverse_layer::<16, 8>(&mut f, &mut k);
-    ntt_inverse_layer::<32, 4>(&mut f, &mut k);
-    ntt_inverse_layer::<64, 2>(&mut f, &mut k);
-    ntt_inverse_layer::<128, 1>(&mut f, &mut k);
-
-    // Scale by 128^-1.
-    for x in &mut f {
-        *x = fqmul_const(*x, INV_NTT_SCALE, qinv_multiple(INV_NTT_SCALE));
-    }
-    canonicalize(&f)
+    montgomery::ntt_inverse(input, &ZETAS)
 }
 
 /// Right operand of Algorithm 11 as `b0 * R`, `b1 * R` and `b1 * gamma * R`, computed once and
@@ -243,6 +97,7 @@ pub(crate) struct PreparedNtt {
 
 impl PreparedNtt {
     pub(crate) fn new(b: &NttPolynomial) -> Self {
+        const R2_QINV: i16 = BaseField::MONTGOMERY.qinv_multiple(R2);
         let mut out = Self {
             b0: [0; 128],
             b1: [0; 128],
@@ -250,10 +105,10 @@ impl PreparedNtt {
         };
 
         for (i, pair) in b.0.chunks_exact(2).enumerate() {
-            let r2_qinv = qinv_multiple(R2);
-            out.b0[i] = fqmul_const(signed(pair[0]), R2, r2_qinv);
-            out.b1[i] = fqmul_const(signed(pair[1]), R2, r2_qinv);
-            out.b1_gamma[i] = fqmul_const(signed(pair[1]), GAMMAS_R2[i], GAMMAS_R2_QINV[i]);
+            let (b0, b1) = (montgomery::signed(pair[0]), montgomery::signed(pair[1]));
+            out.b0[i] = montgomery::fqmul::<BaseField>(b0, R2, R2_QINV);
+            out.b1[i] = montgomery::fqmul::<BaseField>(b1, R2, R2_QINV);
+            out.b1_gamma[i] = montgomery::fqmul::<BaseField>(b1, GAMMAS_R2[i], GAMMAS_R2_QINV[i]);
         }
 
         out
@@ -271,7 +126,7 @@ pub(crate) fn multiply_accumulate<K: ArraySize>(
     a: &NttVector<K>,
     b: &Array<PreparedNtt, K>,
 ) -> NttPolynomial {
-    debug_assert!(K::USIZE <= 4);
+    const { assert!(K::USIZE <= 4) };
     accumulate(a.0.iter().zip(b.iter()))
 }
 
@@ -293,8 +148,8 @@ fn accumulate<'a>(
 
     let mut out = [0i16; 256];
     for (i, pair) in out.chunks_exact_mut(2).enumerate() {
-        pair[0] = montgomery_reduce(c0[i]);
-        pair[1] = montgomery_reduce(c1[i]);
+        pair[0] = montgomery::montgomery_reduce::<BaseField>(c0[i]);
+        pair[1] = montgomery::montgomery_reduce::<BaseField>(c1[i]);
     }
     NttPolynomial::new(canonicalize(&out))
 }
@@ -312,7 +167,7 @@ pub(crate) fn matrix_transpose_multiply<K: ArraySize>(
     rows: &Array<NttVector<K>, K>,
     v: &Array<PreparedNtt, K>,
 ) -> NttVector<K> {
-    debug_assert!(K::USIZE <= 4);
+    const { assert!(K::USIZE <= 4) };
     NttVector::new(Array::from_fn(|i| {
         accumulate(rows.iter().map(|row| &row.0[i]).zip(v.iter()))
     }))
@@ -331,8 +186,6 @@ pub(crate) fn matrix_transpose_multiply<K: ArraySize>(
 )]
 mod tests {
     use super::*;
-    use crate::algebra::BaseField;
-    use module_lattice::Field;
 
     fn modq(x: i64) -> i64 {
         x.rem_euclid(i64::from(Q))
@@ -340,16 +193,10 @@ mod tests {
 
     #[test]
     fn constants() {
-        assert_eq!(i32::from(Q), i32::from(BaseField::Q));
-        assert_eq!((i32::from(Q) * i32::from(QINV)) & 0xffff, 1);
         assert_eq!(modq(i64::from(R2)), modq(1 << 32));
-        assert_eq!(modq(i64::from(INV_NTT_SCALE) * 128), modq(1 << 16));
         for i in 0..128 {
-            let z = i64::from(ZETA_POW_BITREV[i].0);
             let g = i64::from(GAMMA[i].0);
-            assert_eq!(modq(i64::from(ZETAS[i])), modq(z << 16));
             assert_eq!(modq(i64::from(GAMMAS_R2[i])), modq(modq(g << 16) << 16));
-            assert!(ZETAS[i].abs() <= (Q - 1) / 2);
             assert!(GAMMAS_R2[i].abs() <= (Q - 1) / 2);
         }
     }
@@ -362,43 +209,6 @@ mod tests {
         assert_eq!(centered(3328), -1);
     }
 
-    /// Strided over the whole domain, plus both ends.
-    #[test]
-    fn montgomery_reduce_domain() {
-        let bound = i32::from(Q) << 15;
-        let check = |a: i32| {
-            let r = montgomery_reduce(a);
-            assert!(r.abs() < Q, "a = {a}");
-            assert_eq!(modq(i64::from(r) << 16), modq(i64::from(a)), "a = {a}");
-        };
-        let mut a = -bound + 1;
-        while a < bound {
-            check(a);
-            a += 97;
-        }
-        for a in [-bound + 1, -bound + 2, -1, 0, 1, bound - 2, bound - 1] {
-            check(a);
-        }
-    }
-
-    /// Every kernel constant, every input below `8q`.
-    #[test]
-    fn fqmul_all_constants() {
-        let constants = ZETAS
-            .iter()
-            .chain(GAMMAS_R2.iter())
-            .chain([R2, INV_NTT_SCALE].iter());
-        for &c in constants {
-            for a in (-8 * i32::from(Q) + 1)..(8 * i32::from(Q)) {
-                let a = a as i16;
-                let r = fqmul(a, c);
-                assert_eq!(fqmul_const(a, c, qinv_multiple(c)), r);
-                assert!(r.abs() < Q);
-                assert_eq!(modq(i64::from(r) << 16), modq(i64::from(a) * i64::from(c)));
-            }
-        }
-    }
-
     #[test]
     fn barrett_reduce_exhaustive() {
         for a in i16::MIN..=i16::MAX {
@@ -407,37 +217,6 @@ mod tests {
             assert_eq!(i32::from(r), i32::from(a) - t * i32::from(Q), "a = {a}");
             assert!(r.abs() <= (Q - 1) / 2, "a = {a}");
             assert_eq!(modq(i64::from(r)), modq(i64::from(a)), "a = {a}");
-        }
-    }
-
-    #[test]
-    fn canonicalize_exhaustive() {
-        let inputs: [i16; 2 * Q as usize - 1] = core::array::from_fn(|i| i as i16 - Q + 1);
-        for chunk in inputs.chunks(256) {
-            let mut f = [0i16; 256];
-            f[..chunk.len()].copy_from_slice(chunk);
-            let out = canonicalize(&f);
-            for (a, r) in f.iter().zip(out.iter()) {
-                assert!(r.0 < BaseField::Q);
-                assert_eq!(i64::from(r.0), modq(i64::from(*a)));
-            }
-        }
-    }
-
-    #[test]
-    fn add_sub_exhaustive() {
-        for a in 0..BaseField::Q {
-            let lhs = Array::from_fn(|_| Elem::new(a));
-            for chunk in 0..BaseField::Q.div_ceil(256) {
-                let rhs: Array<Elem, U256> =
-                    Array::from_fn(|i| Elem::new((chunk * 256 + i as u16) % BaseField::Q));
-                let sum = add(&lhs, &rhs);
-                let difference = sub(&lhs, &rhs);
-                for i in 0..256 {
-                    assert_eq!(sum[i], lhs[i] + rhs[i]);
-                    assert_eq!(difference[i], lhs[i] - rhs[i]);
-                }
-            }
         }
     }
 
