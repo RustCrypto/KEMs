@@ -248,6 +248,10 @@ macro_rules! mlkem_decaps_test {
                         continue;
                     }
                     let dk = dk_result.unwrap();
+                    assert_eq!(
+                        test.ek.as_slice(),
+                        dk.encapsulation_key().to_bytes().as_slice()
+                    );
 
                     let test_c: Ciphertext = match decode_optional_hex(&test.c, "c") {
                         Some(dk) => dk,
@@ -257,7 +261,10 @@ macro_rules! mlkem_decaps_test {
                         }
                     };
 
-                    let _ss = dk.decapsulate(&test_c);
+                    assert_eq!(test.result, ExpectedResult::Valid);
+                    let ss = dk.decapsulate(&test_c);
+                    let expected: ml_kem::SharedKey = decode_expected_hex(&test.k, "K");
+                    assert_eq!(expected, ss);
                 }
             }
         }
